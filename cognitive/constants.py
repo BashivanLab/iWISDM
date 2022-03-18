@@ -23,9 +23,10 @@ import itertools
 import string
 import os
 import numpy as np
+import pandas as pd
 
 AVG_MEM = 4
-MAX_MEMORY = 4
+MAX_MEMORY = 1
 LASTMAP = {}
 for k in range(MAX_MEMORY + 1):
     LASTMAP["last%d" % (k)] = k
@@ -52,17 +53,36 @@ def get_target_value(t):
     return t
 
 
+dir_path = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))),
+                        'data')
+if not os.path.exists(dir_path):
+    print('Data folder does not exist.')
+
+shapnet_path = os.path.join(dir_path, 'min_shapenet_easy_angle')
+pickle_path = os.path.join(shapnet_path, 'train_min_shapenet_angle_easy_meta.pkl')
+images_path = os.path.join(shapnet_path, 'org_shapenet/train')
+
+df: pd.DataFrame = pd.read_pickle(pickle_path)
+MOD_DICT = dict()
+MOD_DICT = dict()
+for i in df['ctg_mod'].unique():
+    MOD_DICT[i] = dict()
+    for cat in df.loc[df['ctg_mod'] == i]['obj_mod'].unique():
+        MOD_DICT[i][cat] = list(df.loc[(df['ctg_mod'] == i)
+                                       & (df['obj_mod'] == cat)]['ang_mod'].unique())
+
+
 OBJECTPERCATEGORY = 14
 CATEGORIES = 12
 VIEW_ANGLES = 4
 ID2Category = {i: None for i in range(CATEGORIES)}
-ID2Object = {i: None for i in range(CATEGORIES*OBJECTPERCATEGORY)}
+ID2Object = {i: None for i in range(CATEGORIES * OBJECTPERCATEGORY)}
 ID2ViewAngle = {i: None for i in range(VIEW_ANGLES)}
 
 ALLSPACES = ['left', 'right', 'top', 'bottom']
-ALLCATEGORIES = list(ID2Category.keys())
-ALLVIEWANGLES = list(ID2ViewAngle.keys())
-ALLOBJECTS = {c: list(range(OBJECTPERCATEGORY)) for c in ALLCATEGORIES}
+ALLCATEGORIES = list(MOD_DICT.keys())
+ALLOBJECTS = {c: list(MOD_DICT[c].keys()) for c in MOD_DICT}
+ALLVIEWANGLES = MOD_DICT
 # Comment out the following to use a smaller set of colors and shapes
 # ALLCOLORS += [
 #     'cyan', 'magenta', 'lime', 'pink', 'teal', 'lavender', 'brown', 'beige',
@@ -72,6 +92,7 @@ ALLOBJECTS = {c: list(range(OBJECTPERCATEGORY)) for c in ALLCATEGORIES}
 INVALID = 'invalid'
 
 # Allowed vocabulary, the first word is invalid
+# TODO: add ShapeNet vocab
 INPUTVOCABULARY = [
                       'invalid',
                       '.', ',', '?',
@@ -82,20 +103,16 @@ INPUTVOCABULARY = [
                       'equal', 'and',
                       'the', 'of', 'with',
                       'point',
-                  ] + ALLSPACES + ALLCATEGORIES + ALLVIEWANGLES + ALLWHENS
+                  ] + ALLSPACES + ALLCATEGORIES + ALLWHENS
 # For faster str -> index lookups
 INPUTVOCABULARY_DICT = dict([(k, i) for i, k in enumerate(INPUTVOCABULARY)])
 
 INPUTVOCABULARY_SIZE = len(INPUTVOCABULARY)
 
-OUTPUTVOCABULARY = ['true', 'false'] + [ALLOBJECTS[c] for c in ALLOBJECTS] + ALLVIEWANGLES
+OUTPUTVOCABULARY = ['true', 'false'] + ALLCATEGORIES + [ALLOBJECTS[c] for c in ALLOBJECTS]
 
 # Maximum number of words in a sentence
 MAXSEQLENGTH = 25
-dir_path = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))),
-                        'data')
-if not os.path.exists(dir_path):
-    print('Data folder does not exist.')
 
 
 # If use popvec out_type

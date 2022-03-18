@@ -65,7 +65,7 @@ class TaskInfoCompo(object):
                 'question': str(task),
                 'objects': [o.dump() for o in self.task_objset[i]],
                 'answers': [const.get_target_value(t) for t in task.get_target(self.task_objset[i])],
-                'first_shareable': int(task.first_shareable)
+                'first_shareable': int(task.first_shareable),
             })
         return examples
 
@@ -92,7 +92,45 @@ class TaskInfoCompo(object):
                         obj.loc = frame_obj.loc
         return objset
 
-    def merge(self, new_task_info, reuse=None):
+    def reuse_merge(self, new_task_info):
+        new_task = new_task_info.tasks[0]
+        new_task_copy: tg.TemporalTask = new_task.copy()
+
+        new_task_idx = len(self.tasks)
+        self.frame_info.first_shareable = 0
+        start = self.frame_info.get_start_frame(new_task_info, relative_tasks={new_task_idx})
+        objset = sg.ObjectSet(n_epoch=new_task_copy.n_frames, n_max_backtrack=(int(new_task_copy.avg_mem) * 3))
+        changed = False
+        # change the necessary selects first
+        for i, (old_frame, new_frame) in enumerate(zip(self.frame_info[start:], new_task_info.frame_info)):
+            lastk = 'last%d' % (len(new_task_info.frame_info) - i - 1)
+            # if there are no objects in the one of the frames, then freely merge
+            if old_frame.objs and new_frame.objs:
+                filter_objs = new_task.reinit(new_task_copy, old_frame.objs, lastk)
+                if filter_objs:
+                    changed = True
+                    for obj in filter_objs:
+                        objset.add(obj=obj.copy(), epoch_now=i)
+                else:
+                    raise RuntimeError('Unable to reuse')
+
+        # get new objset for new task based on updated operators and merge
+
+        if changed:
+            # guess objset based on existing objects
+            new_objset = new_task_copy.guess_objset(objset, new_task_copy.n_frames - 1)
+            updated_fi = FrameInfo(new_task_copy, new_objset)
+            FrameInfo.update_relative_tasks(updated_fi, relative_tasks={new_task_idx})
+            for i, (old_frame, new_frame) in enumerate(zip(self.frame_info[start:], updated_fi)):
+                old_frame.compatible_merge(new_frame)
+
+            self.changed.append((new_task_idx, new_task, new_task_copy))
+            self.task_objset[new_task_idx] = new_objset
+        else:
+            self.task_objset[new_task_idx] = new_task_info.task_objset[0]
+        self.tasks.append(new_task)
+
+    def merge(self, new_task_info, reuse=1):
         """
         combine new task to the existing composite task
         :param reuse: probability of reusing visual stimuli from previous composite task
@@ -104,25 +142,35 @@ class TaskInfoCompo(object):
         if len(new_task_info.tasks) > 1:
             raise NotImplementedError('Currently cannot support adding new composite tasks')
 
+        if reuse is None:
+            reuse = 0.5
+        elif reuse == 1:
+            return self.reuse_merge(new_task_info)
+
         new_task = new_task_info.tasks[0]
         new_task_copy: tg.TemporalTask = new_task.copy()
         new_task_idx = len(self.tasks)
-        if reuse is None:
-            reuse = 0.5
 
         start = self.frame_info.get_start_frame(new_task_info, relative_tasks={new_task_idx})
 
         changed = False
+        # TODO: fix action space
         for i, (old_frame, new_frame) in enumerate(zip(self.frame_info[start:], new_task_info.frame_info)):
-            # if there are no objects in the frame, then freely merge
+            lastk = 'last%d' % (len(new_task_info.frame_info) - i - 1)
+
+            # if there are no objects in the one of the frames, then freely merge
             if not old_frame.objs or not new_frame.objs:
                 old_frame.compatible_merge(new_frame)  # always update frame descriptions
             else:
                 # reuse stimuli with probability reuse
                 if np.random.random() < reuse:
                     # check how many selects and if there are enough objects for the selects
-                    if new_task.reinit(old_frame.objs) and new_task_copy.reinit(old_frame.objs, True):
+                    if new_task.reinit(old_frame.objs, lastk, hard_update=False) and \
+                            new_task_copy.reinit(old_frame.objs, lastk, hard_update=True):
                         changed = True
+                        # select: object: view_angle: cateogry:
+
+                        # what was the cateogry 1, object 2, viewangle 3 object
                     else:
                         old_frame.compatible_merge(new_frame)
                 else:
@@ -130,14 +178,13 @@ class TaskInfoCompo(object):
         if changed:
             self.changed.append((new_task_idx, new_task, new_task_copy))
             self.task_objset[new_task_idx] = self.get_changed_task_objset(new_task_copy)
-            print(self.task_objset[new_task_idx], i)
         else:
             self.task_objset[new_task_idx] = new_task_info.task_objset[0]
         self.tasks.append(new_task)
 
 
 class FrameInfo(object):
-    def __init__(self, task, objset=None):
+    def __init__(self, task, objset):
         """
         used for combining multiple temporal tasks, initialize with 1 task,
         stores each frame object in frame_list
@@ -164,10 +211,10 @@ class FrameInfo(object):
         for i in range(n_epochs):
             description = list()
             if i == self.n_epochs - 1:
-                description.append(["ending of task %d" % 0])
+                description.append("ending of task %d" % 0)
             else:
                 if i == 0:
-                    description.append(["start of task %d" % 0])
+                    description.append("start of task %d" % 0)
             self.frame_list.append(self.Frame(fi=self,
                                               idx=i,
                                               relative_tasks=relative_tasks,
@@ -177,7 +224,7 @@ class FrameInfo(object):
             # iterate all objects in objset and add to each frame
             for obj in objset:
                 for epoch in range(obj.epoch[0], obj.epoch[1]):
-                    self.frame_list[epoch].objs.append(obj)
+                    self.frame_list[epoch].objs.append(obj.copy())
 
         self.first_shareable = first_shareable
 
@@ -194,6 +241,14 @@ class FrameInfo(object):
     def __getitem__(self, item):
         return self.frame_list.__getitem__(item)
 
+    def dump(self):
+        info = {i: dict() for i, frame in enumerate(self.frame_list)}
+        for i, frame in enumerate(self.frame_list):
+            info[i]['description'] = frame.description
+            info[i]['relative_tasks'] = list(frame.relative_tasks)
+            info[i]['relative_task_epoch_idx'] = frame.relative_task_epoch_idx
+        return info
+
     def add_new_frames(self, i, relative_tasks):
         """
         add new empty frames and update objset and p
@@ -209,6 +264,20 @@ class FrameInfo(object):
                                               relative_tasks=relative_tasks
                                               ))
         self.objset.increase_epoch(self.objset.n_epoch + i)
+
+    @staticmethod
+    def update_relative_tasks(new_frame_info, relative_tasks):
+        # update the relative_task info for each frame in the new task (from 0 to new task idx)
+        next_task_idx = list(relative_tasks)[0]
+        for frame in new_frame_info:
+            frame.relative_tasks = relative_tasks
+            # new_task_info should only contain 1 task
+            frame.relative_task_epoch_idx[next_task_idx] = frame.relative_task_epoch_idx.pop(0)
+            for i, description in enumerate(frame.description):
+                if 'start' in description:
+                    frame.description[i] = f'start of task {next_task_idx}'
+                if 'ending' in description:
+                    frame.description[i] = f'ending of task {next_task_idx}'
 
     def get_start_frame(self, new_task_info, relative_tasks):
         """
@@ -233,11 +302,7 @@ class FrameInfo(object):
         new_task_len = new_task_info.n_epochs
         new_first_shareable = new_task_info.tasks[0].first_shareable
 
-        # update the relative_task for each frame in the new task (from 0 to new task idx)
-        for frame in new_task_info.frame_info:
-            frame.relative_tasks = relative_tasks
-            # new_task_info should only contain 1 task
-            frame.relative_task_epoch_idx[list(relative_tasks)[0]] = frame.relative_task_epoch_idx.pop(0)
+        self.update_relative_tasks(new_task_info.frame_info, relative_tasks)
 
         if len(shareable_frames) == 0:
             # queue, add frames and start merging
@@ -313,10 +378,7 @@ class FrameInfo(object):
             self.description = self.description + new_frame.description
 
             for new_obj in new_frame.objs:
-                last_added_obj = self.fi.objset.last_added_obj
-                new_added_obj = self.fi.objset.add(new_obj, self.idx, merge_idx=self.idx)
-                if last_added_obj == new_added_obj:
-                    print('already exists')
+                self.fi.objset.add(new_obj.copy(), self.idx, merge_idx=self.idx)
             for epoch, obj_list in self.fi.objset.dict.items():
                 if epoch == self.idx:
                     self.objs = obj_list.copy()

@@ -39,6 +39,7 @@ from PIL import Image
 import pandas as pd
 import random
 import numpy as np
+import copy
 import string
 
 import cv2 as cv2
@@ -63,9 +64,7 @@ class Attribute(object):
 
     def __eq__(self, other):
         """Override the default Equals behavior."""
-        if isinstance(other, str):
-            return self.value == other
-        elif isinstance(other, self.__class__):
+        if isinstance(other, self.__class__):
             return self.value == other.value
         return False
 
@@ -81,6 +80,9 @@ class Attribute(object):
     # def __hash__(self):
     #     """Override the default hash behavior."""
     #     return hash(tuple(sorted(self.__dict__.items())))
+
+    def copy(self):
+        return copy.deepcopy(self)
 
     def resample(self):
         raise NotImplementedError('Abstract method.')
@@ -158,6 +160,7 @@ class Space(Attribute):
         if avoid is None:
             avoid = []
 
+        # TODO: sample from 16 points
         n_max_try = 100
         avoid_radius2 = 0.04  # avoid radius squared
         dx = (self._value[0][1] - self._value[0][0]) * 0.125
@@ -199,21 +202,6 @@ class Space(Attribute):
         return self.get_space_to(opposite_space)
 
 
-class SNObject(Attribute):
-    def __init__(self, category, value):
-        if value is not None:
-            assert isinstance(category, SNCategory)
-        super(SNObject, self).__init__(value)
-        self.attr_type = 'object'
-        self.category = category
-
-    def sample(self):
-        self.value = random_object(self.category).value
-
-    def resample(self):
-        self.value = another_object(self).value
-
-
 class SNCategory(Attribute):
     def __init__(self, value):
         super(SNCategory, self).__init__(value)
@@ -226,13 +214,42 @@ class SNCategory(Attribute):
         self.value = another_category(self).value
 
 
-class SNViewAngle(Attribute):
-    def __init__(self, value):
-        super(SNViewAngle, self).__init__(value)
-        self.attr_type = 'view_angle'
+class SNObject(Attribute):
+    def __init__(self, category, value):
+        if value is not None:
+            assert isinstance(category, SNCategory)
+        super(SNObject, self).__init__(value)
+        self.attr_type = 'object'
+        self.category = category
+
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return self.value == other.value and self.category == other.category
+        return False
+
+    def __str__(self):
+        return 'Category: ' + str(self.category) + ' Object: ' + str(self.value)
 
     def sample(self):
-        self.value = random_view_angle().value
+        self.value = random_object(self.category).value
+
+    def resample(self):
+        self.value = another_object(self).value
+
+
+class SNViewAngle(Attribute):
+    def __init__(self, sn_object, value):
+        if value is not None:
+            assert isinstance(sn_object, SNObject)
+        super(SNViewAngle, self).__init__(value)
+        self.attr_type = 'view_angle'
+        self.object = sn_object
+
+    def __str__(self):
+        return 'Object: ' + str(self.object) + ' View Angle: ' + str(self.value)
+
+    def sample(self):
+        self.value = random_view_angle(self.object).value
 
     def resample(self):
         self.value = another_view_angle(self).value
@@ -298,7 +315,7 @@ class Object(object):
       loc: tuple (x, y)
       color: string ('red', 'green', 'blue', 'white')
       shape: string ('circle', 'square')
-      when: string ('last', 'last1', 'last2',) ### todo: make it dynamic with free parameters
+      when: string ('last', 'last1', 'last2',)
       deletable: boolean. Whether or not this object is deletable. True if
         distractors.
 
@@ -315,7 +332,7 @@ class Object(object):
         self.space = Space(value=None)
         self.category = SNCategory(value=None)
         self.object = SNObject(self.category, value=None)
-        self.view_angle = SNViewAngle(value=None)
+        self.view_angle = SNViewAngle(self.object, value=None)
 
         if attrs is not None:
             for a in attrs:
@@ -349,6 +366,48 @@ class Object(object):
             str(self.deletable)
         ])
 
+    def check_attrs(self):
+        return self.object.category == self.category and \
+               self.view_angle.object == self.object
+
+    def change_category(self, category: SNCategory):
+        '''
+        change the category of the object, and resample the attributes
+        :param category:
+        :return:
+        '''
+        self.category = category
+        self.object.category = category
+        self.object.sample()
+        self.view_angle.object = self.object
+        self.view_angle.sample()
+
+    def change_object(self, obj: SNObject):
+        '''
+        change the sn_object of the object
+        :param obj:
+        :return:
+        '''
+        self.category = obj.category
+        self.object = obj
+        self.view_angle.object = obj
+        self.view_angle.sample()
+
+    def change_view_angle(self, view_angle: SNViewAngle):
+        self.category = view_angle.object.category
+        self.object = view_angle.object
+        self.view_angle = view_angle
+
+    def change_attr(self, attr):
+        if isinstance(attr, SNCategory):
+            self.change_category(attr)
+        elif isinstance(attr, SNObject):
+            self.change_object(attr)
+        elif isinstance(attr, SNViewAngle):
+            self.change_view_angle(attr)
+        else:
+            raise NotImplementedError()
+
     def compare_attrs(self, other, attrs=None):
         assert isinstance(other, Object)
 
@@ -363,9 +422,9 @@ class Object(object):
         """Returns representation of self suitable for dumping as json."""
         return {
             'location': self.loc.value,
-            'category': self.category.value,
-            'object': self.object.value,
-            'view angle': self.view_angle.value,
+            'category': int(self.category.value),
+            'object': int(self.object.value),
+            'view angle': int(self.view_angle.value),
             'epochs': (self.epoch[0] if self.epoch[0] + 1 == self.epoch[1] else
                        list(range(*self.epoch))),
             'is_distractor': self.deletable
@@ -404,6 +463,9 @@ class Object(object):
 
         return True
 
+    def copy(self):
+        return copy.deepcopy(self)
+
 
 class ObjectSet(object):
     """A collection of objects."""
@@ -425,14 +487,6 @@ class ObjectSet(object):
 
         self.last_added_obj = None  # Last added object
 
-    def copy(self):
-        copy = ObjectSet(self.n_epoch, self.n_max_backtrack)
-        copy.set = self.set.copy()
-        copy.end_epoch = self.end_epoch.copy()
-        copy.dict = self.dict.copy()
-        copy.last_added_obj = self.last_added_obj
-        return copy
-
     def __iter__(self):
         return self.set.__iter__()
 
@@ -442,12 +496,22 @@ class ObjectSet(object):
     def __len__(self):
         return len(self.set)
 
+    def copy(self):
+        objset_copy = ObjectSet(self.n_epoch, self.n_max_backtrack)
+        objset_copy.set = {obj.copy() for obj in self.set}
+        objset_copy.end_epoch = self.end_epoch.copy()
+        objset_copy.dict = {epoch: [obj.copy() for obj in objs]
+                            for epoch, objs in self.dict.items()}
+        objset_copy.last_added_obj = self.last_added_obj.copy() if self.last_added_obj is not None else None
+        return objset_copy
+
     def increase_epoch(self, new_n_epoch):
-        '''
+        """
+
         increase the number of epochs of the objset
-        :param n_epoch: new number of epochs
+        :param new_n_epoch: new number of epochs
         :return:
-        '''
+        """
         for i in range(self.n_epoch, new_n_epoch):
             self.dict[i]
         self.n_epoch = new_n_epoch
@@ -507,24 +571,19 @@ class ObjectSet(object):
             avoid = [o.loc.value for o in self.select_now(epoch_now)]
             obj.loc = obj.space.sample(avoid=avoid)
 
-        if not obj.view_angle.has_value:
-            obj.view_angle.sample()
-
-        if not obj.object.has_value and not obj.category.has_value:
-            if not obj.object.category.has_value:
-                obj.category.sample()
+        if obj.view_angle.has_value:
+            obj.object = obj.view_angle.object
+            obj.category = obj.view_angle.object.category
+        else:
+            if obj.object.has_value:
+                obj.category = obj.object.category
+            else:
+                if not obj.category.has_value:
+                    obj.category.sample()
                 obj.object.category = obj.category
                 obj.object.sample()
-            else:
-                obj.category = obj.object.category
-                obj.object.sample()
-        elif not obj.object.has_value and obj.category.has_value:
-            obj.object.category = obj.category
-            obj.object.sample()
-        elif obj.object.has_value and not obj.category.has_value:
-            obj.category = obj.object.category
-        else:
-            assert obj.category == obj.object.category
+            obj.view_angle.object = obj.object
+            obj.view_angle.sample()
 
         if obj.when is None:
             # If when is None, then object is always presented
@@ -625,7 +684,7 @@ class ObjectSet(object):
         space = space or Space(None)
         category = category or SNCategory(None)
         object = object or SNObject(category=category, value=None)
-        view_angle = view_angle or SNViewAngle(None)
+        view_angle = view_angle or SNViewAngle(sn_object=object, value=None)
 
         if not isinstance(category, SNCategory):
             raise TypeError('category has to be Category class, is instead of class ' +
@@ -701,14 +760,16 @@ def get_shapenet_object(obj, obj_size):
     images_path = os.path.join(shapnet_path, 'org_shapenet/train')
 
     df: pd.DataFrame = pd.read_pickle(pickle_path)
-    obj_cat: pd.DataFrame = df.loc[(df['category'] == obj.category) &
-                                   (df['object'] == obj.object) &
+    obj_cat: pd.DataFrame = df.loc[(df['ctg_mod'] == obj.category) &
+                                   (df['obj_mod'] == obj.object) &
                                    (df['ang_mod'] == obj.view_angle)]
-    assert len(obj_cat) > 0
+    if len(obj_cat) <= 0:
+        raise ValueError(obj.category, obj.object, obj.view_angle)
     obj_ref = int(obj_cat.sample(1)['ref'])
 
     obj_path = os.path.join(images_path, f'{obj_ref}/image.png')
     img = Image.open(obj_path).convert('RGB').resize(obj_size)
+
     return img
 
 
@@ -824,7 +885,7 @@ def render(objsets, img_size=224, save_name=None):
     n_epoch_max = max([objset.n_epoch for objset in objsets])
 
     # It's faster if use uint8 here, but later conversion to float32 seems slow
-    movie = np.zeros((n_objset * n_epoch_max, img_size, img_size, 3), np.int8)
+    movie = np.zeros((n_objset * n_epoch_max, img_size, img_size, 3), np.uint8)
 
     i_frame = 0
     for objset in objsets:
@@ -835,7 +896,6 @@ def render(objsets, img_size=224, save_name=None):
             subset = objset.select_now(epoch_now)
             for obj in subset:
                 render_obj(canvas, obj, img_size)
-
             i_frame += 1
 
     if save_name is not None:
@@ -913,35 +973,6 @@ def render_target(movie, target):
     return movie_withtarget
 
 
-def random_object(category):
-    '''
-    there are 14 objects in 12 categories
-    :param category:
-    :return: integer indicating the object id
-    '''
-    return SNObject(category=category, value=random.choice(const.ALLOBJECTS[category.value]))
-
-
-def another_object(snObject):
-    try:
-        category = snObject.category
-        all_objects = list(const.ALLOBJECTS[category.value])
-        all_objects.remove(snObject.value)
-        return SNObject(category=category, value=random.choice(all_objects))
-    except AttributeError:
-        iterator = iter(snObject)
-        try:
-            first = next(iterator)
-        except StopIteration:
-            return True
-        assert all(first.category == o.category for o in iterator)
-        category = first.category
-        all_objects = list(const.ALLOBJECTS[category.value])
-        for o in snObject:
-            all_objects.remove(o.value)
-        return SNObject(category=category, value=random.choice(all_objects))
-
-
 def random_category():
     return SNCategory(random.choice(const.ALLCATEGORIES))
 
@@ -956,28 +987,65 @@ def another_category(category):
     return SNCategory(random.choice(all_categories))
 
 
-def random_view_angle():
-    return SNViewAngle(random.choice(const.ALLVIEWANGLES))
+def random_object(category):
+    '''
+    there are 14 objects in 12 categories
+    :param category:
+    :return: integer indicating the object id
+    '''
+    return SNObject(category=category, value=random.choice(const.ALLOBJECTS[category.value]))
+
+
+def another_object(snObject):
+    try:
+        category = random_category()
+        if category == snObject.category:
+            all_objects = list(const.ALLOBJECTS[category.value])
+            all_objects.remove(snObject.value)
+            return SNObject(category=category, value=random.choice(all_objects))
+        else:
+            return random_object(category)
+    except AttributeError:
+        category = random_category()
+        all_objects = list(const.ALLOBJECTS[category.value])
+        for o in snObject:
+            all_objects.remove(o.value)
+        return SNObject(category=category, value=random.choice(all_objects))
+
+
+def random_view_angle(sn_object):
+    return SNViewAngle(sn_object=sn_object,
+                       value=random.choice(const.ALLVIEWANGLES[sn_object.category.value][sn_object.value]))
 
 
 def another_view_angle(view_angle):
-    all_viewangles = list(const.ALLVIEWANGLES)
     try:
+        obj = view_angle.object
+        all_viewangles = list(const.ALLVIEWANGLES[obj.category.value][obj.value])
         all_viewangles.remove(view_angle.value)
+        return random_view_angle(obj)
     except AttributeError:
-        for v in view_angle:
-            all_viewangles.remove(v.value)
-    return SNViewAngle(random.choice(all_viewangles))
+        iterator = iter(view_angle)
+        first_view = next(iterator)
+        assert all(first_view.obj == view.obj for view in iterator)
+        all_viewangles = list(const.ALLVIEWANGLES[first_view.category.value][first_view.value])
+        for view in view_angle:
+            all_viewangles.remove(view.value)
+        return SNViewAngle(sn_object=first_view.obj,
+                           value=random.choice(all_viewangles))
 
 
-def random_attr(attr_type, category=None):
+def random_attr(attr_type):
     if attr_type == 'object':
-        assert isinstance(category, SNCategory)
+        category = random_category()
         return random_object(category)
     elif attr_type == 'category':
         return random_category()
     elif attr_type == 'view_angle':
         return random_view_angle()
+    elif attr_type == 'loc':
+        return Loc([round(random.uniform(0.05, 0.95), 3),
+                    round(random.uniform(0.05, 0.95), 3)])
     else:
         raise NotImplementedError('Unknown attr_type :' + str(attr_type))
 
@@ -1088,6 +1156,8 @@ def another_attr(attr):
         return another_view_angle(attr)
     elif isinstance(attr, Space):
         return another_loc(attr)
+    elif isinstance(attr, Loc):
+        return another_loc(Space())
     elif attr is const.INVALID:
         return attr
     else:

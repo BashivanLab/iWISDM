@@ -35,6 +35,12 @@ tf.app.flags.DEFINE_string('task_family', 'all', 'name of the task to be trained
 GLOBAL_SEED = None
 
 
+def check_whens(whens):
+    while len(set(whens)) != len(whens):
+        whens = sg.sample_when(len(whens))
+    return whens
+
+
 class GoShapeTemporal(TemporalTask):
     """Go to shape X."""
 
@@ -94,32 +100,14 @@ class GoShape(TemporalTask):
         return sg.n_random_shape() * sg.n_random_when()
 
 
-class ExistCategoryOfTemporal(TemporalTask):
-    """Check if exist object with shape of a colored object."""
-
-    def __init__(self):
-        super(ExistCategoryOfTemporal, self).__init__()
-        when1 = sg.random_when()
-        when2 = 'last0'
-        objs1 = tg.Select(when=when1)
-        category1 = tg.GetCategory(objs1)
-        objs2 = tg.Select(category=category1, when=when2)
-        self._operator = tg.Exist(objs2)
-        self.n_frames = const.compare_when([when1, when2]) + 1
-
-    @property
-    def instance_size(self):
-        return sg.n_sample_color(2) * sg.n_random_when()
-
-
 class GoColorOfTemporal(TemporalTask):
     """Go to shape 1 with the same color as shape 2.
-  
+
     In general, this task can be extremely difficult, requiring memory of
     locations of all latest shape 2 of different colors.
-  
+
     To make this task reasonable, we use customized generate_objset.
-  
+
     Returns:
       task: task
     """
@@ -177,14 +165,70 @@ class GoShapeOfTemporal(TemporalTask):
         return sg.n_sample_color(3)
 
 
+class ExistCategoryOfTemporal(TemporalTask):
+    """Check if exist object with shape of a colored object."""
+
+    def __init__(self):
+        super(ExistCategoryOfTemporal, self).__init__()
+        when1 = sg.random_when()
+        when2 = 'last0'
+
+        objs1 = tg.Select(when=when1)
+        category1 = tg.GetCategory(objs1)
+        objs2 = tg.Select(category=category1, when=when2)
+        self._operator = tg.Exist(objs2)
+        self.n_frames = const.compare_when([when1, when2]) + 1
+
+    @property
+    def instance_size(self):
+        return sg.n_sample_color(2) * sg.n_random_when()
+
+
+class ExistViewAngleOfTemporal(TemporalTask):
+    """Check if exist object with shape of a colored object."""
+
+    def __init__(self):
+        super(ExistViewAngleOfTemporal, self).__init__()
+        when1 = sg.random_when()
+        when2 = 'last0'
+
+        objs1 = tg.Select(when=when1)
+        view_angle = tg.GetViewAngle(objs1)
+        objs2 = tg.Select(view_angle=view_angle, when=when2)
+        self._operator = tg.Exist(objs2)
+        self.n_frames = const.compare_when([when1, when2]) + 1
+
+    @property
+    def instance_size(self):
+        return sg.n_sample_color(2) * sg.n_random_when()
+
+
+class ExistObjectOfTemporal(TemporalTask):
+    """Check if exist object with shape of a colored object."""
+
+    def __init__(self):
+        super(ExistViewAngleOfTemporal, self).__init__()
+        when1 = sg.random_when()
+        when2 = 'last0'
+        objs1 = tg.Select(when=when1)
+        obj = tg.GetObject(objs1)
+        objs2 = tg.Select(object=obj, when=when2)
+        self._operator = tg.Exist(objs2)
+        self.n_frames = const.compare_when([when1, when2]) + 1
+
+    @property
+    def instance_size(self):
+        return sg.n_sample_color(2) * sg.n_random_when()
+
+
 class CompareCategoryTemporal(TemporalTask):
     """Compare category between two objects."""
 
     def __init__(self):
         super(CompareCategoryTemporal, self).__init__()
-        when1 = sg.random_when()
+        when1, when2 = check_whens(sg.sample_when(2))
         objs1 = tg.Select(when=when1)
-        objs2 = tg.Select(when='last0')
+        objs2 = tg.Select(when=when2)
         a1 = tg.GetCategory(objs1)
         a2 = tg.GetCategory(objs2)
         self._operator = tg.IsSame(a1, a2)
@@ -200,7 +244,7 @@ class CompareViewAngleTemporal(TemporalTask):
 
     def __init__(self):
         super(CompareViewAngleTemporal, self).__init__()
-        when1, when2 = sg.sample_when(2)
+        when1, when2 = check_whens(sg.sample_when(2))
         objs1 = tg.Select(when=when1)
         objs2 = tg.Select(when=when2)
         a1 = tg.GetViewAngle(objs1)
@@ -216,13 +260,32 @@ class CompareViewAngleTemporal(TemporalTask):
 class CompareLocTemporal(TemporalTask):
     """Compare color between two objects."""
 
+    # TODO: compare loc has error: could not broadcast input array from shape (56,56,3) into shape (56,46,3)
     def __init__(self):
         super(CompareLocTemporal, self).__init__()
-        when1, when2 = sg.sample_when(2)
+        when1, when2 = check_whens(sg.sample_when(2))
         objs1 = tg.Select(when=when1)
         objs2 = tg.Select(when=when2)
         a1 = tg.GetLoc(objs1)
         a2 = tg.GetLoc(objs2)
+        self._operator = tg.IsSame(a1, a2)
+        self.n_frames = const.compare_when([when1, when2]) + 1
+
+    @property
+    def instance_size(self):
+        return sg.n_sample_shape(2) * (sg.n_random_when()) ** 2
+
+
+class CompareObjectTemporal(TemporalTask):
+    """Compare color between two objects."""
+
+    def __init__(self):
+        super(CompareObjectTemporal, self).__init__()
+        when1, when2 = check_whens(sg.sample_when(2))
+        objs1 = tg.Select(when=when1)
+        objs2 = tg.Select(when=when2)
+        a1 = tg.GetObject(objs1)
+        a2 = tg.GetObject(objs2)
         self._operator = tg.IsSame(a1, a2)
         self.n_frames = const.compare_when([when1, when2]) + 1
 
@@ -239,14 +302,14 @@ class CompareLocTemporal(TemporalTask):
 
 
 task_family_dict = OrderedDict([
-    ('GoShape', GoShapeTemporal),
-    ('ExistCategoryOf', ExistCategoryOfTemporal),
-    ('GoShapeOf', GoShapeOfTemporal),
-    ('GoColorOf', GoColorOfTemporal),
-    ('CompareViewAngle', CompareViewAngleTemporal),
-    ('CompareCategory', CompareCategoryTemporal)
+    # ('CompareLoc', CompareLocTemporal),
+    # ('ExistCategoryOf', ExistCategoryOfTemporal),
+    # ('ExistViewAngleOf', ExistViewAngleOfTemporal),
+    # ('ExistObjectOf', ExistObjectOfTemporal),
+    # ('CompareViewAngle', CompareViewAngleTemporal),
+    # ('CompareCategory', CompareCategoryTemporal),
+    ('CompareObject', CompareObjectTemporal),
 ])
-
 
 
 def random_task(task_family):

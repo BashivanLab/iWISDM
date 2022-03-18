@@ -55,7 +55,7 @@ class InfoGeneratorTest(unittest.TestCase):
         new_task2_objset = new_task2.generate_objset()
         fi2 = ig.FrameInfo(new_task2, new_task2_objset)
         compo_info_2 = ig.TaskInfoCompo(new_task2, fi2)
-        print(new_task1_objset)
+
         compo_info.merge(compo_info_2, reuse=1)
         self.assertTrue(all(obj1.compare_attrs(obj2, ['color', 'shape', 'loc'])
                             for obj1, obj2 in zip(compo_info.task_objset[1].set, compo_info.frame_info[1].objs)))

@@ -171,21 +171,69 @@ class FileWriter(object):
             os.remove(self._file_name())
 
 
-def write_task_instance_cv2(fname, task_info, img_size):
+# def write_task_instance_cv2(fname, task_info, img_size):
+#     if not os.path.exists(fname):
+#         os.makedirs(fname)
+#     objset = task_info.frame_info.objset
+#     for i, epoch in enumerate(sg.render(objset, img_size)):
+#         epoch = add_fixation_cue(epoch)
+#         img_rgb = cv2.cvtColor(epoch, cv2.COLOR_BGR2RGB)
+#         filename = os.path.join(fname, f'epoch{i}.png')
+#         cv2.imwrite(filename, img_rgb)
+#     for i, task_example in enumerate(task_info.get_examples()):
+#         filename = os.path.join(fname, f'task{i} example')
+#         with open(filename, 'w') as f:
+#             json.dump(task_example, f, indent=4)
+#     filename = os.path.join(fname, 'compo_task example')
+#     with open(filename, 'w') as f:
+#         json.dump(task_info.get_compo_example(), f, indent=4)
+#     filename = os.path.join(fname, 'frame_info')
+#     with open(filename, 'w') as f:
+#         json.dump(task_info.frame_info.dump(), f, indent=4)
+
+
+def add_fixation_cue(canvas, cue_size=0.05):
+    '''
+
+    :param canvas: numpy array of shape: (img_size, img_size, 3)
+    :param cue_size: size of the fixation cue
+    :return:
+    '''
+    img_size = canvas.shape[0]
+    radius = int(cue_size * img_size)
+    center = (canvas.shape[0] // 2, canvas.shape[1] // 2)
+    thickness = int(0.02 * img_size)
+    cv2.line(canvas, (center[0] - radius, center[1]),
+             (center[0] + radius, center[1]), (255, 255, 255), thickness)
+    cv2.line(canvas, (center[0], center[1] - radius),
+             (center[0], center[1] + radius), (255, 255, 255), thickness)
+
+
+def write_task_instance(fname, task_info, img_size):
     if not os.path.exists(fname):
         os.makedirs(fname)
     objset = task_info.frame_info.objset
-    for i, epoch in enumerate(sg.render(objset, img_size)):
-        img_rgb = cv2.cvtColor(epoch, cv2.COLOR_BGR2RGB)
+    for i, (epoch, frame) in enumerate(zip(sg.render(objset, img_size), task_info.frame_info)):
+        if not any('ending' in description for description in frame.description):
+            add_fixation_cue(epoch)
+        img = Image.fromarray(epoch, 'RGB')
         filename = os.path.join(fname, f'epoch{i}.png')
-        cv2.imwrite(filename, img_rgb)
+        img.save(filename)
     for i, task_example in enumerate(task_info.get_examples()):
         filename = os.path.join(fname, f'task{i} example')
         with open(filename, 'w') as f:
             json.dump(task_example, f, indent=4)
+
     filename = os.path.join(fname, 'compo_task example')
     with open(filename, 'w') as f:
         json.dump(task_info.get_compo_example(), f, indent=4)
+
+    filename = os.path.join(fname, 'frame_info')
+    with open(filename, 'w') as f:
+        json.dump(task_info.frame_info.dump(), f, indent=4)
+
+
+# TODO: split training and validation after task generation
 
 
 def generate_dataset(max_memory, max_distractors,
@@ -241,7 +289,7 @@ def generate_dataset(max_memory, max_distractors,
                 validation_examples -= 1
                 fname = os.path.join(validation_fname, f'{i}')
 
-            write_task_instance_cv2(fname, info, img_size)
+            write_task_instance(fname, info, img_size)
             i += 1
     else:
         pass
@@ -255,23 +303,15 @@ def main(argv):
     max_memory = 12
     families = list(task_bank.task_family_dict.keys())
 
-    # start = timeit.default_timer()
-    #
-    # generate_dataset(max_memory, max_distractors,
-    #                  200, '/Users/markbai/Documents/School/COMP 402/COG_v2/data',
-    #                  composition=2)
-    #
-    # stop = timeit.default_timer()
-    #
-    # print('Time: ', stop - start)
+    start = timeit.default_timer()
 
-    info = generate_compo_temporal_example(max_memory,max_distractors,['CompareCategory'],1)
-    print(info.get_examples())
-    movie = sg.render(info.frame_info.objset)
-    for i, frame in enumerate(movie):
-        img = Image.fromarray(frame,'RGB')
-        filename = os.path.join('/Users/markbai/PycharmProjects/COG_v3_shapenet/data', f'epoch{i}.png')
-        img.save(filename)
+    generate_dataset(max_memory, max_distractors,
+                     200, '/Users/markbai/Documents/School/COMP 402/COG_v3/data',
+                     composition=2)
+    stop = timeit.default_timer()
+
+    print('Time: ', stop - start)
+
 
 if __name__ == '__main__':
     tf.app.run(main)

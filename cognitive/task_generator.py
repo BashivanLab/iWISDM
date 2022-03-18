@@ -30,6 +30,7 @@ import random
 
 from cognitive import constants as const
 from cognitive import stim_generator as sg
+from cognitive.stim_generator import Object
 
 
 def obj_str(loc=None, object=None, category=None, view_angle=None,
@@ -62,7 +63,7 @@ def obj_str(loc=None, object=None, category=None, view_angle=None,
     if isinstance(object, Operator):
         if isinstance(category, Operator):
             sentence.append('and')
-        elif isinstance(view_angle, category):
+        elif isinstance(view_angle, Operator):
             sentence.append('and')
         sentence += ['with', str(category)]
     if isinstance(loc, Operator):
@@ -264,7 +265,7 @@ class TemporalTask(Task):
         new_task._first_shareable = self.first_shareable
         new_task.n_distractors = self.n_distractors
         new_task.avg_mem = self.avg_mem
-        new_task._operator = self._operator
+        new_task._operator = self._operator.copy()
         return new_task
 
     @property
@@ -285,39 +286,42 @@ class TemporalTask(Task):
     def instance_size(self):
         pass
 
-    def reinit(self, objs: List[sg.Object], hard_update=False):
+    def filter_selects(self, lastk):
+        selects = list()
+        for node in self.topological_sort():
+            if isinstance(node, Select):
+                if node.when == lastk and self.check_attrs(node):
+                    selects.append(node)
+        return selects
+
+    def reinit(self, copy, objs: List[sg.Object], lastk):
         '''
         update the task in-place based on provided objects
+        :type copy: TemporalTask
         :return: True if reinit is successful, False otherwise
         '''
         assert all([o.when == objs[0].when for o in objs])
 
-        nodes = self.topological_sort()
-        selects = [node for node in nodes if isinstance(node, Select)]
-        # find all selects that are leaves in the operator graph with the same when as the objects
-        filter_select = [s for s in selects if self.check_attrs(s)]
+        filter_selects, copy_filter_selects = self.filter_selects(lastk), copy.filter_selects(lastk)
 
-        # check if there are not enough objects
-        if len(objs) < len(filter_select):
+        assert len(filter_selects) == len(copy_filter_selects)
+        if len(objs) < len(filter_selects):
+            print('Not enough objects for select')
             return None
 
-        if filter_select:
-            filter_objs = random.sample(objs, k=len(filter_select))
-            for select, obj in zip(filter_select, filter_objs):
-                try:
-                    if not hard_update:
-                        if not select.soft_update(obj):
-                            return False
-                    else:
-                        if not select.hard_update(obj):
-                            return False
-                except ValueError:
-                    return False
-            return True
-        return False
+        if filter_selects:
+            filter_objs = random.sample(objs, k=len(filter_selects))
+            for (select, copy_select), obj in zip(zip(filter_selects, copy_filter_selects), filter_objs):
+                copy_select.hard_update(obj)
+                select.soft_update(obj)
+        return filter_objs
 
     @staticmethod
     def check_attrs(select):
+        '''
+        :param select:
+        :return: True if select contains no operators
+        '''
         for attr_type in ['loc', 'category', 'object', 'view_angle']:
             a = getattr(select, attr_type)
             if isinstance(a, Operator):
@@ -380,6 +384,9 @@ class Operator(object):
         del objset
         del epoch_now
 
+    def copy(self):
+        raise NotImplementedError
+
     def set_child(self, child):
         """Set operators as children."""
         try:
@@ -389,6 +396,7 @@ class Operator(object):
             for c in child:
                 self.set_child(c)
 
+    # def get_partial_expected_input(self, should_be=None, ):
     def get_expected_input(self, should_be=None):
         """Guess and update the objset at this epoch.
 
@@ -413,7 +421,7 @@ class Select(Operator):
         loc = loc or sg.Loc(None)
         category = category or sg.SNCategory(None)
         object = object or sg.SNObject(category, None)
-        view_angle = view_angle or sg.SNViewAngle(None)
+        view_angle = view_angle or sg.SNViewAngle(object, None)
 
         if isinstance(loc, Operator) or loc.has_value:
             assert space_type is not None
@@ -438,7 +446,10 @@ class Select(Operator):
         if const.INVALID in (loc, category, object, view_angle):
             return const.INVALID
 
-        space = loc.get_space_to(self.space_type)
+        if self.space_type is not None:
+            space = loc.get_space_to(self.space_type)
+        else:
+            space = sg.Space(None)
 
         subset = objset.select(
             epoch_now,
@@ -451,16 +462,31 @@ class Select(Operator):
 
         return subset
 
+    def copy(self):
+        new_loc = self.loc.copy()
+        new_cat = self.category.copy()
+        new_obj = self.object.copy()
+        new_view = self.view_angle.copy()
+        new_st = self.space_type.copy() if self.space_type is not None else self.space_type
+        return Select(loc=new_loc, category=new_cat, object=new_obj,
+                      view_angle=new_view, when=self.when, space_type=new_st)
+
     def hard_update(self, obj: sg.Object):
+        assert obj.check_attrs()
+
         self.category = obj.category
         self.object = obj.object
         self.view_angle = obj.view_angle
+        self.loc = obj.loc
         return True
 
     def soft_update(self, obj: sg.Object):
+        assert obj.check_attrs()
+
         self.category = obj.category if self.category.has_value else self.category
         self.object = obj.object if self.object.has_value else self.object
         self.view_angle = obj.view_angle if self.view_angle.has_value else self.view_angle
+        self.loc = obj.loc if self.loc.has_value else self.loc
         return True
 
     def get_expected_input(self, should_be, objset, epoch_now):
@@ -547,7 +573,7 @@ class Select(Operator):
                 attr = a(objset, epoch_now)
                 # If the input is successfully evaluated
                 if attr is not const.INVALID and attr.has_value:
-                    if attr_type == 'loc':
+                    if attr_type == 'loc' and self.space_type is not None:
                         attr = attr.get_space_to(self.space_type)
                     attr_new_object.append(attr)
                 else:
@@ -555,7 +581,7 @@ class Select(Operator):
 
             # Add an object based on these attributes
             # Note that, objset.add() will implicitly select the objset
-            obj = sg.Object(attr_new_object, when=self.when)
+            obj: sg.Object = sg.Object(attr_new_object, when=self.when)
             obj = objset.add(obj, epoch_now, add_if_exist=False)
 
             if obj is None:
@@ -566,7 +592,10 @@ class Select(Operator):
             for attr_type in attr_type_not_fixed:
                 a = getattr(obj_should_be, attr_type)
                 if a.has_value:
-                    setattr(obj, attr_type, a)
+                    if attr_type in ['category', 'object', 'view_angle']:
+                        obj.change_attr(a)
+                    else:
+                        setattr(obj, attr_type, a)
 
             # If an attribute of select is an operator, then the expected input is
             # the value of obj
@@ -685,6 +714,10 @@ class Get(Operator):
         else:
             return getattr(objs[0], self.attr_type)
 
+    def copy(self):
+        new_objs = self.objs.copy()
+        return Get(self.attr_type, new_objs)
+
     def get_expected_input(self, should_be):
         if should_be is None:
             should_be = sg.random_attr(self.attr_type)
@@ -778,6 +811,10 @@ class GetTime(Operator):
             # TODO(gryang): this only works when object is shown for a single epoch
             return objs[0].epoch[0]
 
+    def copy(self):
+        new_objs = self.objs.copy()
+        return GetTime(new_objs)
+
     def get_expected_input(self, should_be):
         raise NotImplementedError()
         if should_be is None:
@@ -810,6 +847,10 @@ class Exist(Operator):
             return True
         else:
             return False
+
+    def copy(self):
+        new_objs = self.objs.copy()
+        return GetTime(new_objs)
 
     def get_expected_input(self, should_be):
         if self.objs.when != 'last0':
@@ -905,6 +946,13 @@ class Switch(Operator):
         else:
             raise ValueError()
 
+    def copy(self):
+        new_statement = self.statement.copy()
+        new_do_if_true = self.do_if_true.copy()
+        new_do_if_false = self.do_if_false.copy()
+        return Switch(new_statement, new_do_if_true, new_do_if_false,
+                      self.invalid_as_false, self.both_options_avail)
+
     def get_expected_input(self, should_be):
         """Guess objset for Switch operator.
 
@@ -971,6 +1019,11 @@ class IsSame(Operator):
         else:
             return attr1 == attr2
 
+    def copy(self):
+        new_attr1 = self.attr1.copy()
+        new_attr2 = self.attr2.copy()
+        return IsSame(new_attr1, new_attr2)
+
     def get_expected_input(self, should_be, objset, epoch_now):
         if should_be is None:
             should_be = random.random() > 0.5
@@ -998,7 +1051,6 @@ class IsSame(Operator):
             attr = sg.random_attr(self.attr_type)
             attr1_assign = attr
             attr2_assign = attr if should_be else sg.another_attr(attr)
-
         return attr1_assign, attr2_assign
 
 
@@ -1018,6 +1070,11 @@ class And(Operator):
 
     def __call__(self, objset, epoch_now):
         return self.op1(objset, epoch_now) and self.op2(objset, epoch_now)
+
+    def copy(self):
+        new_op1 = self.op1.copy()
+        new_op2 = self.op2.copy()
+        return And(new_op1, new_op2)
 
     def get_expected_input(self, should_be, objset, epoch_now):
         if should_be is None:
