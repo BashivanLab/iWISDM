@@ -301,7 +301,6 @@ def main(argv):
 
     max_distractors = 0
     max_memory = 12
-    families = list(task_bank.task_family_dict.keys())
 
     start = timeit.default_timer()
 

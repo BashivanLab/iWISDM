@@ -5,6 +5,22 @@ import numpy as np
 import cognitive.constants as const
 import cognitive.stim_generator as sg
 import cognitive.task_generator as tg
+import re
+
+
+class ReplaceLastK(object):
+    def __init__(self, task_objset: sg.ObjectSet, objs):
+        self.task_objset = task_objset
+        self.objs = objs
+        obj: sg.Object
+        for i, obj in enumerate(objs):
+            for task_obj in task_objset:
+                if obj.compare_attrs(task_obj):
+                    self.count = i + 2
+
+    def __call__(self, match):
+        self.count -= 1
+        return "object {}".format(self.count)
 
 
 class TaskInfoCompo(object):
@@ -40,14 +56,27 @@ class TaskInfoCompo(object):
 
     def __str__(self):
         string = ''
-        for i, task in enumerate(self.tasks):
-            string += f'Task {i}: ' + str(task) + '\n'
+        obj_count = 1
+        objs = list()
+        for i, frame in enumerate(self.frame_info):
+            for obj in self.frame_info.objset.dict[i]:
+                string += f'observe object {obj_count}, '
+                obj_count += 1
+                objs.append(obj)
+            for d in frame.description:
+                if 'ending' in d:
+                    task_idx = int(re.search(r'\d+', d).group())
+                    task_q = str(self.tasks[task_idx])
+                    # align object numbers with lastk for each task
+                    string += re.sub(pattern=f'last\d+ object', repl=ReplaceLastK(task_objset=self.task_objset[task_idx],
+                                                                           objs=objs), string=task_q)
         return string
 
     def get_compo_example(self):
         return {
             'epochs': int(len(self.frame_info)),
             'objects': [o.dump() for o in self.frame_info.objset],
+            'instruction': str(self)
         }
 
     def get_examples(self):
