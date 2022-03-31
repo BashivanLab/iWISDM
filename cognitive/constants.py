@@ -26,14 +26,14 @@ import numpy as np
 import pandas as pd
 
 AVG_MEM = 4
-MAX_MEMORY = 1
+MAX_MEMORY = 4
 LASTMAP = {}
 for k in range(MAX_MEMORY + 1):
-    LASTMAP["last%d" % (k)] = k
+    LASTMAP["last%d" % k] = k
 
 ALLWHENS = []
 for k in range(MAX_MEMORY + 1):
-    ALLWHENS.append("last%d" % (k))
+    ALLWHENS.append("last%d" % k)
 ALLWHENS_PROB = [1 / (MAX_MEMORY + 1)] * len(ALLWHENS)
 
 
@@ -70,7 +70,6 @@ for i in df['ctg_mod'].unique():
     for cat in df.loc[df['ctg_mod'] == i]['obj_mod'].unique():
         MOD_DICT[i][cat] = list(df.loc[(df['ctg_mod'] == i)
                                        & (df['obj_mod'] == cat)]['ang_mod'].unique())
-
 
 OBJECTPERCATEGORY = 14
 CATEGORIES = 12

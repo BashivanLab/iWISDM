@@ -40,7 +40,7 @@ def obj_str(loc=None, object=None, category=None, view_angle=None,
     loc = loc or sg.Loc(None)
     category = category or sg.SNCategory(None)
     object = object or sg.SNObject(category=category, value=None)
-    view_angle = view_angle or sg.SNViewAngle(None)
+    view_angle = view_angle or sg.SNViewAngle(sn_object=object, value=None)
 
     sentence = []
     if when is not None:
@@ -1027,7 +1027,7 @@ class IsSame(Operator):
     def get_expected_input(self, should_be, objset, epoch_now):
         if should_be is None:
             should_be = random.random() > 0.5
-
+        should_be = True
         # Determine which attribute should be fixed and which shouldn't
         attr1_value = self.attr1(objset, epoch_now)
         attr2_value = self.attr2(objset, epoch_now)

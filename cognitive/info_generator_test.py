@@ -101,6 +101,51 @@ class InfoGeneratorTest(unittest.TestCase):
             self.assertEqual(changed_obj.color, ori_obj.color)
             self.assertIn(changed_obj.loc, [loc1, loc2])
 
+    def testReuseMerge(self):
+        categories = sg.sample_category(4)
+        objects = [sg.sample_object(k=1, category=cat)[0] for cat in categories]
+        view_angles = [sg.sample_view_angle(k=1, obj=obj)[0] for obj in objects]
+
+        op1 = tg.Select(category=categories[0], when=f'last{3 - 1}')
+        op2 = tg.Select(category=categories[1], when=f'last{3 - 2}')
+        new_task1 = tg.TemporalTask(tg.IsSame(tg.GetCategory(op1), tg.GetCategory(op2)), 3, 0)
+
+        op3 = tg.Select(category=categories[2], when=f'last{3}')
+        op4 = tg.Select(category=categories[3], when=f'last{2}')
+        new_task2 = tg.TemporalTask(tg.IsSame(tg.GetCategory(op3), tg.GetCategory(op4)), 4, 0)
+
+        new_task1_objset = new_task1.generate_objset()
+        fi1 = ig.FrameInfo(new_task1, new_task1_objset)
+        compo_info = ig.TaskInfoCompo(new_task1, fi1)
+        new_task2_objset = new_task2.generate_objset()
+        fi2 = ig.FrameInfo(new_task2, new_task2_objset)
+        compo_info2 = ig.TaskInfoCompo(new_task2, fi2)
+        compo_info.merge(compo_info2, reuse=1)
+
+        objlist: list[sg.Object]
+        for epoch, objlist in compo_info.frame_info.objset.dict.items():
+            if epoch == 0:
+                self.assertEqual(objlist[0].category, categories[0])
+            elif epoch == 1:
+                self.assertEqual(objlist[0].category, categories[1])
+            else:
+                self.assertTrue(len(objlist) == 0)
+
+        op1 = tg.Select(category=categories[0], when=f'last{3 - 1}')
+        op2 = tg.Select(category=categories[1], when=f'last{3 - 2}')
+        new_task1 = tg.TemporalTask(tg.IsSame(tg.GetCategory(op1), tg.GetCategory(op2)), 3, 0)
+
+        op3 = tg.Select(category=categories[2], when=f'last{3}')
+        op4 = tg.Select(category=categories[3], when=f'last{2}')
+        new_task2 = tg.TemporalTask(tg.IsSame(tg.GetCategory(op3), tg.GetCategory(op4)), 4, 0)
+
+        new_task1_objset = new_task1.generate_objset()
+        fi1 = ig.FrameInfo(new_task1, new_task1_objset)
+        compo_info = ig.TaskInfoCompo(new_task1, fi1)
+        new_task2_objset = new_task2.generate_objset()
+        fi2 = ig.FrameInfo(new_task2, new_task2_objset)
+        compo_info2 = ig.TaskInfoCompo(new_task2, fi2)
+        compo_info.merge(compo_info2, reuse=1)
 
 if __name__ == '__main__':
     unittest.main()

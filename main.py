@@ -219,14 +219,16 @@ def write_task_instance(fname, task_info, img_size):
         img = Image.fromarray(epoch, 'RGB')
         filename = os.path.join(fname, f'epoch{i}.png')
         img.save(filename)
-    for i, task_example in enumerate(task_info.get_examples()):
+
+    examples, compo_example = task_info.get_examples()
+    for i, task_example in enumerate(examples):
         filename = os.path.join(fname, f'task{i} example')
         with open(filename, 'w') as f:
             json.dump(task_example, f, indent=4)
 
     filename = os.path.join(fname, 'compo_task example')
     with open(filename, 'w') as f:
-        json.dump(task_info.get_compo_example(), f, indent=4)
+        json.dump(compo_example, f, indent=4)
 
     filename = os.path.join(fname, 'frame_info')
     with open(filename, 'w') as f:
@@ -305,7 +307,7 @@ def main(argv):
     start = timeit.default_timer()
 
     generate_dataset(max_memory, max_distractors,
-                     200, '/Users/markbai/Documents/School/COMP 402/COG_v3/data',
+                     200, '/Users/markbai/Documents/School/COMP402/COG_v3/data',
                      composition=2)
     stop = timeit.default_timer()
 

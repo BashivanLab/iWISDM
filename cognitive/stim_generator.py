@@ -213,6 +213,9 @@ class SNCategory(Attribute):
     def resample(self):
         self.value = another_category(self).value
 
+    def __str__(self):
+        return 'Category: ' + str(self.value)
+
 
 class SNObject(Attribute):
     def __init__(self, category, value):
@@ -228,7 +231,7 @@ class SNObject(Attribute):
         return False
 
     def __str__(self):
-        return 'Category: ' + str(self.category) + ' Object: ' + str(self.value)
+        return 'Object: ' + str(self.value)
 
     def sample(self):
         self.value = random_object(self.category).value
@@ -246,7 +249,7 @@ class SNViewAngle(Attribute):
         self.object = sn_object
 
     def __str__(self):
-        return 'Object: ' + str(self.object) + ' View Angle: ' + str(self.value)
+        return 'View Angle: ' + str(self.value)
 
     def sample(self):
         self.value = random_view_angle(self.object).value
@@ -536,7 +539,8 @@ class ObjectSet(object):
             already exist
           delete_if_can: Boolean. If True, will delete object if it conflicts with
             current object to be added. Should be set to True for most situations.
-
+          merge_idx: the absolute epoch for adding the object, used for merging task_info
+            when lastk of different tasks results in ambiguous epoch_idx
         Returns:
           obj: the added object if object added. The existing object if not added.
 
@@ -558,6 +562,7 @@ class ObjectSet(object):
             when=obj.when,
             n_backtrack=n_backtrack,
             delete_if_can=delete_if_can,
+            merge_idx=merge_idx
         )
 
         # True if more than zero objects match the attributes based on epoch_now and backtrack
@@ -665,7 +670,8 @@ class ObjectSet(object):
                view_angle=None,
                when=None,
                n_backtrack=None,
-               delete_if_can=True
+               delete_if_can=True,
+               merge_idx=None
                ):
         """Select an object satisfying properties.
 
@@ -697,8 +703,10 @@ class ObjectSet(object):
                             str(type(SNViewAngle)))
         assert isinstance(space, Space)
 
-        epoch_now -= const.LASTMAP[when]
-
+        if merge_idx is None:
+            epoch_now -= const.LASTMAP[when]
+        else:
+            epoch_now = merge_idx
         # if n_backtrack is None:
         #   n_backtrack = self.n_max_backtrack   ### xlei: n_backtrack is deleted because of lastest does not exist anymore
 
@@ -1097,8 +1105,9 @@ def sample_object(k, category):
             for s in random.sample(const.ALLOBJECTS[category.value], k)]
 
 
-def sample_view_angle(k):
-    return [SNViewAngle(v) for v in random.sample(const.ALLVIEWANGLES, k)]
+def sample_view_angle(k, obj: SNObject):
+    return [SNViewAngle(sn_object=obj, value=v) for v in
+            random.sample(const.ALLVIEWANGLES[obj.category.value][obj.value], k)]
 
 
 # def n_sample_shape(k):

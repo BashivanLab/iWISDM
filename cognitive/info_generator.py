@@ -12,15 +12,16 @@ class ReplaceLastK(object):
     def __init__(self, task_objset: sg.ObjectSet, objs):
         self.task_objset = task_objset
         self.objs = objs
+        self.count = list()
         obj: sg.Object
         for i, obj in enumerate(objs):
             for task_obj in task_objset:
                 if obj.compare_attrs(task_obj):
-                    self.count = i + 2
+                    self.count.append(i + 1)
 
     def __call__(self, match):
-        self.count -= 1
-        return "object {}".format(self.count)
+        idx = self.count.pop()
+        return "object {}".format(idx)
 
 
 class TaskInfoCompo(object):
@@ -55,34 +56,54 @@ class TaskInfoCompo(object):
         return len(self.frame_info)
 
     def __str__(self):
+        '''
+
+        :return: changed task instruction
+        '''
         string = ''
-        obj_count = 1
+        obj_count = 0
         objs = list()
+
+        was_delay = False
         for i, frame in enumerate(self.frame_info):
+            delay_add = True
             for obj in self.frame_info.objset.dict[i]:
-                string += f'observe object {obj_count}, '
                 obj_count += 1
+                string += f'observe object {obj_count}, '
                 objs.append(obj)
+                delay_add, was_delay = False, False
             for d in frame.description:
                 if 'ending' in d:
                     task_idx = int(re.search(r'\d+', d).group())
                     task_q = str(self.tasks[task_idx])
                     # align object numbers with lastk for each task
-                    string += re.sub(pattern=f'last\d+ object', repl=ReplaceLastK(task_objset=self.task_objset[task_idx],
-                                                                           objs=objs), string=task_q)
+                    string += re.sub(pattern=f'last\d+ object',
+                                     repl=ReplaceLastK(task_objset=self.task_objset[task_idx],
+                                                       objs=objs), string=task_q)
+                    delay_add, was_delay = False, False
+            if delay_add and not was_delay:
+                string += 'delay, '
+                was_delay = True
         return string
 
-    def get_compo_example(self):
-        return {
-            'epochs': int(len(self.frame_info)),
-            'objects': [o.dump() for o in self.frame_info.objset],
-            'instruction': str(self)
-        }
+    def get_target_value(self, examples):
+        answers = list()
+        for frame in self.frame_info:
+            ending = False
+            for d in frame.description:
+                if 'ending' in d:
+                    task_idx = int(re.search(r'\d+', d).group())
+                    answers.append(examples[task_idx]['answers'][0])
+                    ending = True
+            if not ending:
+                answers.append('null')
+        return answers
 
     def get_examples(self):
         """
         get tasks examples
-        :return: list of dictionaries containing information about the requested tasks
+        :return: tuple of list of dictionaries containing information about the requested tasks
+        and compo task
         """
         examples = list()
         for i, task in enumerate(self.tasks):
@@ -96,7 +117,13 @@ class TaskInfoCompo(object):
                 'answers': [const.get_target_value(t) for t in task.get_target(self.task_objset[i])],
                 'first_shareable': int(task.first_shareable),
             })
-        return examples
+        compo = {
+            'epochs': int(len(self.frame_info)),
+            'objects': [o.dump() for o in self.frame_info.objset],
+            'instruction': str(self),
+            'answers': self.get_target_value(examples)
+        }
+        return examples, compo
 
     @property
     def n_epochs(self):
@@ -139,7 +166,7 @@ class TaskInfoCompo(object):
                 if filter_objs:
                     changed = True
                     for obj in filter_objs:
-                        objset.add(obj=obj.copy(), epoch_now=i)
+                        objset.add(obj=obj.copy(), epoch_now=new_task_copy.n_frames - 1, merge_idx=i)
                 else:
                     raise RuntimeError('Unable to reuse')
 
@@ -156,6 +183,8 @@ class TaskInfoCompo(object):
             self.changed.append((new_task_idx, new_task, new_task_copy))
             self.task_objset[new_task_idx] = new_objset
         else:
+            for i, (old_frame, new_frame) in enumerate(zip(self.frame_info[start:], new_task_info.frame_info)):
+                old_frame.compatible_merge(new_frame)
             self.task_objset[new_task_idx] = new_task_info.task_objset[0]
         self.tasks.append(new_task)
 
@@ -165,8 +194,6 @@ class TaskInfoCompo(object):
         :param reuse: probability of reusing visual stimuli from previous composite task
         :param new_task_info: TaskInfoCombo object
         """
-        # TODO(mbai): change task instruction here
-        # TODO: very specific task instruction (related to remembering, forgetting, etc)
         assert isinstance(new_task_info, TaskInfoCompo)
         if len(new_task_info.tasks) > 1:
             raise NotImplementedError('Currently cannot support adding new composite tasks')
@@ -283,16 +310,17 @@ class FrameInfo(object):
         add new empty frames and update objset and p
         :param i: number of new frames
         :param relative_tasks: the tasks associated with the new frames
-        :return:
+        :return: True if epoch increased
         """
         if i <= 0:
-            return
+            return False
         for j in range(i):
             self.frame_list.append(self.Frame(fi=self,
                                               idx=len(self.frame_list),
                                               relative_tasks=relative_tasks
                                               ))
         self.objset.increase_epoch(self.objset.n_epoch + i)
+        return True
 
     @staticmethod
     def update_relative_tasks(new_frame_info, relative_tasks):
@@ -310,9 +338,10 @@ class FrameInfo(object):
 
     def get_start_frame(self, new_task_info, relative_tasks):
         """
-        randomly sample a starting frame to start merging add new frames if needed
+        randomly sample a starting frame to start merging
+        add new frames if needed
         check length of both, then starting first based on first_shareable
-        sample from p, if start at the same frame, but new task ends earlier,
+        if start at the same frame, but new task ends earlier,
         then start later, otherwise, new task can end earlier than existing task
         overall, task order is predetermined such that new task appears or finishes after the existing task
         avoid overlapping response frames
@@ -323,8 +352,6 @@ class FrameInfo(object):
         """
         assert isinstance(new_task_info, TaskInfoCompo)
         assert len(new_task_info.tasks) == 1
-        # if multiple tasks are shareable, then start from the last task
-        # to maintain preexisting order
 
         first_shareable = self.first_shareable
         shareable_frames = self.frame_list[first_shareable:]
@@ -335,8 +362,6 @@ class FrameInfo(object):
 
         if len(shareable_frames) == 0:
             # queue, add frames and start merging
-            assert first_shareable == len(self.frame_list)
-
             self.add_new_frames(new_task_len, relative_tasks)
             self.last_task_end = len(self.frame_list) - 1
             self.last_task = list(relative_tasks)[0]
@@ -407,7 +432,7 @@ class FrameInfo(object):
             self.description = self.description + new_frame.description
 
             for new_obj in new_frame.objs:
-                self.fi.objset.add(new_obj.copy(), self.idx, merge_idx=self.idx)
+                self.fi.objset.add(new_obj.copy(), len(self.fi) - 1, merge_idx=self.idx)
             for epoch, obj_list in self.fi.objset.dict.items():
                 if epoch == self.idx:
                     self.objs = obj_list.copy()

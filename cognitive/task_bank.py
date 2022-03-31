@@ -232,7 +232,7 @@ class CompareCategoryTemporal(TemporalTask):
         a1 = tg.GetCategory(objs1)
         a2 = tg.GetCategory(objs2)
         self._operator = tg.IsSame(a1, a2)
-        self.n_frames = const.compare_when([when1, 'last0']) + 1
+        self.n_frames = const.compare_when([when1, when2]) + 1
 
     @property
     def instance_size(self):
@@ -307,8 +307,8 @@ task_family_dict = OrderedDict([
     # ('ExistViewAngleOf', ExistViewAngleOfTemporal),
     # ('ExistObjectOf', ExistObjectOfTemporal),
     # ('CompareViewAngle', CompareViewAngleTemporal),
-    # ('CompareCategory', CompareCategoryTemporal),
-    ('CompareObject', CompareObjectTemporal),
+    ('CompareCategory', CompareCategoryTemporal),
+    # ('CompareObject', CompareObjectTemporal),
 ])
 
 
