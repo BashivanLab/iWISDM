@@ -14,13 +14,13 @@ class ReplaceLastK(object):
         self.objs = objs
         self.count = list()
         obj: sg.Object
-        for i, obj in enumerate(objs):
-            for task_obj in task_objset:
+        for task_obj in task_objset:
+            for i, obj in enumerate(objs):
                 if obj.compare_attrs(task_obj):
                     self.count.append(i + 1)
 
     def __call__(self, match):
-        idx = self.count.pop()
+        idx = self.count.pop(len(self.count)-1)
         return "object {}".format(idx)
 
 
@@ -153,7 +153,7 @@ class TaskInfoCompo(object):
         new_task_copy: tg.TemporalTask = new_task.copy()
 
         new_task_idx = len(self.tasks)
-        self.frame_info.first_shareable = 0
+
         start = self.frame_info.get_start_frame(new_task_info, relative_tasks={new_task_idx})
         objset = sg.ObjectSet(n_epoch=new_task_copy.n_frames, n_max_backtrack=(int(new_task_copy.avg_mem) * 3))
         changed = False

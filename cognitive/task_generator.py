@@ -49,9 +49,10 @@ def obj_str(loc=None, object=None, category=None, view_angle=None,
         sentence.append(str(category))
     if isinstance(view_angle, sg.Attribute) and view_angle.has_value:
         sentence.append(str(view_angle))
-
     if isinstance(object, sg.Attribute) and object.has_value:
         sentence.append(str(object))
+    if isinstance(loc, sg.Attribute) and loc.has_value:
+        sentence.append(str(loc))
     else:
         sentence.append('object')
 
@@ -64,6 +65,8 @@ def obj_str(loc=None, object=None, category=None, view_angle=None,
         if isinstance(category, Operator):
             sentence.append('and')
         elif isinstance(view_angle, Operator):
+            sentence.append('and')
+        elif isinstance(loc, Operator):
             sentence.append('and')
         sentence += ['with', str(category)]
     if isinstance(loc, Operator):
@@ -731,9 +734,6 @@ class GetLoc(Get):
     def __init__(self, objs):
         super(GetLoc, self).__init__('loc', objs)
 
-    def __str__(self):
-        return str(self.objs)
-
 
 class Go(Get):
     """Go to location of object."""
@@ -1027,7 +1027,8 @@ class IsSame(Operator):
     def get_expected_input(self, should_be, objset, epoch_now):
         if should_be is None:
             should_be = random.random() > 0.5
-        should_be = True
+        # should_be = True
+
         # Determine which attribute should be fixed and which shouldn't
         attr1_value = self.attr1(objset, epoch_now)
         attr2_value = self.attr2(objset, epoch_now)

@@ -240,15 +240,18 @@ def write_task_instance(fname, task_info, img_size):
 
 def generate_dataset(max_memory, max_distractors,
                      examples_per_family, output_dir,
-                     random_families=True, composition=1,
-                     img_size=224, train=0.7, validation=0.3):
+                     random_families=True, families=None,
+                     composition=1, img_size=224,
+                     train=0.7, validation=0.3):
     if not random_families:
-        assert composition == 1
+        assert families is not None
+        assert composition == len(families)
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
     families_count = defaultdict(lambda: 0)
-    families = list(task_bank.task_family_dict.keys())
+    if families is None:
+        families = list(task_bank.task_family_dict.keys())
     print(families)
     n_families = len(families)
     total_examples = n_families * examples_per_family * composition
@@ -308,7 +311,7 @@ def main(argv):
 
     generate_dataset(max_memory, max_distractors,
                      200, '/Users/markbai/Documents/School/COMP402/COG_v3/data',
-                     composition=2)
+                     composition=2, families=['CompareLoc'])
     stop = timeit.default_timer()
 
     print('Time: ', stop - start)

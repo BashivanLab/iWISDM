@@ -260,7 +260,6 @@ class CompareViewAngleTemporal(TemporalTask):
 class CompareLocTemporal(TemporalTask):
     """Compare color between two objects."""
 
-    # TODO: compare loc has error: could not broadcast input array from shape (56,56,3) into shape (56,46,3)
     def __init__(self):
         super(CompareLocTemporal, self).__init__()
         when1, when2 = check_whens(sg.sample_when(2))
@@ -302,13 +301,13 @@ class CompareObjectTemporal(TemporalTask):
 
 
 task_family_dict = OrderedDict([
-    # ('CompareLoc', CompareLocTemporal),
+    ('CompareLoc', CompareLocTemporal),
     # ('ExistCategoryOf', ExistCategoryOfTemporal),
     # ('ExistViewAngleOf', ExistViewAngleOfTemporal),
     # ('ExistObjectOf', ExistObjectOfTemporal),
-    # ('CompareViewAngle', CompareViewAngleTemporal),
+    ('CompareViewAngle', CompareViewAngleTemporal),
     ('CompareCategory', CompareCategoryTemporal),
-    # ('CompareObject', CompareObjectTemporal),
+    ('CompareObject', CompareObjectTemporal),
 ])
 
 

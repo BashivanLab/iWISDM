@@ -59,11 +59,10 @@ if not os.path.exists(dir_path):
     print('Data folder does not exist.')
 
 shapnet_path = os.path.join(dir_path, 'min_shapenet_easy_angle')
-pickle_path = os.path.join(shapnet_path, 'train_min_shapenet_angle_easy_meta.pkl')
-images_path = os.path.join(shapnet_path, 'org_shapenet/train')
+pickle_path = os.path.join(shapnet_path, 'five_stim.pkl')
+images_path = os.path.join(shapnet_path, 'org_shapenet/five_stim_shapenet')
 
 df: pd.DataFrame = pd.read_pickle(pickle_path)
-MOD_DICT = dict()
 MOD_DICT = dict()
 for i in df['ctg_mod'].unique():
     MOD_DICT[i] = dict()

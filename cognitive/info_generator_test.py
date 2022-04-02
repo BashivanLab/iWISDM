@@ -147,5 +147,22 @@ class InfoGeneratorTest(unittest.TestCase):
         compo_info2 = ig.TaskInfoCompo(new_task2, fi2)
         compo_info.merge(compo_info2, reuse=1)
 
+        op1 = tg.Select(when=f'last1')
+        op2 = tg.Select(when=f'last3')
+        new_task1 = tg.TemporalTask(tg.IsSame(tg.GetLoc(op1), tg.GetLoc(op2)), 4, first_shareable=4)
+
+        op3 = tg.Select(when=f'last0')
+        op4 = tg.Select(when=f'last4')
+        new_task2 = tg.TemporalTask(tg.IsSame(tg.GetLoc(op3), tg.GetLoc(op4)), 5, 0)
+
+        new_task1_objset = new_task1.generate_objset()
+        fi1 = ig.FrameInfo(new_task1, new_task1_objset)
+        compo_info = ig.TaskInfoCompo(new_task1, fi1)
+        new_task2_objset = new_task2.generate_objset()
+        fi2 = ig.FrameInfo(new_task2, new_task2_objset)
+        compo_info2 = ig.TaskInfoCompo(new_task2, fi2)
+        compo_info.merge(compo_info2, reuse=1)
+        print(str(compo_info))
+
 if __name__ == '__main__':
     unittest.main()

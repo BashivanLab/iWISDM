@@ -159,7 +159,10 @@ class Space(Attribute):
         """
         if avoid is None:
             avoid = []
+        # avoid the mid-point for fixation cue
 
+        mid_point = (self._value[0][1] - self._value[0][0])/2, (self._value[1][1] - self._value[1][0])/2
+        avoid.append(mid_point)
         # TODO: sample from 16 points
         n_max_try = 100
         avoid_radius2 = 0.04  # avoid radius squared
@@ -756,16 +759,18 @@ class ObjectSet(object):
         return subset
 
 
-def get_shapenet_object(obj, obj_size):
+def get_shapenet_object(obj, obj_size,
+                        pickle_path=None, images_path=None):
     '''
 
     :param obj_size: a tuple of desired size
     :param category: the category of ShapeNet Object
     :return: a resized ShapeNet Object of obj_size
     '''
-    shapnet_path = os.path.join(const.dir_path, 'min_shapenet_easy_angle')
-    pickle_path = os.path.join(shapnet_path, 'train_min_shapenet_angle_easy_meta.pkl')
-    images_path = os.path.join(shapnet_path, 'org_shapenet/train')
+    if pickle_path is None:
+        pickle_path = const.pickle_path
+    if images_path is None:
+        images_path = const.images_path
 
     df: pd.DataFrame = pd.read_pickle(pickle_path)
     obj_cat: pd.DataFrame = df.loc[(df['ctg_mod'] == obj.category) &
@@ -802,6 +807,8 @@ def render_static_obj(canvas, obj, img_size):
     x_offset, x_end = center[0] - radius, center[0] + radius
     y_offset, y_end = center[1] - radius, center[1] + radius
     shape_net_obj = get_shapenet_object(obj, [radius * 2, radius * 2])
+
+    assert shape_net_obj.size == (x_end-x_offset, y_end-y_offset)
     canvas[x_offset:x_end, y_offset:y_end] = shape_net_obj
 
 
@@ -1010,6 +1017,12 @@ def another_object(snObject):
         if category == snObject.category:
             all_objects = list(const.ALLOBJECTS[category.value])
             all_objects.remove(snObject.value)
+
+            # resample category if no other objects in the same category
+            if not all_objects:
+                while category != snObject.category:
+                    category = random_category()
+                return random_object(category)
             return SNObject(category=category, value=random.choice(all_objects))
         else:
             return random_object(category)
@@ -1050,10 +1063,11 @@ def random_attr(attr_type):
     elif attr_type == 'category':
         return random_category()
     elif attr_type == 'view_angle':
-        return random_view_angle()
+        obj = random_object(random_category())
+        return random_view_angle(obj)
     elif attr_type == 'loc':
-        return Loc([round(random.uniform(0.05, 0.95), 3),
-                    round(random.uniform(0.05, 0.95), 3)])
+        space = Space()
+        return space.sample()
     else:
         raise NotImplementedError('Unknown attr_type :' + str(attr_type))
 
@@ -1149,8 +1163,7 @@ def sample_view_angle(k, obj: SNObject):
 def another_loc(space):
     n_max_try = 100
     for i_try in range(n_max_try):
-        loc = Loc((round(random.uniform(0.05, 0.95), 3),
-                   round(random.uniform(0.05, 0.95), 3)))
+        loc = space.sample()
         if not space.include(loc):
             break
     return loc
