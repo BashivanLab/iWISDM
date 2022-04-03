@@ -263,8 +263,9 @@ def generate_dataset(max_memory, max_distractors,
         base_fname = os.path.join(output_dir,
                                   f'cog_compo_{composition}_mem_{max_memory}_distr_{max_distractors}')
     else:
+        fam_str = '_'.join(families)
         base_fname = os.path.join(output_dir,
-                                  f'tasks_{families}_mem_{max_memory}_distr_{max_distractors}')
+                                  f'tasks_{fam_str}_mem_{max_memory}_distr_{max_distractors}')
 
     train_fname = os.path.join(base_fname, 'train')
     validation_fname = os.path.join(base_fname, 'validation')
@@ -347,7 +348,7 @@ def main(argv):
     for i, task_comb in task_combs.items():
         for task_fam in task_comb:
             generate_dataset(max_memory, max_distractors,
-                             200, '/Users/markbai/Documents/School/COMP402/COG_v3/data',
+                             100, '/Users/markbai/Documents/School/COMP402/COG_v3/data',
                              composition=i, families=task_fam, random_families=False)
     # generate_dataset(max_memory, max_distractors,
     #                  200, '/Users/markbai/Documents/School/COMP402/COG_v3/data',
