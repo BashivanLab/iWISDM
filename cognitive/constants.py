@@ -69,7 +69,7 @@ for i in df['ctg_mod'].unique():
     for cat in df.loc[df['ctg_mod'] == i]['obj_mod'].unique():
         MOD_DICT[i][cat] = list(df.loc[(df['ctg_mod'] == i)
                                        & (df['obj_mod'] == cat)]['ang_mod'].unique())
-
+print(MOD_DICT)
 OBJECTPERCATEGORY = 14
 CATEGORIES = 12
 VIEW_ANGLES = 4

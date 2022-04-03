@@ -1044,7 +1044,7 @@ def another_view_angle(view_angle):
         obj = view_angle.object
         all_viewangles = list(const.ALLVIEWANGLES[obj.category.value][obj.value])
         all_viewangles.remove(view_angle.value)
-        return random_view_angle(obj)
+        return SNViewAngle(sn_object=obj, value=random.choice(all_viewangles))
     except AttributeError:
         iterator = iter(view_angle)
         first_view = next(iterator)

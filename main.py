@@ -246,6 +246,7 @@ def generate_dataset(max_memory, max_distractors,
     if not random_families:
         assert families is not None
         assert composition == len(families)
+
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
@@ -258,8 +259,12 @@ def generate_dataset(max_memory, max_distractors,
     train_examples = total_examples * train
     validation_examples = total_examples * validation
 
-    base_fname = os.path.join(output_dir,
-                              f'cog_compo_{composition}_mem_{max_memory}_distr_{max_distractors}')
+    if random_families:
+        base_fname = os.path.join(output_dir,
+                                  f'cog_compo_{composition}_mem_{max_memory}_distr_{max_distractors}')
+    else:
+        base_fname = os.path.join(output_dir,
+                                  f'tasks_{families}_mem_{max_memory}_distr_{max_distractors}')
 
     train_fname = os.path.join(base_fname, 'train')
     validation_fname = os.path.join(base_fname, 'validation')
@@ -277,6 +282,7 @@ def generate_dataset(max_memory, max_distractors,
                 print("Generated ", i, " examples")
 
             task_family = list()
+
             for j in range(composition):
                 task_family.append(families[p[i] % n_families])
                 families_count[families[p[i] % n_families]] += 1
@@ -297,7 +303,31 @@ def generate_dataset(max_memory, max_distractors,
             write_task_instance(fname, info, img_size)
             i += 1
     else:
-        pass
+        i = 0
+        while i < total_examples:
+            if i % 10000 == 0 and i > 0:
+                print("Generated ", i, " examples")
+            task_family = np.random.permutation(families)
+            compo_tasks = [generate_temporal_example(max_memory, max_distractors, [family])
+                           for family in task_family]
+
+            i += composition - 1
+            # temporal combination
+            info = compo_tasks[0]
+            for task in compo_tasks[1:]:
+                info.merge(task)
+
+            # Write the example randomly to training or validation folder
+            split = bool(random.getrandbits(1))
+            if (split or validation_examples <= 0) and train_examples > 0:
+                train_examples -= 1
+                fname = os.path.join(train_fname, f'{i}')
+            else:
+                validation_examples -= 1
+                fname = os.path.join(validation_fname, f'{i}')
+
+            write_task_instance(fname, info, img_size)
+            i += 1
     return families_count
 
 
@@ -309,9 +339,19 @@ def main(argv):
 
     start = timeit.default_timer()
 
-    generate_dataset(max_memory, max_distractors,
-                     200, '/Users/markbai/Documents/School/COMP402/COG_v3/data',
-                     composition=2, families=['CompareLoc'])
+    tasks = ['CompareLoc', 'CompareObject', 'CompareCategory', 'CompareViewAngle']
+    task_combs = dict()
+    for i in range(1, 3):
+        task_combs[i] = list(itertools.combinations_with_replacement(tasks, i))
+
+    for i, task_comb in task_combs.items():
+        for task_fam in task_comb:
+            generate_dataset(max_memory, max_distractors,
+                             200, '/Users/markbai/Documents/School/COMP402/COG_v3/data',
+                             composition=i, families=task_fam, random_families=False)
+    # generate_dataset(max_memory, max_distractors,
+    #                  200, '/Users/markbai/Documents/School/COMP402/COG_v3/data',
+    #                  composition=2, families=['CompareViewAngle'])
     stop = timeit.default_timer()
 
     print('Time: ', stop - start)

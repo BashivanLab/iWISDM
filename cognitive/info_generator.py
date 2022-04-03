@@ -9,19 +9,24 @@ import re
 
 
 class ReplaceLastK(object):
-    def __init__(self, task_objset: sg.ObjectSet, objs):
-        self.task_objset = task_objset
-        self.objs = objs
-        self.count = list()
+    def __init__(self, task_objset: sg.ObjectSet, objs: list):
+        self.count = set()
         obj: sg.Object
+
         for task_obj in task_objset:
+            matches = set()
             for i, obj in enumerate(objs):
-                if obj.compare_attrs(task_obj):
-                    self.count.append(i + 1)
+                if obj.compare_attrs(task_obj,
+                                     attrs=['object', 'view_angle', 'category', 'loc']):
+                    matches.add(i)
+            while matches:
+                match = max(matches)
+                self.count.add(match)
+                matches.remove(match)
 
     def __call__(self, match):
-        idx = self.count.pop(len(self.count)-1)
-        return "object {}".format(idx)
+        idx = self.count.pop()
+        return "object {}".format(idx + 1)
 
 
 class TaskInfoCompo(object):

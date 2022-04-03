@@ -1027,8 +1027,7 @@ class IsSame(Operator):
     def get_expected_input(self, should_be, objset, epoch_now):
         if should_be is None:
             should_be = random.random() > 0.5
-        # should_be = True
-
+        # should_be = False
         # Determine which attribute should be fixed and which shouldn't
         attr1_value = self.attr1(objset, epoch_now)
         attr2_value = self.attr2(objset, epoch_now)
