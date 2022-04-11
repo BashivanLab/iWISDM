@@ -161,7 +161,7 @@ class Space(Attribute):
             avoid = []
         # avoid the mid-point for fixation cue
 
-        mid_point = (self._value[0][1] - self._value[0][0])/2, (self._value[1][1] - self._value[1][0])/2
+        mid_point = (self._value[0][1] - self._value[0][0]) / 2, (self._value[1][1] - self._value[1][0]) / 2
         avoid.append(mid_point)
         # TODO: sample from 16 points
         n_max_try = 100
@@ -346,10 +346,10 @@ class Object(object):
                     self.loc = a
                 elif isinstance(a, Space):
                     self.space = a
-                elif isinstance(a, SNObject):
-                    self.object = a
                 elif isinstance(a, SNCategory):
                     self.category = a
+                elif isinstance(a, SNObject):
+                    self.object = a
                 elif isinstance(a, SNViewAngle):
                     self.view_angle = a
                 else:
@@ -470,7 +470,13 @@ class Object(object):
         return True
 
     def copy(self):
-        return copy.deepcopy(self)
+        new_obj = Object(attrs=[Loc(self.loc.value), Space(self.space.value),
+                                SNCategory(self.category.value), SNObject(self.category, self.object.value),
+                                SNViewAngle(self.object, self.view_angle.value)])
+        new_obj.when = self.when
+        new_obj.epoch = self.epoch
+        new_obj.deletable = self.deletable
+        return new_obj
 
 
 class ObjectSet(object):
@@ -808,7 +814,7 @@ def render_static_obj(canvas, obj, img_size):
     y_offset, y_end = center[1] - radius, center[1] + radius
     shape_net_obj = get_shapenet_object(obj, [radius * 2, radius * 2])
 
-    assert shape_net_obj.size == (x_end-x_offset, y_end-y_offset)
+    assert shape_net_obj.size == (x_end - x_offset, y_end - y_offset)
     canvas[x_offset:x_end, y_offset:y_end] = shape_net_obj
 
 

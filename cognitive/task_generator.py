@@ -853,10 +853,10 @@ class Exist(Operator):
         return GetTime(new_objs)
 
     def get_expected_input(self, should_be):
-        if self.objs.when != 'last0':
-            raise ValueError("""
-      Guess objset is not supported for the Exist class
-      for when other than now""")
+      #   if self.objs.when != 'last0':
+      #       raise ValueError("""
+      # Guess objset is not supported for the Exist class
+      # for when other than now""")
 
         if should_be is None:
             should_be = random.random() > 0.5

@@ -215,7 +215,6 @@ class TaskInfoCompo(object):
         start = self.frame_info.get_start_frame(new_task_info, relative_tasks={new_task_idx})
 
         changed = False
-        # TODO: fix action space
         for i, (old_frame, new_frame) in enumerate(zip(self.frame_info[start:], new_task_info.frame_info)):
             lastk = 'last%d' % (len(new_task_info.frame_info) - i - 1)
 

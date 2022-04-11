@@ -237,7 +237,6 @@ def write_task_instance(fname, task_info, img_size):
 
 # TODO: split training and validation after task generation
 
-
 def generate_dataset(max_memory, max_distractors,
                      examples_per_family, output_dir,
                      random_families=True, families=None,
@@ -340,19 +339,24 @@ def main(argv):
 
     start = timeit.default_timer()
 
-    tasks = ['CompareLoc', 'CompareObject', 'CompareCategory', 'CompareViewAngle']
-    task_combs = dict()
-    for i in range(1, 3):
-        task_combs[i] = list(itertools.combinations_with_replacement(tasks, i))
-
-    for i, task_comb in task_combs.items():
-        for task_fam in task_comb:
-            generate_dataset(max_memory, max_distractors,
-                             100, '/Users/markbai/Documents/School/COMP402/COG_v3/data',
-                             composition=i, families=task_fam, random_families=False)
-    # generate_dataset(max_memory, max_distractors,
-    #                  200, '/Users/markbai/Documents/School/COMP402/COG_v3/data',
-    #                  composition=2, families=['CompareViewAngle'])
+    # tasks = ['CompareLoc', 'CompareObject', 'CompareCategory', 'CompareViewAngle']
+    # task_combs = dict()
+    # for i in range(1, 3):
+    #     task_combs[i] = list(itertools.combinations_with_replacement(tasks, i))
+    #
+    # for i, task_comb in task_combs.items():
+    #     for task_fam in task_comb:
+    #         if i == 1:
+    #             generate_dataset(max_memory, max_distractors,
+    #                          1000, '/Users/markbai/Documents/School/COMP402/COG_v3/data/all_stims/no_comp',
+    #                          composition=i, families=task_fam, random_families=False)
+    #         else:
+    #             generate_dataset(max_memory, max_distractors,
+    #                              1000, f'/Users/markbai/Documents/School/COMP402/COG_v3/data/all_stims/comp_{i}',
+    #                              composition=i, families=task_fam, random_families=False)
+    generate_dataset(max_memory, max_distractors,
+                     200, '/Users/markbai/Documents/School/COMP402/COG_v3/data/test',
+                     composition=1, families=['ExistCategoryOf'])
     stop = timeit.default_timer()
 
     print('Time: ', stop - start)

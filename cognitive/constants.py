@@ -59,8 +59,8 @@ if not os.path.exists(dir_path):
     print('Data folder does not exist.')
 
 shapnet_path = os.path.join(dir_path, 'min_shapenet_easy_angle')
-pickle_path = os.path.join(shapnet_path, 'five_stim.pkl')
-images_path = os.path.join(shapnet_path, 'org_shapenet/five_stim_shapenet')
+pickle_path = os.path.join(shapnet_path, 'train_min_shapenet_angle_easy_meta.pkl')
+images_path = os.path.join(shapnet_path, 'org_shapenet/train')
 
 df: pd.DataFrame = pd.read_pickle(pickle_path)
 MOD_DICT = dict()
@@ -69,7 +69,7 @@ for i in df['ctg_mod'].unique():
     for cat in df.loc[df['ctg_mod'] == i]['obj_mod'].unique():
         MOD_DICT[i][cat] = list(df.loc[(df['ctg_mod'] == i)
                                        & (df['obj_mod'] == cat)]['ang_mod'].unique())
-print(MOD_DICT)
+
 OBJECTPERCATEGORY = 14
 CATEGORIES = 12
 VIEW_ANGLES = 4
