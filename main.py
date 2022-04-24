@@ -226,7 +226,7 @@ def write_task_instance(fname, task_info, img_size):
         with open(filename, 'w') as f:
             json.dump(task_example, f, indent=4)
 
-    filename = os.path.join(fname, 'compo_task example')
+    filename = os.path.join(fname, 'compo_task_example')
     with open(filename, 'w') as f:
         json.dump(compo_example, f, indent=4)
 
@@ -245,12 +245,12 @@ def generate_dataset(max_memory, max_distractors,
     if not random_families:
         assert families is not None
         assert composition == len(families)
-
+    assert train + validation == 1.0
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
     families_count = defaultdict(lambda: 0)
-    if families is None:
+    if families is None or families == 'all':
         families = list(task_bank.task_family_dict.keys())
     print(families)
     n_families = len(families)
@@ -258,11 +258,11 @@ def generate_dataset(max_memory, max_distractors,
     train_examples = total_examples * train
     validation_examples = total_examples * validation
 
-    if random_families:
+    fam_str = '_'.join(families)
+    if train != 0.7 and validation != 0.3:
         base_fname = os.path.join(output_dir,
-                                  f'cog_compo_{composition}_mem_{max_memory}_distr_{max_distractors}')
+                                  f'tasks_{fam_str}_mem_{max_memory}_distr_{max_distractors}_{train}_{validation}')
     else:
-        fam_str = '_'.join(families)
         base_fname = os.path.join(output_dir,
                                   f'tasks_{fam_str}_mem_{max_memory}_distr_{max_distractors}')
 
@@ -355,8 +355,12 @@ def main(argv):
     #                              1000, f'/Users/markbai/Documents/School/COMP402/COG_v3/data/all_stims/comp_{i}',
     #                              composition=i, families=task_fam, random_families=False)
     generate_dataset(max_memory, max_distractors,
-                     200, '/Users/markbai/Documents/School/COMP402/COG_v3/data/test',
-                     composition=1, families=['ExistCategoryOf'])
+                     100, '/Users/markbai/Documents/School/COMP402/COG_v3/data/test',
+                     composition=1, families=['CompareCategory'], train=0.7, validation=0.3)
+    # generate_dataset(max_memory, max_distractors,
+    #                  5000, '/Users/markbai/Documents/School/COMP402/COG_v3/data/test',
+    #                  composition=1, families=['CompareFixedObject'], train=0.8, validation=0.2)
+
     stop = timeit.default_timer()
 
     print('Time: ', stop - start)

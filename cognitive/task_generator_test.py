@@ -88,6 +88,8 @@ class TaskGeneratorTest(unittest.TestCase):
             target_values = [const.get_target_value(t) for t in task1.get_target(objset)]
             self.assertEqual(object1.shape.value, target_values[0])
 
+    def testTaskGeneration(self):
+        tg.task_generation()
 
 if __name__ == '__main__':
     unittest.main()

@@ -35,12 +35,6 @@ tf.app.flags.DEFINE_string('task_family', 'all', 'name of the task to be trained
 GLOBAL_SEED = None
 
 
-def check_whens(whens):
-    while len(set(whens)) != len(whens):
-        whens = sg.sample_when(len(whens))
-    return whens
-
-
 class GoShapeTemporal(TemporalTask):
     """Go to shape X."""
 
@@ -170,7 +164,7 @@ class ExistCategoryOfTemporal(TemporalTask):
 
     def __init__(self):
         super(ExistCategoryOfTemporal, self).__init__()
-        when1, when2 = check_whens(sg.sample_when(2))
+        when1, when2 = sg.check_whens(sg.sample_when(2))
 
         objs1 = tg.Select(when=when1)
         category1 = tg.GetCategory(objs1)
@@ -207,10 +201,10 @@ class ExistObjectOfTemporal(TemporalTask):
 
     def __init__(self):
         super(ExistViewAngleOfTemporal, self).__init__()
-        when1, when2 = check_whens(sg.sample_when(2))
+        when1, when2 = sg.check_whens(sg.sample_when(2))
         objs1 = tg.Select(when=when1)
         obj = tg.GetObject(objs1)
-        objs2 = tg.Select(object=obj, when=when2)
+        objs2 = tg.Select(obj=obj, when=when2)
         self._operator = tg.Exist(objs2)
         self.n_frames = const.compare_when([when1, when2]) + 1
 
@@ -224,7 +218,7 @@ class CompareCategoryTemporal(TemporalTask):
 
     def __init__(self):
         super(CompareCategoryTemporal, self).__init__()
-        when1, when2 = check_whens(sg.sample_when(2))
+        when1, when2 = sg.check_whens(sg.sample_when(2))
         objs1 = tg.Select(when=when1)
         objs2 = tg.Select(when=when2)
         a1 = tg.GetCategory(objs1)
@@ -242,7 +236,7 @@ class CompareViewAngleTemporal(TemporalTask):
 
     def __init__(self):
         super(CompareViewAngleTemporal, self).__init__()
-        when1, when2 = check_whens(sg.sample_when(2))
+        when1, when2 = sg.check_whens(sg.sample_when(2))
         objs1 = tg.Select(when=when1)
         objs2 = tg.Select(when=when2)
         a1 = tg.GetViewAngle(objs1)
@@ -260,7 +254,7 @@ class CompareLocTemporal(TemporalTask):
 
     def __init__(self):
         super(CompareLocTemporal, self).__init__()
-        when1, when2 = check_whens(sg.sample_when(2))
+        when1, when2 = sg.check_whens(sg.sample_when(2))
         objs1 = tg.Select(when=when1)
         objs2 = tg.Select(when=when2)
         a1 = tg.GetLoc(objs1)
@@ -278,7 +272,7 @@ class CompareObjectTemporal(TemporalTask):
 
     def __init__(self):
         super(CompareObjectTemporal, self).__init__()
-        when1, when2 = check_whens(sg.sample_when(2))
+        when1, when2 = sg.check_whens(sg.sample_when(2))
         objs1 = tg.Select(when=when1)
         objs2 = tg.Select(when=when2)
         a1 = tg.GetObject(objs1)
@@ -291,16 +285,33 @@ class CompareObjectTemporal(TemporalTask):
         return sg.n_sample_shape(2) * (sg.n_random_when()) ** 2
 
 
+class CompareFixedObjectTemporal(TemporalTask):
+    """Compare between two objects."""
+
+    def __init__(self):
+        super(CompareFixedObjectTemporal, self).__init__()
+        objs1 = tg.Select(when='last0')
+        objs2 = tg.Select(when='last1')
+        a1 = tg.GetFixedObject(objs1)
+        a2 = tg.GetFixedObject(objs2)
+        self._operator = tg.IsSame(a1, a2)
+        self.n_frames = const.compare_when(['last0', 'last1']) + 1
+
+    @property
+    def instance_size(self):
+        return sg.n_sample_shape(2) * (sg.n_random_when()) ** 2
+
+
 class SimpleExistObjGo(Task):
     """If exist color A then go color A, else go color B."""
 
     # TODO: try both_options_avail for temp switch, where t2 and t3 both appear
     def __init__(self):
         obj1, obj2, obj3 = sg.sample_object(2, category=sg.random_category())
-        when1, when2, when3 = check_whens(sg.sample_when(3))
-        objs1 = tg.Select(object=obj1, when=when1)
-        objs2 = tg.Select(object=obj2, when=when2)
-        objs3 = tg.Select(object=obj2, when=when3)
+        when1, when2, when3 = sg.check_whens(sg.sample_when(3))
+        objs1 = tg.Select(obj=obj1, when=when1)
+        objs2 = tg.Select(obj=obj2, when=when2)
+        objs3 = tg.Select(obj=obj2, when=when3)
         self._operator = tg.Switch(
             tg.Exist(objs1), tg.Go(objs2), tg.Go(objs3), both_options_avail=True)
         self.n_frames = const.compare_when([when1, when2, when3])
@@ -316,24 +327,17 @@ class SimpleExistCatGo(TemporalTask):
     def __init__(self):
         super(SimpleExistCatGo, self).__init__()
         cat1, cat2, cat3 = sg.sample_category(3)
-        when0, when1, when2 = check_whens(sg.sample_when(3))
+        when0, when1, when2 = sg.check_whens(sg.sample_when(3))
         objs1 = tg.Select(category=cat1, when=when0)
-        objs2 = tg.Select(category=cat2, when=when1)
-        objs3 = tg.Select(category=cat3, when=when2)
+        objs2 = tg.Select(when=when1)
+        objs3 = tg.Select(when=when2)
         self._operator = tg.Switch(
-            tg.Exist(objs1), tg.Go(objs2), tg.Go(objs3), both_options_avail=True)
+            tg.Exist(objs1), tg.Go(objs2), tg.Go(objs3), both_options_avail=False)
         self.n_frames = const.compare_when([when0, when1, when2]) + 1
 
     @property
     def instance_size(self):
         return sg.n_sample_shape(2) * sg.n_random_when()
-
-
-# class GoShapeTemporalComposite(tg.TemporalCompositeTask):
-#     def __init__(self, n_tasks):
-#         tasks = [GoShapeTemporal() for i in range(n_tasks)]
-#         super(GoShapeTemporalComposite, self).__init__(tasks)
-#         self.n_frames = sum([task.n_frames for task in tasks])
 
 
 task_family_dict = OrderedDict([
@@ -342,6 +346,7 @@ task_family_dict = OrderedDict([
     ('ExistObjectOf', ExistObjectOfTemporal),
     ('CompareViewAngle', CompareViewAngleTemporal),
     ('CompareCategory', CompareCategoryTemporal),
+    ('CompareFixedObject', CompareFixedObjectTemporal),
     ('CompareObject', CompareObjectTemporal),
     ('CompareLoc', CompareLocTemporal),
     ('SimpleExistCatGo', SimpleExistCatGo)

@@ -26,7 +26,8 @@ import numpy as np
 import pandas as pd
 
 AVG_MEM = 4
-MAX_MEMORY = 4
+# if only 1 stim per frame, then number of selects is limited by max_memory
+MAX_MEMORY = 25
 LASTMAP = {}
 for k in range(MAX_MEMORY + 1):
     LASTMAP["last%d" % k] = k

@@ -158,11 +158,10 @@ class Space(Attribute):
           avoid: a list of locations (tuples) to be avoided
         """
         if avoid is None:
-            avoid = []
+            mid_point = (self._value[0][1] - self._value[0][0]) / 2, (self._value[1][1] - self._value[1][0]) / 2
+            avoid = [mid_point]
         # avoid the mid-point for fixation cue
 
-        mid_point = (self._value[0][1] - self._value[0][0]) / 2, (self._value[1][1] - self._value[1][0]) / 2
-        avoid.append(mid_point)
         # TODO: sample from 16 points
         n_max_try = 100
         avoid_radius2 = 0.04  # avoid radius squared
@@ -253,6 +252,24 @@ class SNViewAngle(Attribute):
 
     def __str__(self):
         return 'View Angle: ' + str(self.value)
+
+    def sample(self):
+        self.value = random_view_angle(self.object).value
+
+    def resample(self):
+        self.value = another_view_angle(self).value
+
+
+class SNFixedObject(Attribute):
+    def __init__(self, sn_object, value):
+        if value is not None:
+            assert isinstance(sn_object, SNObject)
+        super(SNFixedObject, self).__init__(value)
+        self.attr_type = 'fixed_object'
+        self.object = sn_object
+
+    def __str__(self):
+        return 'Object: ' + str(self.value)
 
     def sample(self):
         self.value = random_view_angle(self.object).value
@@ -352,6 +369,8 @@ class Object(object):
                     self.object = a
                 elif isinstance(a, SNViewAngle):
                     self.view_angle = a
+                elif isinstance(a, SNFixedObject):
+                    self.view_angle = a
                 else:
                     raise TypeError('Unknown type for attribute: ' +
                                     str(a) + ' ' + str(type(a)))
@@ -404,6 +423,11 @@ class Object(object):
         self.object = view_angle.object
         self.view_angle = view_angle
 
+    def change_fixed_object(self, fixed_object):
+        self.category = fixed_object.object.category
+        self.object = fixed_object.object
+        self.view_angle = SNViewAngle(fixed_object.object, fixed_object.value)
+
     def change_attr(self, attr):
         if isinstance(attr, SNCategory):
             self.change_category(attr)
@@ -411,6 +435,8 @@ class Object(object):
             self.change_object(attr)
         elif isinstance(attr, SNViewAngle):
             self.change_view_angle(attr)
+        elif isinstance(attr, SNFixedObject):
+            self.change_fixed_object(attr)
         else:
             raise NotImplementedError()
 
@@ -498,6 +524,7 @@ class ObjectSet(object):
         self.dict = defaultdict(list)  # key: epoch, value: list of obj
 
         self.last_added_obj = None  # Last added object
+        self.loc = None
 
     def __iter__(self):
         return self.set.__iter__()
@@ -582,8 +609,12 @@ class ObjectSet(object):
         # instantiate the object attributes
         if not obj.loc.has_value:
             # Randomly generate locations, but avoid objects already placed now
-            avoid = [o.loc.value for o in self.select_now(epoch_now)]
-            obj.loc = obj.space.sample(avoid=avoid)
+            if self.loc is None:
+                avoid = [o.loc.value for o in self.select_now(epoch_now)]
+                obj.loc = obj.space.sample(avoid=avoid)
+                self.loc = obj.loc
+            else:
+                obj.loc = self.loc
 
         if obj.view_angle.has_value:
             obj.object = obj.view_angle.object
@@ -1062,6 +1093,31 @@ def another_view_angle(view_angle):
                            value=random.choice(all_viewangles))
 
 
+def random_fixed_object(sn_object):
+    return SNFixedObject(sn_object=sn_object,
+                         value=random.choice(const.ALLVIEWANGLES[sn_object.category.value][sn_object.value]))
+
+
+def another_fixed_object(fixed_object):
+    try:
+        category = random_category()
+        if category == fixed_object.object.category:
+            all_objects = list(const.ALLOBJECTS[category.value])
+            all_objects.remove(fixed_object.object.value)
+
+            # resample category if no other objects in the same category
+            if not all_objects:
+                while category != fixed_object.object.category:
+                    category = random_category()
+                return random_fixed_object(random_object(category))
+            obj = SNObject(category=category, value=random.choice(all_objects))
+            return random_fixed_object(obj)
+        else:
+            return random_fixed_object(random_object(category))
+    except AttributeError:
+        raise NotImplementedError()
+
+
 def random_attr(attr_type):
     if attr_type == 'object':
         category = random_category()
@@ -1071,11 +1127,33 @@ def random_attr(attr_type):
     elif attr_type == 'view_angle':
         obj = random_object(random_category())
         return random_view_angle(obj)
+    elif attr_type == 'fixed_object':
+        obj = random_object(random_category())
+        return random_fixed_object(obj)
     elif attr_type == 'loc':
         space = Space()
         return space.sample()
     else:
         raise NotImplementedError('Unknown attr_type :' + str(attr_type))
+
+def another_attr(attr):
+    if isinstance(attr, SNCategory):
+        return another_category(attr)
+    elif isinstance(attr, SNObject):
+        return another_object(attr)
+    elif isinstance(attr, SNViewAngle):
+        return another_view_angle(attr)
+    elif isinstance(attr, SNFixedObject):
+        return another_fixed_object(attr)
+    elif isinstance(attr, Space):
+        return another_loc(attr)
+    elif isinstance(attr, Loc):
+        return another_loc(Space())
+    elif attr is const.INVALID:
+        return attr
+    else:
+        raise TypeError(
+            'Type {:s} of {:s} is not supported'.format(str(attr), str(type(attr))))
 
 
 def random_loc(n=1):
@@ -1109,7 +1187,14 @@ def random_when(seed=None):
 
 
 def sample_when(n=1, seed=None):
-    return sorted([random_when(seed) for i in range(n)])
+    return [random_when(seed) for i in range(n)]
+
+
+def check_whens(whens):
+    # added check_whens to ensure 1 stimulus per frame
+    while len(set(whens)) != len(whens):
+        whens = sample_when(len(whens))
+    return whens
 
 
 def n_random_when():
@@ -1130,42 +1215,6 @@ def sample_view_angle(k, obj: SNObject):
             random.sample(const.ALLVIEWANGLES[obj.category.value][obj.value], k)]
 
 
-# def n_sample_shape(k):
-#     return np.prod(range(len(const.ALLSHAPES) - k + 1, len(const.ALLSHAPES) + 1))
-#
-#
-# def sample_colorshape(k):
-#     return [
-#         (Color(c), Shape(s)) for c, s in random.sample(const.ALLCOLORSHAPES, k)
-#     ]
-#
-#
-# def n_sample_colorshape(k):
-#     return np.prod(
-#         range(len(const.ALLCOLORSHAPES) - k + 1, len(const.ALLCOLORSHAPES) + 1))
-#
-#
-# def another_color(color):
-#     allcolors = list(const.ALLCOLORS)
-#     try:
-#         allcolors.remove(color.value)
-#     except AttributeError:
-#         for c in color:
-#             allcolors.remove(c.value)
-#
-#     return Color(random.choice(allcolors))
-#
-#
-# def another_shape(shape):
-#     allshapes = list(const.ALLSHAPES)
-#     try:
-#         allshapes.remove(shape.value)
-#     except AttributeError:
-#         for s in shape:
-#             allshapes.remove(s.value)
-#     return Shape(random.choice(allshapes))
-
-
 def another_loc(space):
     n_max_try = 100
     for i_try in range(n_max_try):
@@ -1173,24 +1222,6 @@ def another_loc(space):
         if not space.include(loc):
             break
     return loc
-
-
-def another_attr(attr):
-    if isinstance(attr, SNCategory):
-        return another_category(attr)
-    elif isinstance(attr, SNObject):
-        return another_object(attr)
-    elif isinstance(attr, SNViewAngle):
-        return another_view_angle(attr)
-    elif isinstance(attr, Space):
-        return another_loc(attr)
-    elif isinstance(attr, Loc):
-        return another_loc(Space())
-    elif attr is const.INVALID:
-        return attr
-    else:
-        raise TypeError(
-            'Type {:s} of {:s} is not supported'.format(str(attr), str(type(attr))))
 
 
 def main(argv):

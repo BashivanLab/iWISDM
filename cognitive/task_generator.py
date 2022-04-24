@@ -27,10 +27,12 @@ from typing import List
 
 import numpy as np
 import random
+import pickle
+import networkx as nx
+import matplotlib.pyplot as plt
 
 from cognitive import constants as const
 from cognitive import stim_generator as sg
-from cognitive.stim_generator import Object
 
 
 def obj_str(loc=None, object=None, category=None, view_angle=None,
@@ -415,22 +417,33 @@ class Select(Operator):
     def __init__(self,
                  loc=None,
                  category=None,
-                 object=None,
+                 obj=None,
                  view_angle=None,
+                 attrs=None,
                  when=None,
                  space_type=None):
         super(Select, self).__init__()
 
+        if attrs:
+            for attr in attrs:
+                if isinstance(attr, sg.Loc):
+                    loc = attr
+                elif isinstance(attr, sg.SNCategory):
+                    category = attr
+                elif isinstance(attr, sg.SNObject):
+                    obj = attr
+                elif isinstance(attr, sg.SNViewAngle):
+                    view_angle = attr
         loc = loc or sg.Loc(None)
         category = category or sg.SNCategory(None)
-        object = object or sg.SNObject(category, None)
-        view_angle = view_angle or sg.SNViewAngle(object, None)
+        obj = obj or sg.SNObject(category, None)
+        view_angle = view_angle or sg.SNViewAngle(obj, None)
 
-        if isinstance(loc, Operator) or loc.has_value:
-            assert space_type is not None
+        # if isinstance(loc, Operator) or loc.has_value:
+        #     assert space_type is not None
 
-        self.loc, self.category, self.object, self.view_angle = loc, category, object, view_angle
-        self.set_child([loc, category, object, view_angle])
+        self.loc, self.category, self.object, self.view_angle = loc, category, obj, view_angle
+        self.set_child([loc, category, obj, view_angle])
 
         self.when = when
         self.space_type = space_type
@@ -471,7 +484,7 @@ class Select(Operator):
         new_obj = self.object.copy()
         new_view = self.view_angle.copy()
         new_st = self.space_type.copy() if self.space_type is not None else self.space_type
-        return Select(loc=new_loc, category=new_cat, object=new_obj,
+        return Select(loc=new_loc, category=new_cat, obj=new_obj,
                       view_angle=new_view, when=self.when, space_type=new_st)
 
     def hard_update(self, obj: sg.Object):
@@ -715,6 +728,8 @@ class Get(Operator):
             # Ambiguous or non-existent
             return const.INVALID
         else:
+            if self.attr_type == 'fixed_object':
+                return getattr(objs[0], 'object')
             return getattr(objs[0], self.attr_type)
 
     def copy(self):
@@ -758,6 +773,17 @@ class GetCategory(Get):
 class GetViewAngle(Get):
     def __init__(self, objs):
         super(GetViewAngle, self).__init__('view_angle', objs)
+
+
+class GetFixedObject(Get):
+    def __init__(self, objs):
+        super(GetFixedObject, self).__init__('fixed_object', objs)
+
+    def __str__(self):
+        words = ['object', 'of', str(self.objs)]
+        if not self.parent:
+            words += ['?']
+        return ' '.join(words)
 
 
 class GetTime(Operator):
@@ -853,10 +879,10 @@ class Exist(Operator):
         return GetTime(new_objs)
 
     def get_expected_input(self, should_be):
-      #   if self.objs.when != 'last0':
-      #       raise ValueError("""
-      # Guess objset is not supported for the Exist class
-      # for when other than now""")
+        #   if self.objs.when != 'last0':
+        #       raise ValueError("""
+        # Guess objset is not supported for the Exist class
+        # for when other than now""")
 
         if should_be is None:
             should_be = random.random() > 0.5
@@ -899,7 +925,7 @@ class Switch(Operator):
         self.both_options_avail = both_options_avail
 
     def __str__(self):
-        assert not self.parent
+        # assert not self.parent
         words = [
             'if',
             str(self.statement), ',', 'then',
@@ -1027,7 +1053,7 @@ class IsSame(Operator):
     def get_expected_input(self, should_be, objset, epoch_now):
         if should_be is None:
             should_be = random.random() > 0.5
-        # should_be = False
+
         # Determine which attribute should be fixed and which shouldn't
         attr1_value = self.attr1(objset, epoch_now)
         attr2_value = self.attr2(objset, epoch_now)
@@ -1094,3 +1120,179 @@ class And(Operator):
                 op1_assign, op2_assign = False, False
 
         return op1_assign, op2_assign
+
+
+def all_subclasses(cls):
+    return set(cls.__subclasses__()).union(
+        [s for c in cls.__subclasses__() for s in all_subclasses(c)])
+
+
+def classify_operators(ops):
+    counts = defaultdict(list)
+    for i, op in enumerate(ops):
+        if op == 'Select':
+            counts['select'].append((i, op))
+        elif op == 'Exist':
+            counts['exist'].append((i, op))
+        elif op == 'IsSame':
+            counts['is_same'].append((i, op))
+        elif op == 'And' or op == 'Or' or op == 'Xor':
+            counts['logic'].append((i, op))
+        elif op == 'Switch':
+            counts['switch'].append((i, op))
+        elif 'Get' in op:
+            counts['get'].append((i, op))
+    return counts
+
+
+def get_roots(G):
+    return [n for n, d in G.in_degree() if d == 0]
+
+
+def get_leafs(G, ops):
+    ops_copy = ops.copy()
+    ops = [op for i, op in enumerate(ops) if i in G]
+    if 'Switch' in ops:
+        # get the selects that follow the last switch
+        for node in reversed(sorted(list(G.nodes()))):
+            if ops_copy[node] == 'Switch':
+                last_switch = node
+                break
+        G = nx.dfs_tree(G, last_switch)
+    leafs = [x for x in G.nodes() if G.out_degree(x) == 0 and G.in_degree(x) == 1]
+    assert all(ops_copy[leaf] == 'Select' for leaf in leafs)
+    return leafs
+
+
+def subgraphs_from_switch(G: nx.DiGraph, node):
+    preds = list(G.predecessors(node))
+    left, right = preds[0], preds[1]
+
+    cut_G = G.copy()
+    cut_G.remove_edge(left, node)
+    cut_G.remove_edge(right, node)
+
+    subgraphs = (cut_G.subgraph(c) for c in nx.connected_components(cut_G.to_undirected()))
+    for graph in subgraphs:
+        if left in graph:
+            left_subgraph = graph
+        elif right in graph:
+            right_subgraph = graph
+    return left_subgraph, right_subgraph
+
+
+def convert_operators(G, ops, operators, roots, bfs, operator_families, whens):
+    booleans_ops = ['IsSame', 'Exist', 'And', 'Or', 'Xor', 'NotEqual']
+    logic_ops = ['And', 'Or', 'Xor']
+
+    while not all(isinstance(operators[root], Operator) for root in roots):
+        # convert op from list of strings to list of operators
+        temp = defaultdict(list)
+        for node in bfs:
+            if not isinstance(operators[node], Operator):
+                if ops[node] == 'Select':
+                    operators[node] = Select(when=whens.pop())
+                elif ops[node] == 'Exist':
+                    operators[node] = Exist(operators[bfs[node][0]])
+                elif ops[node] == 'IsSame':
+                    attr1, attr2 = operators[bfs[node][0]], operators[bfs[node][1]]
+                    operators[node] = IsSame(attr1, attr2)
+                elif 'Get' in ops[node]:
+                    objs = operators[bfs[node][0]]
+                    operators[node] = operator_families[ops[node]](objs)
+                elif ops[node] in logic_ops:
+                    op1, op2 = operators[bfs[node][0]], operators[bfs[node][1]]
+                    operators[node] = operator_families[ops[node]](op1, op2)
+                elif ops[node] == 'Switch':
+                    # when initializing switch, the predecessors are initialized first,
+                    # loop over the 2 subtrees, and init do_if1, do_if2
+                    condition = operators[bfs[node][0]]
+
+                    left_subgraph, right_subgraph = subgraphs_from_switch(G, node)
+                    left_leafs, right_leafs = get_leafs(left_subgraph, ops), get_leafs(right_subgraph, ops)
+                    left_roots, right_roots = get_roots(left_subgraph), get_roots(right_subgraph)
+
+                    bfs1 = {leaf: list() for leaf in left_leafs}
+                    bfs2 = {leaf: list() for leaf in right_leafs}
+                    do_if1 = convert_operators(left_subgraph, ops, operators, left_roots,
+                                               bfs1, operator_families, whens)
+                    do_if2 = convert_operators(right_subgraph, ops, operators, right_roots,
+                                               bfs2, operator_families, whens)
+                    operators[node] = Switch(condition, do_if1, do_if2)
+                    # from the leafs, if a switch occurs, then task._operator = Switch(tree_left, tree_right)
+                    # otherwise, if a task is linear without branching, task_operator = roots[0]
+                    return operators[node]
+            for pred in list(G.predecessors(node)):
+                temp[pred].append(node)
+        bfs = temp
+    return operators[roots[0]]
+
+
+def task_generation(graph_fp=None):
+    """
+
+    :param graph_fp:
+    :return:
+    """
+    operator_families = {cls.__name__: cls for cls in all_subclasses(Operator)}
+
+    if graph_fp is None:
+        graph_fp = './autoTask/task_info.pkl'
+    with open(graph_fp, 'rb') as f:
+        graphs = pickle.load(f)
+
+    attrs = ['object', 'loc', 'category', 'view_angle']
+    booleans_ops = ['IsSame', 'Exist', 'And', 'Or', 'Xor', 'NotEqual']
+    logic_ops = ['And', 'Or', 'Xor']
+    tasks = list()
+
+    for idx, operator_graph in enumerate(graphs):
+        ops, adj_matrix = operator_graph
+        operators = ops.copy()
+
+        assert all(isinstance(op, str) for op in ops)
+        for j, op in enumerate(ops):
+            if op == 'Equal':
+                ops[j] = 'IsSame'
+            elif op == 'switch':
+                ops[j] = 'Switch'
+
+        # check all operators are valid
+        if any(op not in operator_families for op in ops):
+            # raise NotImplementedError
+            continue
+
+        op_count = classify_operators(ops)
+        G: nx.DiGraph = nx.from_numpy_matrix(adj_matrix, create_using=nx.DiGraph)
+        roots = get_roots(G)
+        leafs = get_leafs(G, ops)
+        # generate a lastk for each select
+        whens = sg.check_whens(sg.sample_when(len(op_count['select'])))
+        n_frames = const.compare_when(whens) + 1
+
+        # generate attributes for the selects attached to exists that do not have
+        # operators (i.e. Exist -> Select -> GetCategory -> Select) attached to them
+        for node, _ in op_count['exist']:
+            select = list(G.successors(node))[0]
+            if not list(G.successors(select)):
+                operators[select] = Select(attrs=[sg.random_attr(np.random.choice(attrs))], when=whens.pop())
+            else:
+                if not 'Get' in ops[list(G.successors(select))[0]]:
+                    operators[select] = Select(attrs=[sg.random_attr(np.random.choice(attrs))], when=whens.pop())
+                else:
+                    print(ops[list(G.successors(select))[0]])
+
+        bfs = {leaf: list() for leaf in leafs}
+        operator = convert_operators(G, ops, operators, roots, bfs, operator_families, whens)
+
+        if all(isinstance(op, Operator) for op in operators):
+            task = TemporalTask(operator=operator, n_frames=n_frames)
+            tasks.append(task)
+            print(idx, task)
+        else:
+            raise RuntimeError('Could not convert all operators')
+    return tasks
+
+
+if __name__ == '__main__':
+    task_generation()
