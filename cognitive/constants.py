@@ -21,13 +21,13 @@ from __future__ import print_function
 
 import itertools
 import string
-import os
+import os, glob
 import numpy as np
 import pandas as pd
 
-AVG_MEM = 4
-# if only 1 stim per frame, then number of selects is limited by max_memory
-MAX_MEMORY = 25
+AVG_MEM = 3
+# TODO: if only 1 stim per frame, then number of selects is limited by max_memory
+MAX_MEMORY = 3
 LASTMAP = {}
 for k in range(MAX_MEMORY + 1):
     LASTMAP["last%d" % k] = k
@@ -54,61 +54,63 @@ def get_target_value(t):
     return t
 
 
-dir_path = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))),
-                        'data')
-if not os.path.exists(dir_path):
-    print('Data folder does not exist.')
+DATA = None
 
-shapnet_path = os.path.join(dir_path, 'min_shapenet_easy_angle')
-pickle_path = os.path.join(shapnet_path, 'train_min_shapenet_angle_easy_meta.pkl')
-images_path = os.path.join(shapnet_path, 'org_shapenet/train')
 
-df: pd.DataFrame = pd.read_pickle(pickle_path)
-MOD_DICT = dict()
-for i in df['ctg_mod'].unique():
-    MOD_DICT[i] = dict()
-    for cat in df.loc[df['ctg_mod'] == i]['obj_mod'].unique():
-        MOD_DICT[i][cat] = list(df.loc[(df['ctg_mod'] == i)
-                                       & (df['obj_mod'] == cat)]['ang_mod'].unique())
+class Data:
+    def __init__(self, dir_path=None):
+        self.dir_path = dir_path
+        if dir_path is None:
+            self.dir_path = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))),
+                                    './data/min_shapenet_easy_angle')
+        if not os.path.exists(dir_path):
+            print('Data folder does not exist.')
+        pkls = [fname for fname in glob.glob(f'{dir_path}/**/*.pkl', recursive=True)]
+        print(dir_path)
+        assert len(pkls) > 0
+        self.pkl = pkls[0]
 
-OBJECTPERCATEGORY = 14
-CATEGORIES = 12
-VIEW_ANGLES = 4
-ID2Category = {i: None for i in range(CATEGORIES)}
-ID2Object = {i: None for i in range(CATEGORIES * OBJECTPERCATEGORY)}
-ID2ViewAngle = {i: None for i in range(VIEW_ANGLES)}
+        df: pd.DataFrame = pd.read_pickle(self.pkl)
+        self.MOD_DICT = dict()
+        for i in df['ctg_mod'].unique():
+            self.MOD_DICT[i] = dict()
+            for cat in df.loc[df['ctg_mod'] == i]['obj_mod'].unique():
+                self.MOD_DICT[i][cat] = list(df.loc[(df['ctg_mod'] == i)
+                                                    & (df['obj_mod'] == cat)]['ang_mod'].unique())
 
-ALLSPACES = ['left', 'right', 'top', 'bottom']
-ALLCATEGORIES = list(MOD_DICT.keys())
-ALLOBJECTS = {c: list(MOD_DICT[c].keys()) for c in MOD_DICT}
-ALLVIEWANGLES = MOD_DICT
-# Comment out the following to use a smaller set of colors and shapes
-# ALLCOLORS += [
-#     'cyan', 'magenta', 'lime', 'pink', 'teal', 'lavender', 'brown', 'beige',
-#     'maroon', 'mint', 'olive', 'coral', 'navy', 'grey', 'white']
+        OBJECTPERCATEGORY = 14
+        CATEGORIES = 12
+        VIEW_ANGLES = 4
+        self.ID2Category = {i: None for i in range(CATEGORIES)}
+        self.ID2Object = {i: None for i in range(CATEGORIES * OBJECTPERCATEGORY)}
+        self.ID2ViewAngle = {i: None for i in range(VIEW_ANGLES)}
 
-# When the stimuli are invalid for a task
-INVALID = 'invalid'
+        self.ALLSPACES = ['left', 'right', 'top', 'bottom']
+        self.ALLCATEGORIES = list(self.MOD_DICT.keys())
+        self.ALLOBJECTS = {c: list(self.MOD_DICT[c].keys()) for c in self.MOD_DICT}
+        self.ALLVIEWANGLES = self.MOD_DICT
 
-# Allowed vocabulary, the first word is invalid
-# TODO: add ShapeNet vocab
-INPUTVOCABULARY = [
-                      'invalid',
-                      '.', ',', '?',
-                      'object', 'color', 'shape',
-                      'loc', 'on',
-                      'if', 'then', 'else',
-                      'exist',
-                      'equal', 'and',
-                      'the', 'of', 'with',
-                      'point',
-                  ] + ALLSPACES + ALLCATEGORIES + ALLWHENS
-# For faster str -> index lookups
-INPUTVOCABULARY_DICT = dict([(k, i) for i, k in enumerate(INPUTVOCABULARY)])
+        self.INVALID = 'invalid'
 
-INPUTVOCABULARY_SIZE = len(INPUTVOCABULARY)
+        # Allowed vocabulary, the first word is invalid
+        # TODO: add ShapeNet vocab
+        self.INPUTVOCABULARY = [
+                                   'invalid',
+                                   '.', ',', '?',
+                                   'object', 'color', 'shape',
+                                   'loc', 'on',
+                                   'if', 'then', 'else',
+                                   'exist',
+                                   'equal', 'and',
+                                   'the', 'of', 'with',
+                                   'point',
+                               ] + self.ALLSPACES + self.ALLCATEGORIES + ALLWHENS
+        # For faster str -> index lookups
+        self.INPUTVOCABULARY_DICT = dict([(k, i) for i, k in enumerate(self.INPUTVOCABULARY)])
 
-OUTPUTVOCABULARY = ['true', 'false'] + ALLCATEGORIES + [ALLOBJECTS[c] for c in ALLOBJECTS]
+        self.INPUTVOCABULARY_SIZE = len(self.INPUTVOCABULARY)
+
+        self.OUTPUTVOCABULARY = ['true', 'false'] + self.ALLCATEGORIES + [self.ALLOBJECTS[c] for c in self.ALLOBJECTS]
 
 # Maximum number of words in a sentence
 MAXSEQLENGTH = 25
@@ -128,11 +130,11 @@ def get_prefs(grid_size):
 GRID_SIZE = 7
 PREFS = get_prefs(GRID_SIZE)
 
-config = {'dataset': 'yang',
-          'pnt_net': True,
-          'in_voc_size': len(INPUTVOCABULARY),
-          'grid_size': GRID_SIZE,
-          'out_voc_size': len(OUTPUTVOCABULARY),
-          'maxseqlength': MAXSEQLENGTH,
-          'prefs': PREFS,
-          }
+# config = {'dataset': 'yang',
+#           'pnt_net': True,
+#           'in_voc_size': len(INPUTVOCABULARY),
+#           'grid_size': GRID_SIZE,
+#           'out_voc_size': len(OUTPUTVOCABULARY),
+#           'maxseqlength': MAXSEQLENGTH,
+#           'prefs': PREFS,
+#           }

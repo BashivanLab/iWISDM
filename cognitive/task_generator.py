@@ -257,12 +257,13 @@ class Task(object):
 
 
 class TemporalTask(Task):
-    def __init__(self, operator=None, n_frames=None, first_shareable=None):
+    def __init__(self, operator=None, n_frames=None, first_shareable=None, whens=None):
         super(TemporalTask, self).__init__(operator)
         self.n_frames = n_frames
         self._first_shareable = first_shareable
         self.n_distractors = None
         self.avg_mem = None
+        self.whens = whens
 
     def copy(self):
         new_task = TemporalTask()
@@ -459,8 +460,8 @@ class Select(Operator):
         object = self.object(objset, epoch_now)
         view_angle = self.view_angle(object, epoch_now)
 
-        if const.INVALID in (loc, category, object, view_angle):
-            return const.INVALID
+        if const.DATA.INVALID in (loc, category, object, view_angle):
+            return const.DATA.INVALID
 
         if self.space_type is not None:
             space = loc.get_space_to(self.space_type)
@@ -588,7 +589,7 @@ class Select(Operator):
                 a = getattr(self, attr_type)
                 attr = a(objset, epoch_now)
                 # If the input is successfully evaluated
-                if attr is not const.INVALID and attr.has_value:
+                if attr is not const.DATA.INVALID and attr.has_value:
                     if attr_type == 'loc' and self.space_type is not None:
                         attr = attr.get_space_to(self.space_type)
                     attr_new_object.append(attr)
@@ -647,7 +648,7 @@ class Select(Operator):
                 a = getattr(self, attr_type)
                 attr = a(objset, epoch_now)
                 if isinstance(a, Operator):
-                    if attr is const.INVALID:
+                    if attr is const.DATA.INVALID:
                         # Can not be evaluated yet, then randomly choose one
                         attr = sg.random_attr(attr_type)
                     attr_expected_in.append(attr)
@@ -722,11 +723,11 @@ class Get(Operator):
         else:
             objs = self.objs
 
-        if objs is const.INVALID:
-            return const.INVALID
+        if objs is const.DATA.INVALID:
+            return const.DATA.INVALID
         elif len(objs) != 1:
             # Ambiguous or non-existent
-            return const.INVALID
+            return const.DATA.INVALID
         else:
             if self.attr_type == 'fixed_object':
                 return getattr(objs[0], 'object')
@@ -828,11 +829,11 @@ class GetTime(Operator):
             objs = self.objs(objset, epoch_now)
         else:
             objs = self.objs
-        if objs is const.INVALID:
-            return const.INVALID
+        if objs is const.DATA.INVALID:
+            return const.DATA.INVALID
         elif len(objs) != 1:
             # Ambiguous or non-existent
-            return const.INVALID
+            return const.DATA.INVALID
         else:
             # TODO(gryang): this only works when object is shown for a single epoch
             return objs[0].epoch[0]
@@ -866,8 +867,8 @@ class Exist(Operator):
 
     def __call__(self, objset, epoch_now):
         subset = self.objs(objset, epoch_now)
-        if subset == const.INVALID:
-            return const.INVALID
+        if subset == const.DATA.INVALID:
+            return const.DATA.INVALID
         elif subset:
             # If subset is not empty
             return True
@@ -938,11 +939,11 @@ class Switch(Operator):
 
     def __call__(self, objset, epoch_now):
         statement_true = self.statement(objset, epoch_now)
-        if statement_true is const.INVALID:
+        if statement_true is const.DATA.INVALID:
             if self.invalid_as_false:
                 statement_true = False
             else:
-                return const.INVALID
+                return const.DATA.INVALID
 
         if statement_true:
             return self.do_if_true(objset, epoch_now)
@@ -1040,8 +1041,8 @@ class IsSame(Operator):
         attr1 = self.attr1(objset, epoch_now)
         attr2 = self.attr2(objset, epoch_now)
 
-        if (attr1 is const.INVALID) or (attr2 is const.INVALID):
-            return const.INVALID
+        if (attr1 is const.DATA.INVALID) or (attr2 is const.DATA.INVALID):
+            return const.DATA.INVALID
         else:
             return attr1 == attr2
 
@@ -1058,8 +1059,8 @@ class IsSame(Operator):
         attr1_value = self.attr1(objset, epoch_now)
         attr2_value = self.attr2(objset, epoch_now)
 
-        attr1_fixed = attr1_value is not const.INVALID
-        attr2_fixed = attr2_value is not const.INVALID
+        attr1_fixed = attr1_value is not const.DATA.INVALID
+        attr2_fixed = attr2_value is not const.DATA.INVALID
 
         if attr1_fixed:
             assert attr1_value.has_value
@@ -1228,9 +1229,10 @@ def convert_operators(G, ops, operators, roots, bfs, operator_families, whens):
     return operators[roots[0]]
 
 
+# only use if you have a random operator graph
 def task_generation(graph_fp=None):
     """
-
+    automatic task generation based on graph operator
     :param graph_fp:
     :return:
     """

@@ -40,22 +40,9 @@ import tensorflow.compat.v1 as tf
 from cognitive import stim_generator as sg
 from cognitive import task_generator as tg
 import cognitive.task_bank as task_bank
-import cognitive.constants as CONST
+import cognitive.constants as const
 import cognitive.info_generator as ig
-
-FLAGS = tf.flags.FLAGS
-
-tf.flags.DEFINE_integer('max_memory', 3, 'maximum memory duration')
-tf.flags.DEFINE_integer('max_distractors', 1, 'maximum number of distractors')
-tf.flags.DEFINE_integer('epochs', 4, 'number of epochs')
-tf.flags.DEFINE_boolean('compress', True, 'whether to gzip the files')
-tf.flags.DEFINE_integer('examples_per_family', 2,
-                        'number of examples to generate per task family')
-tf.flags.DEFINE_string('output_dir', '/tmp/cog',
-                       'Directory to write output (json or tfrecord) to.')
-tf.flags.DEFINE_integer('parallel', 0,
-                        'number of parallel processes to use. Only training '
-                        'dataset is generated in parallel.')
+from cognitive.arguments import get_args
 
 try:
     range_fn = xrange  # py 2
@@ -63,10 +50,10 @@ except NameError:
     range_fn = range  # py 3
 
 
-def generate_temporal_example(max_memory, max_distractors, task_family):
+def generate_temporal_example(max_memory, max_distractors, task_family, whens=None, first_shareable=None):
     # random.seed(1)
 
-    task = task_bank.random_task(task_family)
+    task = task_bank.random_task(task_family, whens, first_shareable)
     assert isinstance(task, tg.TemporalTask)
 
     # To get maximum memory duration, we need to specify the following average
@@ -79,15 +66,16 @@ def generate_temporal_example(max_memory, max_distractors, task_family):
                                       average_memory_span=avg_mem)
     # Getting targets can remove some objects from objset.
     # Create example fields after this call.
-
     frame_info = ig.FrameInfo(task, objset)
     compo_info = ig.TaskInfoCompo(task, frame_info)
     return compo_info
 
 
-def generate_compo_temporal_example(max_memory, max_distractors, families, n_tasks=1):
+def generate_compo_temporal_example(max_memory, max_distractors, families, n_tasks=1, whens=None, first_shareable=None):
     '''
 
+    :param first_shareable:
+    :param whens:
     :param families:
     :param max_memory:
     :param max_distractors:
@@ -95,9 +83,10 @@ def generate_compo_temporal_example(max_memory, max_distractors, families, n_tas
     :return: combined TaskInfo Compo
     '''
     if n_tasks == 1:
-        return generate_temporal_example(max_memory, max_distractors, families)
+        return generate_temporal_example(max_memory, max_distractors, families, whens, first_shareable)
 
-    compo_tasks = [generate_temporal_example(max_memory, max_distractors, families) for _ in range(n_tasks)]
+    compo_tasks = [generate_temporal_example(max_memory, max_distractors, families, whens, first_shareable) for _ in
+                   range(n_tasks)]
 
     # temporal combination
     cur_task = compo_tasks[0]
@@ -171,27 +160,6 @@ class FileWriter(object):
             os.remove(self._file_name())
 
 
-# def write_task_instance_cv2(fname, task_info, img_size):
-#     if not os.path.exists(fname):
-#         os.makedirs(fname)
-#     objset = task_info.frame_info.objset
-#     for i, epoch in enumerate(sg.render(objset, img_size)):
-#         epoch = add_fixation_cue(epoch)
-#         img_rgb = cv2.cvtColor(epoch, cv2.COLOR_BGR2RGB)
-#         filename = os.path.join(fname, f'epoch{i}.png')
-#         cv2.imwrite(filename, img_rgb)
-#     for i, task_example in enumerate(task_info.get_examples()):
-#         filename = os.path.join(fname, f'task{i} example')
-#         with open(filename, 'w') as f:
-#             json.dump(task_example, f, indent=4)
-#     filename = os.path.join(fname, 'compo_task example')
-#     with open(filename, 'w') as f:
-#         json.dump(task_info.get_compo_example(), f, indent=4)
-#     filename = os.path.join(fname, 'frame_info')
-#     with open(filename, 'w') as f:
-#         json.dump(task_info.frame_info.dump(), f, indent=4)
-
-
 def add_fixation_cue(canvas, cue_size=0.05):
     '''
 
@@ -209,13 +177,14 @@ def add_fixation_cue(canvas, cue_size=0.05):
              (center[0], center[1] + radius), (255, 255, 255), thickness)
 
 
-def write_task_instance(fname, task_info, img_size):
+def write_task_instance(fname, task_info, img_size, fixation_cue=True):
     if not os.path.exists(fname):
         os.makedirs(fname)
     objset = task_info.frame_info.objset
     for i, (epoch, frame) in enumerate(zip(sg.render(objset, img_size), task_info.frame_info)):
-        if not any('ending' in description for description in frame.description):
-            add_fixation_cue(epoch)
+        if fixation_cue:
+            if not any('ending' in description for description in frame.description):
+                add_fixation_cue(epoch)
         img = Image.fromarray(epoch, 'RGB')
         filename = os.path.join(fname, f'epoch{i}.png')
         img.save(filename)
@@ -241,7 +210,8 @@ def generate_dataset(max_memory, max_distractors,
                      examples_per_family, output_dir,
                      random_families=True, families=None,
                      composition=1, img_size=224,
-                     train=0.7, validation=0.3):
+                     train=0.7, validation=0.3, whens=None, first_shareable=None,
+                     fixation_cue=True):
     if not random_families:
         assert families is not None
         assert composition == len(families)
@@ -290,7 +260,7 @@ def generate_dataset(max_memory, max_distractors,
             i += composition - 1  # subtract subtasks from task count
 
             info = generate_compo_temporal_example(max_memory, max_distractors,
-                                                   task_family, composition)
+                                                   task_family, composition, whens, first_shareable)
             # Write the example randomly to training or validation folder
             split = bool(random.getrandbits(1))
             if (split or validation_examples <= 0) and train_examples > 0:
@@ -300,7 +270,7 @@ def generate_dataset(max_memory, max_distractors,
                 validation_examples -= 1
                 fname = os.path.join(validation_fname, f'{i}')
 
-            write_task_instance(fname, info, img_size)
+            write_task_instance(fname, info, img_size, fixation_cue)
             i += 1
     else:
         i = 0
@@ -326,22 +296,43 @@ def generate_dataset(max_memory, max_distractors,
                 validation_examples -= 1
                 fname = os.path.join(validation_fname, f'{i}')
 
-            write_task_instance(fname, info, img_size)
+            write_task_instance(fname, info, img_size, fixation_cue)
             i += 1
     return families_count
 
 
-def main(argv):
-    # go shape: point at last sth
+def main():
+    args = get_args()
+    print(args)
 
-    max_distractors = 0
-    max_memory = 12
-
+    const.DATA = const.Data(args.stim_dir)
     start = timeit.default_timer()
+    if args.nback >= 0:
+        whens = [f'last{args.nback}', 'last0']
+        composition = args.nback_length - args.nback + 1
+        generate_dataset(args.max_memory, args.max_distractors,
+                         args.examples_per_family, args.output_dir,
+                         composition=composition, img_size=args.img_size,
+                         random_families=args.random_families, families=args.families,
+                         train=args.training, validation=args.validation, whens=whens,
+                         first_shareable=1, fixation_cue=args.fixation_cue)
+    else:
+        whens = None
+        if args.fix_delay:
+            whens = [f'last{const.MAX_MEMORY}', 'last0']
+        generate_dataset(args.max_memory, args.max_distractors,
+                         args.examples_per_family, args.output_dir,
+                         composition=args.composition, img_size=args.img_size,
+                         random_families=args.random_families, families=args.families,
+                         train=args.training, validation=args.validation, whens=whens,
+                         fixation_cue=args.fixation_cue)
 
+    # # from task_bank.task_family_dict
     # tasks = ['CompareLoc', 'CompareObject', 'CompareCategory', 'CompareViewAngle']
     # task_combs = dict()
-    # for i in range(1, 3):
+    # # generate all possible task combinations with specified i composition
+    #
+    # for i in range(1, 4):
     #     task_combs[i] = list(itertools.combinations_with_replacement(tasks, i))
     #
     # for i, task_comb in task_combs.items():
@@ -354,12 +345,9 @@ def main(argv):
     #             generate_dataset(max_memory, max_distractors,
     #                              1000, f'/Users/markbai/Documents/School/COMP402/COG_v3/data/all_stims/comp_{i}',
     #                              composition=i, families=task_fam, random_families=False)
-    generate_dataset(max_memory, max_distractors,
-                     100, '/Users/markbai/Documents/School/COMP402/COG_v3/data/test',
-                     composition=1, families=['CompareCategory'], train=0.7, validation=0.3)
     # generate_dataset(max_memory, max_distractors,
-    #                  5000, '/Users/markbai/Documents/School/COMP402/COG_v3/data/test',
-    #                  composition=1, families=['CompareFixedObject'], train=0.8, validation=0.2)
+    #                  50000, '/Users/markbai/Documents/School/COMP402/COG_v3/data/test',
+    #                  composition=1, families=['CompareCategory'], train=0.7, validation=0.3)
 
     stop = timeit.default_timer()
 
@@ -367,4 +355,4 @@ def main(argv):
 
 
 if __name__ == '__main__':
-    tf.app.run(main)
+    main()

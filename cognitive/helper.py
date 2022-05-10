@@ -140,6 +140,7 @@ if __name__ == '__main__':
             node_dict[j] = {"label": node_list[j]}
         nx.set_node_attributes(G, node_dict)
         A = nx.nx_agraph.to_agraph(G)
+        #TODO: inverse directions
         A.draw("autoTask/attributes_%d.png" % i, prog="dot")
 
     with open("autoTask/task_info.pkl", "wb") as fp:  # Pickling

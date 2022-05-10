@@ -34,7 +34,7 @@ import itertools
 from bisect import bisect_left
 from collections import defaultdict
 import json
-import os
+import os, glob
 from PIL import Image
 import pandas as pd
 import random
@@ -560,7 +560,7 @@ class ObjectSet(object):
             epoch_now,
             add_if_exist=False,
             delete_if_can=True,
-            merge_idx=None
+            merge_idx=None,
             ):
         """Add an object at the current epoch
 
@@ -608,13 +608,8 @@ class ObjectSet(object):
 
         # instantiate the object attributes
         if not obj.loc.has_value:
-            # Randomly generate locations, but avoid objects already placed now
-            if self.loc is None:
-                avoid = [o.loc.value for o in self.select_now(epoch_now)]
-                obj.loc = obj.space.sample(avoid=avoid)
-                self.loc = obj.loc
-            else:
-                obj.loc = self.loc
+            avoid = [o.loc.value for o in self.select_now(epoch_now)]
+            obj.loc = obj.space.sample(avoid=avoid)
 
         if obj.view_angle.has_value:
             obj.object = obj.view_angle.object
@@ -796,18 +791,26 @@ class ObjectSet(object):
         return subset
 
 
-def get_shapenet_object(obj, obj_size,
-                        pickle_path=None, images_path=None):
-    '''
-
-    :param obj_size: a tuple of desired size
-    :param category: the category of ShapeNet Object
-    :return: a resized ShapeNet Object of obj_size
-    '''
+def get_shapenet_object(obj, obj_size, pickle_path=None,
+                        training_path=None, validation_path=None, train=True):
     if pickle_path is None:
-        pickle_path = const.pickle_path
-    if images_path is None:
-        images_path = const.images_path
+        pickle_path = const.DATA.pkl
+    if not train:
+        if validation_path is None:
+            raise ValueError('No validation stim path provided')
+        else:
+            images_path = validation_path
+    else:
+        if training_path is not None:
+            images_path = training_path
+        else:
+            trains = [fname for fname in glob.glob(f'{const.DATA.dir_path}/**/train', recursive=True)]
+            if os.path.isdir(trains[0]):
+                images_path = trains[0]
+            else:
+
+                images_path = const.DATA.dir_path
+
 
     df: pd.DataFrame = pd.read_pickle(pickle_path)
     obj_cat: pd.DataFrame = df.loc[(df['ctg_mod'] == obj.category) &
@@ -815,15 +818,16 @@ def get_shapenet_object(obj, obj_size,
                                    (df['ang_mod'] == obj.view_angle)]
     if len(obj_cat) <= 0:
         raise ValueError(obj.category, obj.object, obj.view_angle)
-    obj_ref = int(obj_cat.sample(1)['ref'])
 
+    # obj_ref = int(obj_cat.sample(1)['ref'])
+    obj_ref = int(obj_cat.iloc[0]['ref'])
     obj_path = os.path.join(images_path, f'{obj_ref}/image.png')
     img = Image.open(obj_path).convert('RGB').resize(obj_size)
 
     return img
 
 
-def render_static_obj(canvas, obj, img_size):
+def render_static_obj(canvas, obj, img_size, train=True):
     """Render a single object.
 
     Args:
@@ -843,7 +847,7 @@ def render_static_obj(canvas, obj, img_size):
 
     x_offset, x_end = center[0] - radius, center[0] + radius
     y_offset, y_end = center[1] - radius, center[1] + radius
-    shape_net_obj = get_shapenet_object(obj, [radius * 2, radius * 2])
+    shape_net_obj = get_shapenet_object(obj, [radius * 2, radius * 2], train=train)
 
     assert shape_net_obj.size == (x_end - x_offset, y_end - y_offset)
     canvas[x_offset:x_end, y_offset:y_end] = shape_net_obj
@@ -1007,7 +1011,7 @@ def render_target(movie, target):
             center = (int(loc[0] * img_size), int(loc[1] * img_size))
             cv2.circle(frame, center, radius, (255, 255, 255), -1)
         else:
-            if target_now is const.INVALID:
+            if target_now is const.DATA.INVALID:
                 string = 'invalid'
             elif isinstance(target_now, bool):
                 string = 'true' if target_now else 'false'
@@ -1026,11 +1030,11 @@ def render_target(movie, target):
 
 
 def random_category():
-    return SNCategory(random.choice(const.ALLCATEGORIES))
+    return SNCategory(random.choice(const.DATA.ALLCATEGORIES))
 
 
 def another_category(category):
-    all_categories = list(const.ALLCATEGORIES)
+    all_categories = list(const.DATA.ALLCATEGORIES)
     try:
         all_categories.remove(category.value)
     except AttributeError:
@@ -1045,14 +1049,14 @@ def random_object(category):
     :param category:
     :return: integer indicating the object id
     '''
-    return SNObject(category=category, value=random.choice(const.ALLOBJECTS[category.value]))
+    return SNObject(category=category, value=random.choice(const.DATA.ALLOBJECTS[category.value]))
 
 
 def another_object(snObject):
     try:
         category = random_category()
         if category == snObject.category:
-            all_objects = list(const.ALLOBJECTS[category.value])
+            all_objects = list(const.DATA.ALLOBJECTS[category.value])
             all_objects.remove(snObject.value)
 
             # resample category if no other objects in the same category
@@ -1065,7 +1069,7 @@ def another_object(snObject):
             return random_object(category)
     except AttributeError:
         category = random_category()
-        all_objects = list(const.ALLOBJECTS[category.value])
+        all_objects = list(const.DATA.ALLOBJECTS[category.value])
         for o in snObject:
             all_objects.remove(o.value)
         return SNObject(category=category, value=random.choice(all_objects))
@@ -1073,20 +1077,20 @@ def another_object(snObject):
 
 def random_view_angle(sn_object):
     return SNViewAngle(sn_object=sn_object,
-                       value=random.choice(const.ALLVIEWANGLES[sn_object.category.value][sn_object.value]))
+                       value=random.choice(const.DATA.ALLVIEWANGLES[sn_object.category.value][sn_object.value]))
 
 
 def another_view_angle(view_angle):
     try:
         obj = view_angle.object
-        all_viewangles = list(const.ALLVIEWANGLES[obj.category.value][obj.value])
+        all_viewangles = list(const.DATA.ALLVIEWANGLES[obj.category.value][obj.value])
         all_viewangles.remove(view_angle.value)
         return SNViewAngle(sn_object=obj, value=random.choice(all_viewangles))
     except AttributeError:
         iterator = iter(view_angle)
         first_view = next(iterator)
         assert all(first_view.obj == view.obj for view in iterator)
-        all_viewangles = list(const.ALLVIEWANGLES[first_view.category.value][first_view.value])
+        all_viewangles = list(const.DATA.ALLVIEWANGLES[first_view.category.value][first_view.value])
         for view in view_angle:
             all_viewangles.remove(view.value)
         return SNViewAngle(sn_object=first_view.obj,
@@ -1095,14 +1099,14 @@ def another_view_angle(view_angle):
 
 def random_fixed_object(sn_object):
     return SNFixedObject(sn_object=sn_object,
-                         value=random.choice(const.ALLVIEWANGLES[sn_object.category.value][sn_object.value]))
+                         value=random.choice(const.DATA.ALLVIEWANGLES[sn_object.category.value][sn_object.value]))
 
 
 def another_fixed_object(fixed_object):
     try:
         category = random_category()
         if category == fixed_object.object.category:
-            all_objects = list(const.ALLOBJECTS[category.value])
+            all_objects = list(const.DATA.ALLOBJECTS[category.value])
             all_objects.remove(fixed_object.object.value)
 
             # resample category if no other objects in the same category
@@ -1136,6 +1140,7 @@ def random_attr(attr_type):
     else:
         raise NotImplementedError('Unknown attr_type :' + str(attr_type))
 
+
 def another_attr(attr):
     if isinstance(attr, SNCategory):
         return another_category(attr)
@@ -1149,7 +1154,7 @@ def another_attr(attr):
         return another_loc(attr)
     elif isinstance(attr, Loc):
         return another_loc(Space())
-    elif attr is const.INVALID:
+    elif attr is const.DATA.INVALID:
         return attr
     else:
         raise TypeError(
@@ -1167,11 +1172,11 @@ def random_loc(n=1):
 
 
 def random_space():
-    return random.choice(const.ALLSPACES)
+    return random.choice(const.DATA.ALLSPACES)
 
 
 def n_random_space():
-    return len(const.ALLSPACES)
+    return len(const.DATA.ALLSPACES)
 
 
 def random_when(seed=None):
@@ -1183,10 +1188,16 @@ def random_when(seed=None):
       when: a string.
     """
     np.random.seed(seed=seed)
-    return np.random.choice(const.ALLWHENS, p=const.ALLWHENS_PROB)
+    return np.random.choice(const.DATA.ALLWHENS, p=const.DATA.ALLWHENS_PROB)
 
 
 def sample_when(n=1, seed=None):
+    """
+
+    :param n:
+    :param seed:
+    :return: a list of 'lastk', in random order
+    """
     return [random_when(seed) for i in range(n)]
 
 
@@ -1198,21 +1209,21 @@ def check_whens(whens):
 
 
 def n_random_when():
-    return len(const.ALLWHENS)
+    return len(const.DATA.ALLWHENS)
 
 
 def sample_category(k):
-    return [SNCategory(c) for c in random.sample(const.ALLCATEGORIES, k)]
+    return [SNCategory(c) for c in random.sample(const.DATA.ALLCATEGORIES, k)]
 
 
 def sample_object(k, category):
     return [SNObject(category=category, value=s)
-            for s in random.sample(const.ALLOBJECTS[category.value], k)]
+            for s in random.sample(const.DATA.ALLOBJECTS[category.value], k)]
 
 
 def sample_view_angle(k, obj: SNObject):
     return [SNViewAngle(sn_object=obj, value=v) for v in
-            random.sample(const.ALLVIEWANGLES[obj.category.value][obj.value], k)]
+            random.sample(const.DATA.ALLVIEWANGLES[obj.category.value][obj.value], k)]
 
 
 def another_loc(space):
