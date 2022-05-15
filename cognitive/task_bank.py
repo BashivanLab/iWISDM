@@ -34,6 +34,7 @@ tf.app.flags.DEFINE_string('task_family', 'all', 'name of the task to be trained
 
 GLOBAL_SEED = None
 
+
 class ExistCategoryOfTemporal(TemporalTask):
     """Check if exist object with shape of a colored object."""
 
@@ -179,6 +180,7 @@ class CompareObjectTemporal(TemporalTask):
 
 class CompareFixedObjectTemporal(TemporalTask):
     """Compare between two objects."""
+
     def __init__(self, whens=None, first_shareable=None):
         super(CompareFixedObjectTemporal, self).__init__(whens=whens, first_shareable=first_shareable)
         if self.whens is None:
@@ -197,46 +199,56 @@ class CompareFixedObjectTemporal(TemporalTask):
         return sg.n_sample_shape(2) * (sg.n_random_when()) ** 2
 
 
-class SimpleExistObjGo(Task):
-    """If exist color A then go color A, else go color B."""
+class SequentialCategoryMatch(TemporalTask):
+    def __init__(self, whens=None, first_shareable=None, n_frames=1):
+        super(SequentialCategoryMatch, self).__init__(whens=whens, first_shareable=first_shareable)
+        total_frames = n_frames * 2 + random.randint(0, const.MAX_MEMORY - (n_frames * 2) + 1)
 
-    # TODO: try both_options_avail for temp switch, where t2 and t3 both appear
-    def __init__(self, whens=None, first_shareable=None):
-        super(SimpleExistObjGo, self).__init__(whens=whens, first_shareable=first_shareable)
-        obj1, obj2, obj3 = sg.sample_object(2, category=sg.random_category())
-        when1, when2, when3 = sg.check_whens(sg.sample_when(3))
-        objs1 = tg.Select(obj=obj1, when=when1)
-        objs2 = tg.Select(obj=obj2, when=when2)
-        objs3 = tg.Select(obj=obj2, when=when3)
-        self._operator = tg.Switch(
-            tg.Exist(objs1), tg.Go(objs2), tg.Go(objs3), both_options_avail=True)
-        self.n_frames = const.compare_when([when1, when2, when3])
-
-    @property
-    def instance_size(self):
-        return sg.n_sample_color(2) * sg.n_random_when()
-
-
-class SimpleExistCatGo(TemporalTask):
-    """If exist cat A then go cat A, else go cat B."""
-
-    def __init__(self, whens=None, first_shareable=None):
-        super(SimpleExistCatGo, self).__init__(whens=whens, first_shareable=first_shareable)
-        cat1, cat2, cat3 = sg.sample_category(3)
-        if self.whens is not None:
-            when0, when1, when2 = sg.check_whens(sg.sample_when(3))
+        sample_objs = [tg.Select(when=f'last{total_frames - i - 1}') for i in range(n_frames)]
+        response_objs = [tg.Select(when=f'last{i}') for i in range(n_frames)]
+        sample_cats = [tg.GetCategory(obj) for obj in sample_objs]
+        response_cats = [tg.GetCategory(obj) for obj in response_objs]
+        is_sames = [tg.IsSame(sample, response) for sample, response in zip(sample_cats, response_cats)]
+        if n_frames == 1:
+            self._operator = is_sames[0]
         else:
-            when0, when1, when2 = self.whens[0], self.whens[1], self.whens[2]
-        objs1 = tg.Select(category=cat1, when=when0)
-        objs2 = tg.Select(when=when1)
-        objs3 = tg.Select(when=when2)
-        self._operator = tg.Switch(
-            tg.Exist(objs1), tg.Go(objs2), tg.Go(objs3), both_options_avail=False)
-        self.n_frames = const.compare_when([when0, when1, when2]) + 1
+            ands = tg.And(is_sames[0], is_sames[1])
+            for is_same1, is_same2 in zip(is_sames[2::2], is_sames[3::2]):
+                ands = tg.And(tg.And(is_same1, is_same2), ands)
+            self._operator = ands
+        self.n_frames = total_frames
 
     @property
     def instance_size(self):
-        return sg.n_sample_shape(2) * sg.n_random_when()
+        return sg.n_sample_shape(2) * (sg.n_random_when()) ** 2
+
+
+class DelayedCDM(TemporalTask):
+    def __init__(self, whens=None, first_shareable=None, attrs=None):
+        super(DelayedCDM, self).__init__(whens, first_shareable)
+        if self.whens is None:
+            when1, when2 = sorted(sg.check_whens(sg.sample_when(2)))
+        else:
+            when1, when2 = self.whens[0], self.whens[1]
+
+        objs1 = tg.Select(when=when1)
+        objs2 = tg.Select(when=when2)
+
+        if attrs:
+            assert len(attrs) == 3
+            attr0 = attrs[0]
+            attrs = attrs[1::]
+        else:
+            attr0 = random.choice(const.ATTRS)
+            attrs = random.sample(const.ATTRS, 2)
+        const_attr0 = sg.random_attr(attr0)
+        const_attrs = [sg.random_attr(attr) for attr in attrs]
+        condition = tg.IsSame(const_attr0, tg.get_family_dict[attr0](objs1))
+        do_if = tg.IsSame(const_attrs[0], tg.get_family_dict[attrs[0]](objs2))
+        do_else = tg.IsSame(const_attrs[1], tg.get_family_dict[attrs[1]](objs2))
+        self._operator = tg.Switch(condition, do_if, do_else)
+        print(self._operator)
+        self.n_frames = const.compare_when([when1, when2]) + 1
 
 
 task_family_dict = OrderedDict([
@@ -248,10 +260,11 @@ task_family_dict = OrderedDict([
     ('CompareFixedObject', CompareFixedObjectTemporal),
     ('CompareObject', CompareObjectTemporal),
     ('CompareLoc', CompareLocTemporal),
-    ('SimpleExistCatGo', SimpleExistCatGo)
+    ('SequentialCategory', SequentialCategoryMatch),
+    ('DelayedCDM', DelayedCDM)
 ])
 
 
-def random_task(task_family, when1, when2):
+def random_task(task_family, *args):
     """Return a random question from the task family."""
-    return task_family_dict[task_family[random.randint(0, len(task_family) - 1)]](when1, when2)
+    return task_family_dict[task_family[random.randint(0, len(task_family) - 1)]](*args)

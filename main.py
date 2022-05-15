@@ -30,6 +30,7 @@ import itertools
 import json
 import multiprocessing
 import os
+import re
 import random
 import shutil
 import traceback
@@ -48,51 +49,6 @@ try:
     range_fn = xrange  # py 2
 except NameError:
     range_fn = range  # py 3
-
-
-def generate_temporal_example(max_memory, max_distractors, task_family, whens=None, first_shareable=None):
-    # random.seed(1)
-
-    task = task_bank.random_task(task_family, whens, first_shareable)
-    assert isinstance(task, tg.TemporalTask)
-
-    # To get maximum memory duration, we need to specify the following average
-    # memory value
-    avg_mem = round(max_memory / 3.0 + 0.01, 2)
-    if max_distractors == 0:
-        objset = task.generate_objset(average_memory_span=avg_mem)
-    else:
-        objset = task.generate_objset(n_distractor=random.randint(1, max_distractors),
-                                      average_memory_span=avg_mem)
-    # Getting targets can remove some objects from objset.
-    # Create example fields after this call.
-    frame_info = ig.FrameInfo(task, objset)
-    compo_info = ig.TaskInfoCompo(task, frame_info)
-    return compo_info
-
-
-def generate_compo_temporal_example(max_memory, max_distractors, families, n_tasks=1, whens=None, first_shareable=None):
-    '''
-
-    :param first_shareable:
-    :param whens:
-    :param families:
-    :param max_memory:
-    :param max_distractors:
-    :param n_tasks:
-    :return: combined TaskInfo Compo
-    '''
-    if n_tasks == 1:
-        return generate_temporal_example(max_memory, max_distractors, families, whens, first_shareable)
-
-    compo_tasks = [generate_temporal_example(max_memory, max_distractors, families, whens, first_shareable) for _ in
-                   range(n_tasks)]
-
-    # temporal combination
-    cur_task = compo_tasks[0]
-    for task in compo_tasks[1:]:
-        cur_task.merge(task)
-    return cur_task
 
 
 def log_exceptions(func):
@@ -161,12 +117,12 @@ class FileWriter(object):
 
 
 def add_fixation_cue(canvas, cue_size=0.05):
-    '''
+    """
 
     :param canvas: numpy array of shape: (img_size, img_size, 3)
     :param cue_size: size of the fixation cue
     :return:
-    '''
+    """
     img_size = canvas.shape[0]
     radius = int(cue_size * img_size)
     center = (canvas.shape[0] // 2, canvas.shape[1] // 2)
@@ -204,14 +160,71 @@ def write_task_instance(fname, task_info, img_size, fixation_cue=True):
         json.dump(task_info.frame_info.dump(), f, indent=4)
 
 
+def generate_temporal_example(max_memory, max_distractors, task_family,
+                              whens=None, first_shareable=None):
+    """
+    generate 1 task objset and composition info object
+
+    :param max_memory:
+    :param max_distractors:
+    :param task_family:
+    :param whens:
+    :param first_shareable:
+    :return:
+    """
+    task = task_bank.random_task(task_family, whens, first_shareable)
+    assert isinstance(task, tg.TemporalTask)
+
+    # To get maximum memory duration, we need to specify the following average
+    # memory value
+    avg_mem = round(max_memory / 3.0 + 0.01, 2)
+    if max_distractors == 0:
+        objset = task.generate_objset(average_memory_span=avg_mem)
+    else:
+        objset = task.generate_objset(n_distractor=random.randint(1, max_distractors),
+                                      average_memory_span=avg_mem)
+    # Getting targets can remove some objects from objset.
+    # Create example fields after this call.
+    frame_info = ig.FrameInfo(task, objset)
+    compo_info = ig.TaskInfoCompo(task, frame_info)
+    return compo_info
+
+
+def generate_compo_temporal_example(max_memory, max_distractors, families, n_tasks=1,
+                                    *args, **kwargs):
+    '''
+
+    :param first_shareable:
+    :param whens:
+    :param families:
+    :param max_memory:
+    :param max_distractors:
+    :param n_tasks:
+    :return: combined TaskInfo Compo
+    '''
+    whens = kwargs.pop('whens', [None for _ in range(n_tasks)])
+
+    if not isinstance(whens[0], list):
+        whens = [whens for _ in range(n_tasks)]
+    if n_tasks == 1:
+        return generate_temporal_example(max_memory, max_distractors, families, whens=whens[0], *args, **kwargs)
+
+    compo_tasks = [generate_temporal_example(max_memory, max_distractors, families, whens=whens[i], *args, **kwargs)
+                   for i in range(n_tasks)]
+    # temporal combination
+    cur_task = compo_tasks[0]
+    for task in compo_tasks[1:]:
+        cur_task.merge(task)
+    return cur_task
+
+
 # TODO: split training and validation after task generation
 
-def generate_dataset(max_memory, max_distractors,
-                     examples_per_family, output_dir,
+def generate_dataset(examples_per_family, output_dir='./data',
                      random_families=True, families=None,
                      composition=1, img_size=224,
-                     train=0.7, validation=0.3, whens=None, first_shareable=None,
-                     fixation_cue=True):
+                     train=0.7, validation=0.3, fixation_cue=True,
+                     *args, **kwargs):
     if not random_families:
         assert families is not None
         assert composition == len(families)
@@ -224,17 +237,17 @@ def generate_dataset(max_memory, max_distractors,
         families = list(task_bank.task_family_dict.keys())
     print(families)
     n_families = len(families)
-    total_examples = n_families * examples_per_family * composition
+    total_examples = n_families * examples_per_family
     train_examples = total_examples * train
     validation_examples = total_examples * validation
 
     fam_str = '_'.join(families)
     if train != 0.7 and validation != 0.3:
         base_fname = os.path.join(output_dir,
-                                  f'tasks_{fam_str}_mem_{max_memory}_distr_{max_distractors}_{train}_{validation}')
+                                  f'tasks_{fam_str}_{train}_{validation}')
     else:
         base_fname = os.path.join(output_dir,
-                                  f'tasks_{fam_str}_mem_{max_memory}_distr_{max_distractors}')
+                                  f'tasks_{fam_str}')
 
     train_fname = os.path.join(base_fname, 'train')
     validation_fname = os.path.join(base_fname, 'validation')
@@ -252,15 +265,11 @@ def generate_dataset(max_memory, max_distractors,
                 print("Generated ", i, " examples")
 
             task_family = list()
-
             for j in range(composition):
                 task_family.append(families[p[i] % n_families])
                 families_count[families[p[i] % n_families]] += 1
 
-            i += composition - 1  # subtract subtasks from task count
-
-            info = generate_compo_temporal_example(max_memory, max_distractors,
-                                                   task_family, composition, whens, first_shareable)
+            info = generate_compo_temporal_example(families=task_family, n_tasks=composition, *args, **kwargs)
             # Write the example randomly to training or validation folder
             split = bool(random.getrandbits(1))
             if (split or validation_examples <= 0) and train_examples > 0:
@@ -278,10 +287,9 @@ def generate_dataset(max_memory, max_distractors,
             if i % 10000 == 0 and i > 0:
                 print("Generated ", i, " examples")
             task_family = np.random.permutation(families)
-            compo_tasks = [generate_temporal_example(max_memory, max_distractors, [family])
-                           for family in task_family]
 
-            i += composition - 1
+            compo_tasks = [generate_temporal_example(task_family=[family], *args, **kwargs)
+                           for family in task_family]
             # temporal combination
             info = compo_tasks[0]
             for task in compo_tasks[1:]:
@@ -306,26 +314,47 @@ def main():
     print(args)
 
     const.DATA = const.Data(args.stim_dir)
+
     start = timeit.default_timer()
-    if args.nback >= 0:
+    if args.nback > 0:
+        assert all('Compare' in family for family in args.families)
         whens = [f'last{args.nback}', 'last0']
         composition = args.nback_length - args.nback + 1
-        generate_dataset(args.max_memory, args.max_distractors,
-                         args.examples_per_family, args.output_dir,
+        generate_dataset(examples_per_family=args.examples_per_family, output_dir=args.output_dir,
                          composition=composition, img_size=args.img_size,
                          random_families=args.random_families, families=args.families,
-                         train=args.training, validation=args.validation, whens=whens,
-                         first_shareable=1, fixation_cue=args.fixation_cue)
+                         train=args.training, validation=args.validation, fixation_cue=args.fixation_cue,
+                         max_memory=args.max_memory, max_distractors=args.max_distractors,
+                         whens=whens, first_shareable=1)
+    elif args.seq_length > 0:
+        first_shareable = 1
+
+        if args.seq_reverse:
+            # minimum 2 frames per DMS task
+            if args.seq_length * 2 - 1 > const.MAX_MEMORY:
+                raise ValueError('Not enough max memory')
+            whens = [[f'last{const.MAX_MEMORY - (i * 2)}', 'last0'] for i in range(args.seq_length)]
+        else:
+            last_when = sg.random_when()
+            while int(re.search(r'\d+', last_when).group()) - 1 < args.seq_length:
+                last_when = sg.random_when()
+            whens = [[last_when, 'last0'] for _ in range(args.seq_length)]
+        generate_dataset(examples_per_family=args.examples_per_family, output_dir=args.output_dir,
+                         composition=args.seq_length, img_size=args.img_size,
+                         random_families=args.random_families, families=args.families,
+                         train=args.training, validation=args.validation, fixation_cue=args.fixation_cue,
+                         max_memory=args.max_memory, max_distractors=args.max_distractors,
+                         whens=whens, first_shareable=first_shareable)
     else:
-        whens = None
+        whens = [None]
         if args.fix_delay:
             whens = [f'last{const.MAX_MEMORY}', 'last0']
-        generate_dataset(args.max_memory, args.max_distractors,
-                         args.examples_per_family, args.output_dir,
+        generate_dataset(examples_per_family=args.examples_per_family, output_dir=args.output_dir,
                          composition=args.composition, img_size=args.img_size,
                          random_families=args.random_families, families=args.families,
-                         train=args.training, validation=args.validation, whens=whens,
-                         fixation_cue=args.fixation_cue)
+                         train=args.training, validation=args.validation, fixation_cue=args.fixation_cue,
+                         max_memory=args.max_memory, max_distractors=args.max_distractors,
+                         whens=whens, first_shareable=None)
 
     # # from task_bank.task_family_dict
     # tasks = ['CompareLoc', 'CompareObject', 'CompareCategory', 'CompareViewAngle']

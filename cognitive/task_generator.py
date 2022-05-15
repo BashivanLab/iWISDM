@@ -24,12 +24,12 @@ from __future__ import print_function
 
 from collections import defaultdict
 from typing import List
+from collections import OrderedDict
 
 import numpy as np
 import random
 import pickle
 import networkx as nx
-import matplotlib.pyplot as plt
 
 from cognitive import constants as const
 from cognitive import stim_generator as sg
@@ -175,6 +175,7 @@ class Task(object):
                 outputs = [inputs]  ## xl:for later interation
             else:
                 outputs = inputs
+
 
             # Update the should_be dictionary for the node children
             for c, output in zip(node.child, outputs):
@@ -999,6 +1000,7 @@ class Switch(Operator):
         if should_be is None:
             should_be = random.random() > 0.5
 
+
         return should_be, None, None
 
 
@@ -1295,6 +1297,13 @@ def task_generation(graph_fp=None):
             raise RuntimeError('Could not convert all operators')
     return tasks
 
+
+get_family_dict = OrderedDict([
+    ('category', GetCategory),
+    ('object', GetObject),
+    ('view_angle', GetViewAngle),
+    ('loc', GetLoc)
+])
 
 if __name__ == '__main__':
     task_generation()

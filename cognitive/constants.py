@@ -24,14 +24,14 @@ import string
 import os, glob
 import numpy as np
 import pandas as pd
+import pickle5 as pickle
 
 AVG_MEM = 3
 # TODO: if only 1 stim per frame, then number of selects is limited by max_memory
-MAX_MEMORY = 3
+MAX_MEMORY = 4
 LASTMAP = {}
 for k in range(MAX_MEMORY + 1):
     LASTMAP["last%d" % k] = k
-
 ALLWHENS = []
 for k in range(MAX_MEMORY + 1):
     ALLWHENS.append("last%d" % k)
@@ -126,7 +126,7 @@ def get_prefs(grid_size):
     prefs = (np.array([prefs_x, prefs_y]).astype('float32')).T
     return prefs
 
-
+ATTRS = attrs = ['object', 'loc', 'category', 'view_angle']
 GRID_SIZE = 7
 PREFS = get_prefs(GRID_SIZE)
 

@@ -805,10 +805,10 @@ def get_shapenet_object(obj, obj_size, pickle_path=None,
             images_path = training_path
         else:
             trains = [fname for fname in glob.glob(f'{const.DATA.dir_path}/**/train', recursive=True)]
-            if os.path.isdir(trains[0]):
-                images_path = trains[0]
+            if trains:
+                if os.path.isdir(trains[0]):
+                    images_path = trains[0]
             else:
-
                 images_path = const.DATA.dir_path
 
 
@@ -1188,7 +1188,7 @@ def random_when(seed=None):
       when: a string.
     """
     np.random.seed(seed=seed)
-    return np.random.choice(const.DATA.ALLWHENS, p=const.DATA.ALLWHENS_PROB)
+    return np.random.choice(const.ALLWHENS, p=const.ALLWHENS_PROB)
 
 
 def sample_when(n=1, seed=None):
@@ -1209,7 +1209,7 @@ def check_whens(whens):
 
 
 def n_random_when():
-    return len(const.DATA.ALLWHENS)
+    return len(const.ALLWHENS)
 
 
 def sample_category(k):
