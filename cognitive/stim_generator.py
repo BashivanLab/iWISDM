@@ -33,10 +33,6 @@ from __future__ import print_function
 import itertools
 from bisect import bisect_left
 from collections import defaultdict
-import json
-import os, glob
-from PIL import Image
-import pandas as pd
 import random
 import numpy as np
 import copy
@@ -444,7 +440,7 @@ class Object(object):
         assert isinstance(other, Object)
 
         if attrs is None:
-            attrs = ['object', 'view_angle', 'category']
+            attrs = ['object', 'view_angle', 'category', 'loc']
         for attr in attrs:
             if getattr(self, attr) != getattr(other, attr):
                 return False
@@ -791,42 +787,6 @@ class ObjectSet(object):
         return subset
 
 
-def get_shapenet_object(obj, obj_size, pickle_path=None,
-                        training_path=None, validation_path=None, train=True):
-    if pickle_path is None:
-        pickle_path = const.DATA.pkl
-    if not train:
-        if validation_path is None:
-            raise ValueError('No validation stim path provided')
-        else:
-            images_path = validation_path
-    else:
-        if training_path is not None:
-            images_path = training_path
-        else:
-            trains = [fname for fname in glob.glob(f'{const.DATA.dir_path}/**/train', recursive=True)]
-            if trains:
-                if os.path.isdir(trains[0]):
-                    images_path = trains[0]
-            else:
-                images_path = const.DATA.dir_path
-
-
-    df: pd.DataFrame = pd.read_pickle(pickle_path)
-    obj_cat: pd.DataFrame = df.loc[(df['ctg_mod'] == obj.category) &
-                                   (df['obj_mod'] == obj.object) &
-                                   (df['ang_mod'] == obj.view_angle)]
-    if len(obj_cat) <= 0:
-        raise ValueError(obj.category, obj.object, obj.view_angle)
-
-    # obj_ref = int(obj_cat.sample(1)['ref'])
-    obj_ref = int(obj_cat.iloc[0]['ref'])
-    obj_path = os.path.join(images_path, f'{obj_ref}/image.png')
-    img = Image.open(obj_path).convert('RGB').resize(obj_size)
-
-    return img
-
-
 def render_static_obj(canvas, obj, img_size, train=True):
     """Render a single object.
 
@@ -847,7 +807,7 @@ def render_static_obj(canvas, obj, img_size, train=True):
 
     x_offset, x_end = center[0] - radius, center[0] + radius
     y_offset, y_end = center[1] - radius, center[1] + radius
-    shape_net_obj = get_shapenet_object(obj, [radius * 2, radius * 2], train=train)
+    shape_net_obj = const.DATA.get_shapenet_object(obj, [radius * 2, radius * 2], train=train)
 
     assert shape_net_obj.size == (x_end - x_offset, y_end - y_offset)
     canvas[x_offset:x_end, y_offset:y_end] = shape_net_obj
@@ -1179,7 +1139,7 @@ def n_random_space():
     return len(const.DATA.ALLSPACES)
 
 
-def random_when(seed=None):
+def random_when():
     """Random choose a when property.
 
     Here we use the numpy random generator to provide different probabilities.
@@ -1187,18 +1147,16 @@ def random_when(seed=None):
     Returns:
       when: a string.
     """
-    np.random.seed(seed=seed)
     return np.random.choice(const.ALLWHENS, p=const.ALLWHENS_PROB)
 
 
-def sample_when(n=1, seed=None):
+def sample_when(n=1):
     """
 
     :param n:
-    :param seed:
     :return: a list of 'lastk', in random order
     """
-    return [random_when(seed) for i in range(n)]
+    return [random_when() for i in range(n)]
 
 
 def check_whens(whens):

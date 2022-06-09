@@ -98,6 +98,7 @@ class Task(object):
         return self._operator(objset, epoch_now)
 
     def __str__(self):
+        # TODO: is_active flag for operators, drop out nodes when one branch is not part of instruction
         return str(self._operator)
 
     def _get_all_nodes(self, op, visited):
@@ -175,7 +176,6 @@ class Task(object):
                 outputs = [inputs]  ## xl:for later interation
             else:
                 outputs = inputs
-
 
             # Update the should_be dictionary for the node children
             for c, output in zip(node.child, outputs):
@@ -276,15 +276,13 @@ class TemporalTask(Task):
         return new_task
 
     @property
-    def first_shareable(self, seed=None):
-        '''
+    def first_shareable(self):
+        """
 
-        :param seed:
         :return: the frame at which the task is first shareable.
         if the task is non-shareable, first_shareable = len(task)
         if no input, start at random frame, including the possibility of non-shareable
-        '''
-        np.random.seed(seed=seed)
+        """
         if self._first_shareable is None:
             self._first_shareable = np.random.choice(np.arange(0, self.n_frames + 1))
         return self._first_shareable
@@ -302,11 +300,11 @@ class TemporalTask(Task):
         return selects
 
     def reinit(self, copy, objs: List[sg.Object], lastk):
-        '''
+        """
         update the task in-place based on provided objects
         :type copy: TemporalTask
         :return: True if reinit is successful, False otherwise
-        '''
+        """
         assert all([o.when == objs[0].when for o in objs])
 
         filter_selects, copy_filter_selects = self.filter_selects(lastk), copy.filter_selects(lastk)
@@ -325,10 +323,10 @@ class TemporalTask(Task):
 
     @staticmethod
     def check_attrs(select):
-        '''
+        """
         :param select:
         :return: True if select contains no operators
-        '''
+        """
         for attr_type in ['loc', 'category', 'object', 'view_angle']:
             a = getattr(select, attr_type)
             if isinstance(a, Operator):
@@ -351,7 +349,7 @@ class TemporalTask(Task):
         self.n_distractors = n_distractor
         self.avg_mem = average_memory_span
         n_epoch = self.n_frames
-        n_max_backtrack = int(average_memory_span * 3)  ### why do this convertion? waste of time?
+        n_max_backtrack = int(average_memory_span * 3)  # why do this convertion? waste of time?
         objset = sg.ObjectSet(n_epoch=n_epoch, n_max_backtrack=n_max_backtrack)
 
         # Guess objects
@@ -945,7 +943,6 @@ class Switch(Operator):
                 statement_true = False
             else:
                 return const.DATA.INVALID
-
         if statement_true:
             return self.do_if_true(objset, epoch_now)
         else:
@@ -999,8 +996,8 @@ class Switch(Operator):
         """
         if should_be is None:
             should_be = random.random() > 0.5
-
-
+        if not self.both_options_avail:
+            return should_be, True, False
         return should_be, None, None
 
 
@@ -1185,9 +1182,6 @@ def subgraphs_from_switch(G: nx.DiGraph, node):
 
 
 def convert_operators(G, ops, operators, roots, bfs, operator_families, whens):
-    booleans_ops = ['IsSame', 'Exist', 'And', 'Or', 'Xor', 'NotEqual']
-    logic_ops = ['And', 'Or', 'Xor']
-
     while not all(isinstance(operators[root], Operator) for root in roots):
         # convert op from list of strings to list of operators
         temp = defaultdict(list)
@@ -1203,7 +1197,7 @@ def convert_operators(G, ops, operators, roots, bfs, operator_families, whens):
                 elif 'Get' in ops[node]:
                     objs = operators[bfs[node][0]]
                     operators[node] = operator_families[ops[node]](objs)
-                elif ops[node] in logic_ops:
+                elif ops[node] in const.logic_ops:
                     op1, op2 = operators[bfs[node][0]], operators[bfs[node][1]]
                     operators[node] = operator_families[ops[node]](op1, op2)
                 elif ops[node] == 'Switch':
@@ -1235,7 +1229,7 @@ def convert_operators(G, ops, operators, roots, bfs, operator_families, whens):
 def task_generation(graph_fp=None):
     """
     automatic task generation based on graph operator
-    :param graph_fp:
+    :param graph_fp: the file path of the graph pickle file (see auto_task_utils.py)
     :return:
     """
     operator_families = {cls.__name__: cls for cls in all_subclasses(Operator)}
@@ -1246,8 +1240,6 @@ def task_generation(graph_fp=None):
         graphs = pickle.load(f)
 
     attrs = ['object', 'loc', 'category', 'view_angle']
-    booleans_ops = ['IsSame', 'Exist', 'And', 'Or', 'Xor', 'NotEqual']
-    logic_ops = ['And', 'Or', 'Xor']
     tasks = list()
 
     for idx, operator_graph in enumerate(graphs):

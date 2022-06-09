@@ -4,6 +4,7 @@ from cognitive import info_generator as ig
 from cognitive import stim_generator as sg
 from cognitive import task_bank as tb
 from cognitive import task_generator as tg
+from cognitive import constants as const
 
 families = list(tb.task_family_dict.keys())
 
@@ -101,6 +102,33 @@ class InfoGeneratorTest(unittest.TestCase):
             self.assertEqual(changed_obj.color, ori_obj.color)
             self.assertIn(changed_obj.loc, [loc1, loc2])
 
+    def testString(self):
+        const.DATA = const.Data('../data/min_shapenet_easy_angle')
+        categories = sg.sample_category(4)
+        objects = [sg.sample_object(k=1, category=cat)[0] for cat in categories]
+        view_angles = [sg.sample_view_angle(k=1, obj=obj)[0] for obj in objects]
+
+        op1 = tg.Select(category=categories[0], when=f'last{3 - 1}')
+        op2 = tg.Select(category=categories[1], when=f'last{3 - 2}')
+        new_task1 = tg.TemporalTask(tg.IsSame(tg.GetCategory(op1), tg.GetCategory(op2)), 3)
+        op3 = tg.Select(category=categories[2], when=f'last{3}')
+        op4 = tg.Select(category=categories[3], when=f'last{2}')
+        new_task2 = tg.TemporalTask(tg.IsSame(tg.GetCategory(op3), tg.GetCategory(op4)), 4)
+
+        new_task1_objset = new_task1.generate_objset()
+        fi1 = ig.FrameInfo(new_task1, new_task1_objset)
+        compo_info = ig.TaskInfoCompo(new_task1, fi1)
+
+        new_task2_objset = new_task2.generate_objset()
+        fi2 = ig.FrameInfo(new_task2, new_task2_objset)
+        compo_info2 = ig.TaskInfoCompo(new_task2, fi2)
+        compo_info.merge(compo_info2)
+        print(new_task1.n_frames, new_task2.n_frames, new_task1.first_shareable)
+        print(compo_info.n_epochs)
+        print(compo_info.get_examples()[1]['objects'])
+        print(compo_info)
+        print(new_task2_objset)
+
     def testReuseMerge(self):
         categories = sg.sample_category(4)
         objects = [sg.sample_object(k=1, category=cat)[0] for cat in categories]
@@ -108,11 +136,11 @@ class InfoGeneratorTest(unittest.TestCase):
 
         op1 = tg.Select(category=categories[0], when=f'last{3 - 1}')
         op2 = tg.Select(category=categories[1], when=f'last{3 - 2}')
-        new_task1 = tg.TemporalTask(tg.IsSame(tg.GetCategory(op1), tg.GetCategory(op2)), 3, 0)
+        new_task1 = tg.TemporalTask(tg.IsSame(tg.GetCategory(op1), tg.GetCategory(op2)), 3)
 
         op3 = tg.Select(category=categories[2], when=f'last{3}')
         op4 = tg.Select(category=categories[3], when=f'last{2}')
-        new_task2 = tg.TemporalTask(tg.IsSame(tg.GetCategory(op3), tg.GetCategory(op4)), 4, 0)
+        new_task2 = tg.TemporalTask(tg.IsSame(tg.GetCategory(op3), tg.GetCategory(op4)), 4)
 
         new_task1_objset = new_task1.generate_objset()
         fi1 = ig.FrameInfo(new_task1, new_task1_objset)
@@ -163,6 +191,7 @@ class InfoGeneratorTest(unittest.TestCase):
         compo_info2 = ig.TaskInfoCompo(new_task2, fi2)
         compo_info.merge(compo_info2, reuse=1)
         print(str(compo_info))
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -24,11 +24,12 @@ import string
 import os, glob
 import numpy as np
 import pandas as pd
+from PIL import Image
 import pickle5 as pickle
 
 AVG_MEM = 3
 # TODO: if only 1 stim per frame, then number of selects is limited by max_memory
-MAX_MEMORY = 4
+MAX_MEMORY = 3
 LASTMAP = {}
 for k in range(MAX_MEMORY + 1):
     LASTMAP["last%d" % k] = k
@@ -37,6 +38,8 @@ for k in range(MAX_MEMORY + 1):
     ALLWHENS.append("last%d" % k)
 ALLWHENS_PROB = [1 / (MAX_MEMORY + 1)] * len(ALLWHENS)
 
+logic_ops = ['And', 'Or', 'Xor']
+boolean_out_ops = ['IsSame', 'Exist', 'And', 'Or', 'Xor', 'NotEqual']
 
 def compare_when(when_list):
     return max(list(map(lambda x: LASTMAP[x], when_list)))
@@ -56,7 +59,17 @@ def get_target_value(t):
 
 DATA = None
 
+def get_mod_dict(df):
+    MOD_DICT = dict()
+    for i in df['ctg_mod'].unique():
+        MOD_DICT[i] = dict()
+        for cat in df.loc[df['ctg_mod'] == i]['obj_mod'].unique():
+            MOD_DICT[i][cat] = list(df.loc[(df['ctg_mod'] == i)
+                                                     & (df['obj_mod'] == cat)]['ang_mod'].unique())
+    return MOD_DICT
 
+
+#TODO: train_DATA, validation_DATA for split
 class Data:
     def __init__(self, dir_path=None):
         self.dir_path = dir_path
@@ -65,18 +78,18 @@ class Data:
                                     './data/min_shapenet_easy_angle')
         if not os.path.exists(dir_path):
             print('Data folder does not exist.')
-        pkls = [fname for fname in glob.glob(f'{dir_path}/**/*.pkl', recursive=True)]
+        pkls = sorted([fname for fname in glob.glob(f'{dir_path}/**/*.pkl', recursive=True)])
         print(dir_path)
+
         assert len(pkls) > 0
         self.pkl = pkls[0]
-
-        df: pd.DataFrame = pd.read_pickle(self.pkl)
+        self.df: pd.DataFrame = pd.read_pickle(self.pkl)
         self.MOD_DICT = dict()
-        for i in df['ctg_mod'].unique():
+        for i in self.df['ctg_mod'].unique():
             self.MOD_DICT[i] = dict()
-            for cat in df.loc[df['ctg_mod'] == i]['obj_mod'].unique():
-                self.MOD_DICT[i][cat] = list(df.loc[(df['ctg_mod'] == i)
-                                                    & (df['obj_mod'] == cat)]['ang_mod'].unique())
+            for cat in self.df.loc[self.df['ctg_mod'] == i]['obj_mod'].unique():
+                self.MOD_DICT[i][cat] = list(self.df.loc[(self.df['ctg_mod'] == i)
+                                                    & (self.df['obj_mod'] == cat)]['ang_mod'].unique())
 
         OBJECTPERCATEGORY = 14
         CATEGORIES = 12
@@ -112,6 +125,47 @@ class Data:
 
         self.OUTPUTVOCABULARY = ['true', 'false'] + self.ALLCATEGORIES + [self.ALLOBJECTS[c] for c in self.ALLOBJECTS]
 
+        self.train_image_path = None
+        self.valid_image_path = None
+
+    def get_shapenet_object(self, obj, obj_size, training_path=None, validation_path=None, train=True):
+        if not train:
+            if validation_path is None:
+                if self.valid_image_path is None:
+                    valids = [fname for fname in glob.glob(f'{self.dir_path}/**/validation', recursive=True)]
+                    if valids:
+                        if os.path.isdir(valids[0]):
+                            self.valid_image_path = valids[0]
+                    else:
+                        self.valid_image_path = self.dir_path
+            else:
+                self.valid_image_path = validation_path
+            image_path = self.valid_image_path
+        else:
+            if training_path is None:
+                if self.train_image_path is None:
+                    trains = [fname for fname in glob.glob(f'{self.dir_path}/**/train', recursive=True)]
+                    if trains:
+                        if os.path.isdir(trains[0]):
+                            self.train_image_path = trains[0]
+                    else:
+                        self.train_image_path = self.dir_path
+            else:
+                self.train_image_path = validation_path
+            image_path = self.train_image_path
+        obj_cat: pd.DataFrame = self.df.loc[(self.df['ctg_mod'] == obj.category) &
+                                       (self.df['obj_mod'] == obj.object) &
+                                       (self.df['ang_mod'] == obj.view_angle)]
+        if len(obj_cat) <= 0:
+            raise ValueError(obj.category, obj.object, obj.view_angle)
+
+        # obj_ref = int(obj_cat.sample(1)['ref'])
+        obj_ref = int(obj_cat.iloc[0]['ref'])
+        obj_path = os.path.join(image_path, f'{obj_ref}/image.png')
+        img = Image.open(obj_path).convert('RGB').resize(obj_size)
+
+        return img
+
 # Maximum number of words in a sentence
 MAXSEQLENGTH = 25
 
@@ -126,7 +180,7 @@ def get_prefs(grid_size):
     prefs = (np.array([prefs_x, prefs_y]).astype('float32')).T
     return prefs
 
-ATTRS = attrs = ['object', 'loc', 'category', 'view_angle']
+ATTRS = attrs = ['object', 'loc', 'category']
 GRID_SIZE = 7
 PREFS = get_prefs(GRID_SIZE)
 

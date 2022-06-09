@@ -9,7 +9,7 @@ def get_args():
     parser.add_argument('--output_dir', default='./data')
     parser.add_argument('--stim_dir', default='./data/MULTIF_5_stim')
     parser.add_argument('--random_families', action='store_false', default=True)
-    parser.add_argument('--families', nargs='*', default=['CompareCategory'])
+    parser.add_argument('--families', nargs='*', default=['DelayedCDM'])
     parser.add_argument('--composition', type=int, default=1)
     parser.add_argument('--img_size', type=int, default=224)
     parser.add_argument('--training', type=float, default=0.7)

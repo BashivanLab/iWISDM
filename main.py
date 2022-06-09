@@ -202,9 +202,10 @@ def generate_compo_temporal_example(max_memory, max_distractors, families, n_tas
     :param n_tasks:
     :return: combined TaskInfo Compo
     '''
+
     whens = kwargs.pop('whens', [None for _ in range(n_tasks)])
 
-    if not isinstance(whens[0], list):
+    if not isinstance(whens[0], list) and not None in whens:
         whens = [whens for _ in range(n_tasks)]
     if n_tasks == 1:
         return generate_temporal_example(max_memory, max_distractors, families, whens=whens[0], *args, **kwargs)

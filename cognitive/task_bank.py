@@ -24,7 +24,6 @@ import tensorflow.compat.v1 as tf
 
 from cognitive import stim_generator as sg
 from cognitive import task_generator as tg
-from cognitive.task_generator import Task
 from cognitive.task_generator import TemporalTask
 from cognitive import constants as const
 
@@ -225,9 +224,9 @@ class SequentialCategoryMatch(TemporalTask):
 
 class DelayedCDM(TemporalTask):
     def __init__(self, whens=None, first_shareable=None, attrs=None):
-        super(DelayedCDM, self).__init__(whens, first_shareable)
+        super(DelayedCDM, self).__init__(whens=whens, first_shareable=first_shareable)
         if self.whens is None:
-            when1, when2 = sorted(sg.check_whens(sg.sample_when(2)))
+            when1, when2 = reversed(sorted(sg.check_whens(sg.sample_when(2))))
         else:
             when1, when2 = self.whens[0], self.whens[1]
 
@@ -247,9 +246,9 @@ class DelayedCDM(TemporalTask):
         do_if = tg.IsSame(const_attrs[0], tg.get_family_dict[attrs[0]](objs2))
         do_else = tg.IsSame(const_attrs[1], tg.get_family_dict[attrs[1]](objs2))
         self._operator = tg.Switch(condition, do_if, do_else)
-        print(self._operator)
         self.n_frames = const.compare_when([when1, when2]) + 1
 
+# add delayedCMS without constants
 
 task_family_dict = OrderedDict([
     ('ExistCategoryOf', ExistCategoryOfTemporal),

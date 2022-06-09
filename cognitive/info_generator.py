@@ -6,13 +6,12 @@ import cognitive.constants as const
 import cognitive.stim_generator as sg
 import cognitive.task_generator as tg
 import re
+from collections import defaultdict
 
 
 class ReplaceLastK(object):
-    def __init__(self, task_objset: sg.ObjectSet, objs: list):
+    def __init__(self, task_idx, task_objset: sg.ObjectSet, objs: defaultdict):
         self.count = set()
-        obj: sg.Object
-
         for task_obj in task_objset:
             matches = set()
             for i, obj in enumerate(objs):
@@ -46,7 +45,7 @@ class TaskInfoCompo(object):
         self.tasks = [task]
         self.changed = list()
         if frame_info is None:
-            print('Alert! Correct usage: generate frame_info first, then generate TaskInfoCompo')
+            print('Alert! Correct usage: generate frame_info, then generate TaskInfoCompo')
             if task.n_distractors is None or task.avg_mem is None:
                 objset = task.generate_objset()
             else:
@@ -61,35 +60,66 @@ class TaskInfoCompo(object):
         return len(self.frame_info)
 
     def __str__(self):
-        '''
+        """
 
         :return: changed task instruction
-        '''
-        string = ''
-        obj_count = 0
-        objs = list()
+        """
+        compo_instruction = ''
+        obj_info = defaultdict(list)  # key: epoch, value: list of dictionary of object info
 
+        count = 0
+        for epoch, objs in sorted(self.frame_info.objset.dict.items()):
+            for i, obj in enumerate(objs):
+                count += 1
+                info = dict()
+                info['count'] = count
+                info['obj'] = obj
+                obj_info[epoch].append(info)
+        # TODO: make dict of frame.relative_tasks and objs
+        # for each frame, find the tasks that use the stimuli. For each of these tasks,
+        # compare the object in task_objset with obj, and rename lastk with ith object
         was_delay = False
-        for i, frame in enumerate(self.frame_info):
-            delay_add = True
-            for obj in self.frame_info.objset.dict[i]:
-                obj_count += 1
-                string += f'observe object {obj_count}, '
-                objs.append(obj)
-                delay_add, was_delay = False, False
+        for epoch, frame in enumerate(self.frame_info):
+            add_delay = True
+            if obj_info[epoch]:  # if the frame contains stim
+                for info_dict in obj_info[epoch]:  # for each object info dict,
+                    compo_instruction += f'observe object {info_dict["count"]}, '
+                    info_dict['tasks'] = {task: False for task in frame.relative_tasks}
+                add_delay, was_delay = False, False
             for d in frame.description:
-                if 'ending' in d:
+                if 'ending' in d:  # align object count with lastk for each task
                     task_idx = int(re.search(r'\d+', d).group())
                     task_q = str(self.tasks[task_idx])
-                    # align object numbers with lastk for each task
-                    string += re.sub(pattern=f'last\d+ object',
-                                     repl=ReplaceLastK(task_objset=self.task_objset[task_idx],
-                                                       objs=objs), string=task_q)
-                    delay_add, was_delay = False, False
-            if delay_add and not was_delay:
-                string += 'delay, '
+
+                    # find epoch relative to ending task
+                    lastks = [m for m in re.finditer('last\d+', task_q)]  # modify this for multiple stim per frame
+                    for lastk in lastks:
+                        k = int(re.search(r'\d+', lastk.group()).group())
+                        i = epoch - k
+                        relative_i = frame.relative_task_epoch_idx[task_idx] - k
+                        match = self.compare_objs(obj_info[i], self.task_objset[task_idx].dict[relative_i])
+                        if match:
+                            task_q = re.sub(f'last{k}.*?object', f'object {match["count"]}', task_q)
+                        else:
+                            raise RuntimeError('No match')
+                    # string += re.sub(pattern=f'last\d+ object',
+                    #                  repl=ReplaceLastK(task_idx=task_idx, task_objset=self.task_objset[task_idx],
+                    #                                    objs=obj_info), string=task_q)
+                    compo_instruction += task_q
+                    add_delay, was_delay = False, False
+            if add_delay and not was_delay:
+                compo_instruction += 'delay, '
                 was_delay = True
-        return string
+        return compo_instruction
+
+    @staticmethod
+    def compare_objs(info_dicts, l2):
+        for info_dict in info_dicts:
+            obj1 = info_dict['obj']
+            for obj2 in l2:
+                if obj1.compare_attrs(obj2):
+                    return info_dict
+        return None
 
     def get_target_value(self, examples):
         answers = list()
@@ -110,6 +140,7 @@ class TaskInfoCompo(object):
         :return: tuple of list of dictionaries containing information about the requested tasks
         and compo task
         """
+        # TODO: stimuli relevant attribute and relevant tasks
         examples = list()
         for i, task in enumerate(self.tasks):
             examples.append({
