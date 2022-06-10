@@ -440,7 +440,7 @@ class Object(object):
         assert isinstance(other, Object)
 
         if attrs is None:
-            attrs = ['object', 'view_angle', 'category', 'loc']
+            attrs = const.ATTRS
         for attr in attrs:
             if getattr(self, attr) != getattr(other, attr):
                 return False
@@ -1151,6 +1151,7 @@ def random_when():
 
 
 def sample_when(n=1):
+    # TODO: sample
     """
 
     :param n:

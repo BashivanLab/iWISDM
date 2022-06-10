@@ -35,14 +35,14 @@ from cognitive import constants as const
 from cognitive import stim_generator as sg
 
 
-def obj_str(loc=None, object=None, category=None, view_angle=None,
+def obj_str(loc=None, obj=None, category=None, view_angle=None,
             when=None, space_type=None):
     """Get a string describing an object with attributes."""
 
     loc = loc or sg.Loc(None)
     category = category or sg.SNCategory(None)
-    object = object or sg.SNObject(category=category, value=None)
-    view_angle = view_angle or sg.SNViewAngle(sn_object=object, value=None)
+    obj = obj or sg.SNObject(category=category, value=None)
+    view_angle = view_angle or sg.SNViewAngle(sn_object=obj, value=None)
 
     sentence = []
     if when is not None:
@@ -51,8 +51,8 @@ def obj_str(loc=None, object=None, category=None, view_angle=None,
         sentence.append(str(category))
     if isinstance(view_angle, sg.Attribute) and view_angle.has_value:
         sentence.append(str(view_angle))
-    if isinstance(object, sg.Attribute) and object.has_value:
-        sentence.append(str(object))
+    if isinstance(obj, sg.Attribute) and obj.has_value:
+        sentence.append(str(obj))
     if isinstance(loc, sg.Attribute) and loc.has_value:
         sentence.append(str(loc))
     else:
@@ -63,7 +63,7 @@ def obj_str(loc=None, object=None, category=None, view_angle=None,
     if isinstance(view_angle, Operator):
         sentence += ['with', str(view_angle)]
 
-    if isinstance(object, Operator):
+    if isinstance(obj, Operator):
         if isinstance(category, Operator):
             sentence.append('and')
         elif isinstance(view_angle, Operator):
@@ -291,6 +291,18 @@ class TemporalTask(Task):
     def instance_size(self):
         pass
 
+    @staticmethod
+    def check_attrs(select):
+        """
+        :param select:
+        :return: True if select contains no operators
+        """
+        for attr_type in ['loc', 'category', 'object', 'view_angle']:
+            a = getattr(select, attr_type)
+            if isinstance(a, Operator):
+                return False
+        return True
+
     def filter_selects(self, lastk):
         selects = list()
         for node in self.topological_sort():
@@ -299,9 +311,29 @@ class TemporalTask(Task):
                     selects.append(node)
         return selects
 
+    def get_relevant_attribute(self, lastk):
+        attrs = set()
+        # TODO: recurse to the root of the tree for switch?
+        for lastk_select in self.filter_selects(lastk):
+            for parent_op in lastk_select.parent:
+                if isinstance(parent_op, Get):
+                    attrs.add(parent_op.attr_type)
+                elif isinstance(parent_op, Exist):
+                    for attr in const.ATTRS:
+                        if getattr(lastk_select, attr).value:
+                            attrs.add(attr)
+                elif isinstance(parent_op, IsSame):
+                    for op in parent_op.child:
+                        if not isinstance(op, Operator):
+                            attrs.add(op.attr_type)
+
+        return attrs
+
     def reinit(self, copy, objs: List[sg.Object], lastk):
         """
         update the task in-place based on provided objects
+        :param lastk:
+        :param objs:
         :type copy: TemporalTask
         :return: True if reinit is successful, False otherwise
         """
@@ -320,18 +352,6 @@ class TemporalTask(Task):
                 copy_select.hard_update(obj)
                 select.soft_update(obj)
         return filter_objs
-
-    @staticmethod
-    def check_attrs(select):
-        """
-        :param select:
-        :return: True if select contains no operators
-        """
-        for attr_type in ['loc', 'category', 'object', 'view_angle']:
-            a = getattr(select, attr_type)
-            if isinstance(a, Operator):
-                return False
-        return True
 
     def generate_objset(self, n_distractor=0, average_memory_span=3):
         """Guess objset for all n_epoch.
@@ -1173,6 +1193,7 @@ def subgraphs_from_switch(G: nx.DiGraph, node):
     cut_G.remove_edge(right, node)
 
     subgraphs = (cut_G.subgraph(c) for c in nx.connected_components(cut_G.to_undirected()))
+    left_subgraph, right_subgraph = None, None
     for graph in subgraphs:
         if left in graph:
             left_subgraph = graph
@@ -1197,7 +1218,7 @@ def convert_operators(G, ops, operators, roots, bfs, operator_families, whens):
                 elif 'Get' in ops[node]:
                     objs = operators[bfs[node][0]]
                     operators[node] = operator_families[ops[node]](objs)
-                elif ops[node] in const.logic_ops:
+                elif ops[node] in const.LOGIC_OPS:
                     op1, op2 = operators[bfs[node][0]], operators[bfs[node][1]]
                     operators[node] = operator_families[ops[node]](op1, op2)
                 elif ops[node] == 'Switch':
@@ -1239,7 +1260,7 @@ def task_generation(graph_fp=None):
     with open(graph_fp, 'rb') as f:
         graphs = pickle.load(f)
 
-    attrs = ['object', 'loc', 'category', 'view_angle']
+    attrs = const.ATTRS
     tasks = list()
 
     for idx, operator_graph in enumerate(graphs):
@@ -1298,4 +1319,5 @@ get_family_dict = OrderedDict([
 ])
 
 if __name__ == '__main__':
+    # TODO: generate compo 3 autotasks
     task_generation()

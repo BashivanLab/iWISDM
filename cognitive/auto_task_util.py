@@ -6,10 +6,12 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 from networkx.drawing.nx_pydot import graphviz_layout
 
+# TODO: add select attributes, combine helper with task_generator.task_generation
 root_op = ["GetCategory", "GetLoc", "GetViewAngle", "GetObject", "Exist", "Equal", "And", "Or", "Xor"]
 leaf_op = ["Select"]
 mid_op = ["Switch"]
 
+# TODO: And can have different children, And:{XOR, Equal}
 op_dict = {"Select":
                {"n_downstream": 0,
                 "downstream": [], },
@@ -92,7 +94,7 @@ def subTask_Generator(max_op=32, ):
     while not done:  ## how to constraint the number of operators?
         curr_node = node_list[curr_node_idx]
         if op_dict[curr_node]["n_downstream"] == 1:
-            if pos_node_idx > max_op:
+            if pos_node_idx > max_op: # select operators based on sample_dist to limit the depth of the tree
                 curr_node = random.choices(op_dict[curr_node]["downstream"], op_dict[curr_node]["sample_dist"])[0]
             else:
                 curr_node = random.choice(op_dict[curr_node]["downstream"])
@@ -125,7 +127,7 @@ if __name__ == '__main__':
     # easy task repo
     stask_repo = []
     task_repo = []
-    for i in tqdm(range(100)):
+    for _ in tqdm(range(100)):
         node_list, conn_mtx = subTask_Generator(max_op=6)
         # delete the task if the task is too big
         if len(node_list) > 20:
@@ -133,7 +135,7 @@ if __name__ == '__main__':
         stask_repo.append([node_list, conn_mtx])
     # sample from stask with switch op
     thres = 0.5
-    for i in tqdm(range(100)):
+    for _ in tqdm(range(100)):
         if np.random.uniform() < thres:
             [task1, task2, task3] = random.choices(stask_repo, k=3)
             new_task = SwitchTask_Generator(task1, task2, task3)

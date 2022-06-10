@@ -5,7 +5,7 @@ def get_args():
     parser = argparse.ArgumentParser(description='dataset')
     parser.add_argument('--max_memory', type=int, default=12)
     parser.add_argument('--max_distractors', type=int, default=0)
-    parser.add_argument('--examples_per_family', type=int, default=10)
+    parser.add_argument('--trials_per_family', type=int, default=10)
     parser.add_argument('--output_dir', default='./data')
     parser.add_argument('--stim_dir', default='./data/MULTIF_5_stim')
     parser.add_argument('--random_families', action='store_false', default=True)
@@ -20,6 +20,6 @@ def get_args():
     parser.add_argument('--seq_reverse', action='store_true', default=False)
     parser.add_argument('--fix_delay', action='store_true', default=False)
     parser.add_argument('--fixation_cue', action='store_false', default=True)
-
+    # TODO: examples of nback, and sequential
     args = parser.parse_args()
     return args

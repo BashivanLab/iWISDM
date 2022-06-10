@@ -115,7 +115,7 @@ class FileWriter(object):
 
             os.remove(self._file_name())
 
-
+# TODO: move to stim_generator
 def add_fixation_cue(canvas, cue_size=0.05):
     """
 
@@ -132,7 +132,7 @@ def add_fixation_cue(canvas, cue_size=0.05):
     cv2.line(canvas, (center[0], center[1] - radius),
              (center[0], center[1] + radius), (255, 255, 255), thickness)
 
-
+# TODO: move to stim_generator
 def write_task_instance(fname, task_info, img_size, fixation_cue=True):
     if not os.path.exists(fname):
         os.makedirs(fname)
@@ -145,7 +145,7 @@ def write_task_instance(fname, task_info, img_size, fixation_cue=True):
         filename = os.path.join(fname, f'epoch{i}.png')
         img.save(filename)
 
-    examples, compo_example = task_info.get_examples()
+    examples, compo_example, memory_info = task_info.get_examples()
     for i, task_example in enumerate(examples):
         filename = os.path.join(fname, f'task{i} example')
         with open(filename, 'w') as f:
@@ -155,9 +155,14 @@ def write_task_instance(fname, task_info, img_size, fixation_cue=True):
     with open(filename, 'w') as f:
         json.dump(compo_example, f, indent=4)
 
+    filename = os.path.join(fname, 'memory_trace_info')
+    with open(filename, 'w') as f:
+        json.dump(memory_info, f, indent=4)
+
     filename = os.path.join(fname, 'frame_info')
     with open(filename, 'w') as f:
         json.dump(task_info.frame_info.dump(), f, indent=4)
+
 
 
 def generate_temporal_example(max_memory, max_distractors, task_family,
@@ -321,7 +326,7 @@ def main():
         assert all('Compare' in family for family in args.families)
         whens = [f'last{args.nback}', 'last0']
         composition = args.nback_length - args.nback + 1
-        generate_dataset(examples_per_family=args.examples_per_family, output_dir=args.output_dir,
+        generate_dataset(examples_per_family=args.trials_per_family, output_dir=args.output_dir,
                          composition=composition, img_size=args.img_size,
                          random_families=args.random_families, families=args.families,
                          train=args.training, validation=args.validation, fixation_cue=args.fixation_cue,
@@ -340,7 +345,7 @@ def main():
             while int(re.search(r'\d+', last_when).group()) - 1 < args.seq_length:
                 last_when = sg.random_when()
             whens = [[last_when, 'last0'] for _ in range(args.seq_length)]
-        generate_dataset(examples_per_family=args.examples_per_family, output_dir=args.output_dir,
+        generate_dataset(examples_per_family=args.trials_per_family, output_dir=args.output_dir,
                          composition=args.seq_length, img_size=args.img_size,
                          random_families=args.random_families, families=args.families,
                          train=args.training, validation=args.validation, fixation_cue=args.fixation_cue,
@@ -350,7 +355,7 @@ def main():
         whens = [None]
         if args.fix_delay:
             whens = [f'last{const.MAX_MEMORY}', 'last0']
-        generate_dataset(examples_per_family=args.examples_per_family, output_dir=args.output_dir,
+        generate_dataset(examples_per_family=args.trials_per_family, output_dir=args.output_dir,
                          composition=args.composition, img_size=args.img_size,
                          random_families=args.random_families, families=args.families,
                          train=args.training, validation=args.validation, fixation_cue=args.fixation_cue,

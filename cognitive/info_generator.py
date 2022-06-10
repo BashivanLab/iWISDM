@@ -16,7 +16,7 @@ class ReplaceLastK(object):
             matches = set()
             for i, obj in enumerate(objs):
                 if obj.compare_attrs(task_obj,
-                                     attrs=['object', 'view_angle', 'category', 'loc']):
+                                     attrs=const.ATTRS):
                     matches.add(i)
             while matches:
                 match = max(matches)
@@ -59,7 +59,7 @@ class TaskInfoCompo(object):
         # return number of tasks involved
         return len(self.frame_info)
 
-    def __str__(self):
+    def get_instruction_obj_info(self):
         """
 
         :return: changed task instruction
@@ -74,6 +74,8 @@ class TaskInfoCompo(object):
                 info = dict()
                 info['count'] = count
                 info['obj'] = obj
+                info['tasks'] = set()  # tasks that involve the stim
+                info['attended_attr'] = defaultdict(set)  # key: task, value: attribute of the stim that are relevant
                 obj_info[epoch].append(info)
         # TODO: make dict of frame.relative_tasks and objs
         # for each frame, find the tasks that use the stimuli. For each of these tasks,
@@ -84,7 +86,7 @@ class TaskInfoCompo(object):
             if obj_info[epoch]:  # if the frame contains stim
                 for info_dict in obj_info[epoch]:  # for each object info dict,
                     compo_instruction += f'observe object {info_dict["count"]}, '
-                    info_dict['tasks'] = {task: False for task in frame.relative_tasks}
+                    # info_dict['tasks'] = {task: False for task in frame.relative_tasks}
                 add_delay, was_delay = False, False
             for d in frame.description:
                 if 'ending' in d:  # align object count with lastk for each task
@@ -100,6 +102,9 @@ class TaskInfoCompo(object):
                         match = self.compare_objs(obj_info[i], self.task_objset[task_idx].dict[relative_i])
                         if match:
                             task_q = re.sub(f'last{k}.*?object', f'object {match["count"]}', task_q)
+                            match['tasks'].add(task_idx)
+                            match['attended_attr'][task_idx] = match['attended_attr'][task_idx].union(
+                                self.tasks[task_idx].get_relevant_attribute(f'last{k}'))
                         else:
                             raise RuntimeError('No match')
                     # string += re.sub(pattern=f'last\d+ object',
@@ -110,7 +115,7 @@ class TaskInfoCompo(object):
             if add_delay and not was_delay:
                 compo_instruction += 'delay, '
                 was_delay = True
-        return compo_instruction
+        return compo_instruction, obj_info
 
     @staticmethod
     def compare_objs(info_dicts, l2):
@@ -153,13 +158,29 @@ class TaskInfoCompo(object):
                 'answers': [const.get_target_value(t) for t in task.get_target(self.task_objset[i])],
                 'first_shareable': int(task.first_shareable),
             })
+        comp_instruction, obj_info = self.get_instruction_obj_info()
+        obj_info_json = obj_info.copy()
+
+        for epoch, info_dict in obj_info_json.items():
+            for d in info_dict:
+                d['obj'] = d['obj'].dump()
+                for k, v in d.items():
+                    if isinstance(v, set):
+                        d[k] = list(v)
+                for task, attrs in d['attended_attr'].items():
+                    d['attended_attr'][task] = list(attrs)
+        memory_trace_info = dict()
+        memory_trace_info['obj_info'] = obj_info_json
+        memory_trace_info['task_info'] = {i: frame.description for i, frame in enumerate(self.frame_info) if
+                                          frame.description}
+
         compo = {
             'epochs': int(len(self.frame_info)),
             'objects': [o.dump() for o in self.frame_info.objset],
-            'instruction': str(self),
+            'instruction': comp_instruction,
             'answers': self.get_target_value(examples)
         }
-        return examples, compo
+        return examples, compo, memory_trace_info
 
     @property
     def n_epochs(self):
