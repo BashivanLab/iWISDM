@@ -22,9 +22,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from collections import defaultdict
-from typing import List
-from collections import OrderedDict
+from collections import defaultdict, OrderedDict
 
 import numpy as np
 import random
@@ -177,8 +175,19 @@ class Task(object):
             else:
                 outputs = inputs
 
+            if isinstance(node, Switch):
+                if not node.both_options_avail:
+                    children = node.child
+                    if random.random() > 0.5:
+                        children.pop(1)
+                    else:
+                        children.pop(2)
+                else:
+                    children = node.child
+            else:
+                children = node.child
             # Update the should_be dictionary for the node children
-            for c, output in zip(node.child, outputs):
+            for c, output in zip(children, outputs):
                 if not isinstance(c, Operator):  # if c is not an Operator
                     continue
                 if isinstance(output, Skip):
@@ -329,7 +338,7 @@ class TemporalTask(Task):
 
         return attrs
 
-    def reinit(self, copy, objs: List[sg.Object], lastk):
+    def reinit(self, copy, objs, lastk):
         """
         update the task in-place based on provided objects
         :param lastk:
@@ -763,13 +772,6 @@ class Get(Operator):
         return [objs]
 
 
-class GetLoc(Get):
-    """Get location of object."""
-
-    def __init__(self, objs):
-        super(GetLoc, self).__init__('loc', objs)
-
-
 class Go(Get):
     """Go to location of object."""
 
@@ -793,6 +795,13 @@ class GetCategory(Get):
 class GetViewAngle(Get):
     def __init__(self, objs):
         super(GetViewAngle, self).__init__('view_angle', objs)
+
+
+class GetLoc(Get):
+    """Get location of object."""
+
+    def __init__(self, objs):
+        super(GetLoc, self).__init__('loc', objs)
 
 
 class GetFixedObject(Get):
@@ -1016,8 +1025,11 @@ class Switch(Operator):
         """
         if should_be is None:
             should_be = random.random() > 0.5
-        if not self.both_options_avail:
-            return should_be, True, False
+        # if not self.both_options_avail:
+        #     if random.random() > 0.5:
+        #         return should_be, True, False
+        #     else:
+        #         return should_be, False, True
         return should_be, None, None
 
 
@@ -1246,6 +1258,10 @@ def convert_operators(G, ops, operators, roots, bfs, operator_families, whens):
     return operators[roots[0]]
 
 
+def get_operator_dict():
+    return {cls.__name__: cls for cls in all_subclasses(Operator)}
+
+
 # only use if you have a random operator graph
 def task_generation(graph_fp=None):
     """
@@ -1253,7 +1269,7 @@ def task_generation(graph_fp=None):
     :param graph_fp: the file path of the graph pickle file (see auto_task_utils.py)
     :return:
     """
-    operator_families = {cls.__name__: cls for cls in all_subclasses(Operator)}
+    operator_families = get_operator_dict()
 
     if graph_fp is None:
         graph_fp = './autoTask/task_info.pkl'

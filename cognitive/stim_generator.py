@@ -144,6 +144,7 @@ class Space(Attribute):
             self._value = value
 
     def sample(self, avoid=None):
+        # TODO: sample from grid space
         """Sample a location.
 
         This function will attempt to find a location to place the object

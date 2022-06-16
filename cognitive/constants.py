@@ -40,7 +40,7 @@ ALLWHENS_PROB = [1 / (MAX_MEMORY + 1)] * len(ALLWHENS)
 
 LOGIC_OPS = ['And', 'Or', 'Xor']
 BOOLEAN_OUT_OPS = ['IsSame', 'Exist', 'And', 'Or', 'Xor', 'NotEqual']
-
+ATTRS = ['object', 'view_angle', 'category', 'loc']
 
 def compare_when(when_list):
     return max(list(map(lambda x: LASTMAP[x], when_list)))
@@ -184,7 +184,6 @@ def get_prefs(grid_size):
     return prefs
 
 
-ATTRS = ['object', 'view_angle', 'category', 'loc']
 GRID_SIZE = 7
 PREFS = get_prefs(GRID_SIZE)
 

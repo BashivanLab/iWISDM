@@ -245,7 +245,7 @@ class DelayedCDM(TemporalTask):
         condition = tg.IsSame(const_attr0, tg.get_family_dict[attr0](objs1))
         do_if = tg.IsSame(const_attrs[0], tg.get_family_dict[attrs[0]](objs2))
         do_else = tg.IsSame(const_attrs[1], tg.get_family_dict[attrs[1]](objs2))
-        self._operator = tg.Switch(condition, do_if, do_else)
+        self._operator = tg.Switch(condition, do_if, do_else, both_options_avail=False)
         self.n_frames = const.compare_when([when1, when2]) + 1
 
 # add delayedCMS without constants
