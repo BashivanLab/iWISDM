@@ -628,7 +628,7 @@ class ObjectSet(object):
         else:
             if merge_idx is None:
                 try:
-                    obj.epoch = [epoch_now - const.LASTMAP[obj.when], epoch_now - const.LASTMAP[obj.when] + 1]
+                    obj.epoch = [epoch_now - const.DATA.LASTMAP[obj.when], epoch_now - const.DATA.LASTMAP[obj.when] + 1]
                 except:
                     raise NotImplementedError(
                         'When value: {:s} is not implemented'.format(str(obj.when)))
@@ -736,7 +736,7 @@ class ObjectSet(object):
         assert isinstance(space, Space)
 
         if merge_idx is None:
-            epoch_now -= const.LASTMAP[when]
+            epoch_now -= const.DATA.LASTMAP[when]
         else:
             epoch_now = merge_idx
         # if n_backtrack is None:
@@ -1148,7 +1148,7 @@ def random_when():
     Returns:
       when: a string.
     """
-    return np.random.choice(const.ALLWHENS, p=const.ALLWHENS_PROB)
+    return np.random.choice(const.DATA.ALLWHENS, p=const.DATA.ALLWHENS_PROB)
 
 
 def sample_when(n=1):
@@ -1169,7 +1169,7 @@ def check_whens(whens):
 
 
 def n_random_when():
-    return len(const.ALLWHENS)
+    return len(const.DATA.ALLWHENS)
 
 
 def sample_category(k):

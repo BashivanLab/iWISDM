@@ -84,7 +84,7 @@ class ExistObjectOfTemporal(TemporalTask):
             when1, when2 = self.whens[0], self.whens[1]
         objs1 = tg.Select(when=when1)
         obj = tg.GetObject(objs1)
-        objs2 = tg.Select(obj=obj, when=when2)
+        objs2 = tg.Select(object=obj, when=when2)
         self._operator = tg.Exist(objs2)
         self.n_frames = const.compare_when([when1, when2]) + 1
 

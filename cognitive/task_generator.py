@@ -60,17 +60,13 @@ def obj_str(loc=None, obj=None, category=None, view_angle=None,
         sentence += ['with', str(category)]
     if isinstance(view_angle, Operator):
         sentence += ['with', str(view_angle)]
-
-    if isinstance(obj, Operator):
-        if isinstance(category, Operator):
-            sentence.append('and')
-        elif isinstance(view_angle, Operator):
-            sentence.append('and')
-        elif isinstance(loc, Operator):
-            sentence.append('and')
-        sentence += ['with', str(category)]
     if isinstance(loc, Operator):
-        sentence += ['on', space_type, 'of', str(loc)]
+        sentence += ['with', str(loc)]
+    if isinstance(obj, Operator):
+        sentence += ['with', str(category)]
+
+    # if isinstance(loc, Operator):
+    #     sentence += ['on', space_type, 'of', str(loc)]
     return ' '.join(sentence)
 
 
@@ -446,7 +442,7 @@ class Select(Operator):
     def __init__(self,
                  loc=None,
                  category=None,
-                 obj=None,
+                 object=None,
                  view_angle=None,
                  attrs=None,
                  when=None,
@@ -460,19 +456,19 @@ class Select(Operator):
                 elif isinstance(attr, sg.SNCategory):
                     category = attr
                 elif isinstance(attr, sg.SNObject):
-                    obj = attr
+                    object = attr
                 elif isinstance(attr, sg.SNViewAngle):
                     view_angle = attr
         loc = loc or sg.Loc(None)
         category = category or sg.SNCategory(None)
-        obj = obj or sg.SNObject(category, None)
-        view_angle = view_angle or sg.SNViewAngle(obj, None)
+        object = object or sg.SNObject(category, None)
+        view_angle = view_angle or sg.SNViewAngle(object, None)
 
         # if isinstance(loc, Operator) or loc.has_value:
         #     assert space_type is not None
 
-        self.loc, self.category, self.object, self.view_angle = loc, category, obj, view_angle
-        self.set_child([loc, category, obj, view_angle])
+        self.loc, self.category, self.object, self.view_angle = loc, category, object, view_angle
+        self.set_child([loc, category, object, view_angle])
 
         self.when = when
         self.space_type = space_type
@@ -513,7 +509,7 @@ class Select(Operator):
         new_obj = self.object.copy()
         new_view = self.view_angle.copy()
         new_st = self.space_type.copy() if self.space_type is not None else self.space_type
-        return Select(loc=new_loc, category=new_cat, obj=new_obj,
+        return Select(loc=new_loc, category=new_cat, object=new_obj,
                       view_angle=new_view, when=self.when, space_type=new_st)
 
     def hard_update(self, obj: sg.Object):
@@ -1159,6 +1155,10 @@ def all_subclasses(cls):
         [s for c in cls.__subclasses__() for s in all_subclasses(c)])
 
 
+def get_operator_dict():
+    return {cls.__name__: cls for cls in all_subclasses(Operator)}
+
+
 def classify_operators(ops):
     counts = defaultdict(list)
     for i, op in enumerate(ops):
@@ -1181,150 +1181,132 @@ def get_roots(G):
     return [n for n, d in G.in_degree() if d == 0]
 
 
-def get_leafs(G, ops):
-    ops_copy = ops.copy()
-    ops = [op for i, op in enumerate(ops) if i in G]
-    if 'Switch' in ops:
-        # get the selects that follow the last switch
-        for node in reversed(sorted(list(G.nodes()))):
-            if ops_copy[node] == 'Switch':
-                last_switch = node
-                break
-        G = nx.dfs_tree(G, last_switch)
+def get_leafs(G):
     leafs = [x for x in G.nodes() if G.out_degree(x) == 0 and G.in_degree(x) == 1]
-    assert all(ops_copy[leaf] == 'Select' for leaf in leafs)
+    assert all(leaf == 'Select' or leaf == 'CONST' for leaf in [G.nodes[node]['label'] for node in leafs])
     return leafs
 
 
-def subgraphs_from_switch(G: nx.DiGraph, node):
-    preds = list(G.predecessors(node))
-    left, right = preds[0], preds[1]
+# def subgraphs_from_switch(G: nx.DiGraph, node):
+#     preds = list(G.predecessors(node))
+#     left, right = preds[0], preds[1]
+#
+#     cut_G = G.copy()
+#     cut_G.remove_edge(left, node)
+#     cut_G.remove_edge(right, node)
+#
+#     subgraphs = (cut_G.subgraph(c) for c in nx.connected_components(cut_G.to_undirected()))
+#     left_subgraph, right_subgraph = None, None
+#     for graph in subgraphs:
+#         if left in graph:
+#             left_subgraph = graph
+#         elif right in graph:
+#             right_subgraph = graph
+#     return left_subgraph, right_subgraph
 
-    cut_G = G.copy()
-    cut_G.remove_edge(left, node)
-    cut_G.remove_edge(right, node)
+def convert_operators(G, node, operators, operator_families, whens):
+    if list(G.successors(node)):
+        children = list(G.successors(node))
+        if operators[node] == 'Select':
+            attr_dict = {attr: None for attr in const.ATTRS}
+            for child in children:
+                if 'Get' in operators[child]:
+                    attr = operators[child].split('Get')[1].lower()
+                    attr = 'view_angle' if attr == 'viewangle' else attr
+                    attr_dict[attr] = convert_operators(G, child, operators, operator_families, whens)
+                else:
+                    raise ValueError(f'Select cannot have {operators[child]} as a child operator')
+            return Select(**attr_dict, when=whens[node])
+        elif operators[node] == 'Exist':
+            return Exist(convert_operators(G, children[0], operators, operator_families, whens))
+        elif 'Get' in operators[node]:
+            return operator_families[operators[node]](convert_operators(G, children[0], operators, operator_families, whens))
+        elif operators[node] in const.LOGIC_OPS:
+            assert len(children) > 1
+            ops = [convert_operators(G, c, operators, operator_families, whens) for c in children]
+            return operator_families[operators[node]](ops[0], ops[1])
+        else:
+            raise ValueError(f"Unknown Operator {operators[node]}")
+    else:
+        if operators[node] == 'Select':
+            return Select(when=whens[node])
+        else:
+            return sg.random_attr(random.choice(const.ATTRS))
 
-    subgraphs = (cut_G.subgraph(c) for c in nx.connected_components(cut_G.to_undirected()))
-    left_subgraph, right_subgraph = None, None
-    for graph in subgraphs:
-        if left in graph:
-            left_subgraph = graph
-        elif right in graph:
-            right_subgraph = graph
-    return left_subgraph, right_subgraph
+# def convert_operators(G, operators, roots, bfs, operator_families, whens):
+#     print(G.nodes(data=True))
+#     while not all(isinstance(operators[root], Operator) for root in roots):
+#         # convert op from list of strings to list of operators
+#         temp = defaultdict(list)
+#         for node in bfs:
+#             if not isinstance(operators[node], Operator):
+#                 if G.nodes[node]['label'] == 'Select':
+#                     if bfs[node]:
+#                         attr_dict = {attr: None for attr in const.ATTRS}
+#                         for op in bfs[node]:
+#                             if 'Get' in G.nodes[op]['label']:
+#                                 attr = G.nodes[op]['label'].split('Get')[1].lower()
+#                                 attr = 'view_angle' if attr == 'viewangle' else attr
+#                                 attr_dict[attr] = operators[op]
+#                         operators[node] = Select(**attr_dict, when=whens.pop())
+#                     else:
+#                         operators[node] = Select(when=whens.pop())
+#                     for pred in list(G.predecessors(node)):
+#                         temp[pred].append(node)
+#                 elif G.nodes[node]['label'] == 'CONST':
+#                     operators[node] = sg.random_attr(random.choice(const.ATTRS))
+#                     for pred in list(G.predecessors(node)):
+#                         temp[pred].append(node)
+#                 elif G.nodes[node]['label'] == 'Exist':
+#                     operators[node] = Exist(operators[bfs[node][0]])
+#                     for pred in list(G.predecessors(node)):
+#                         temp[pred].append(node)
+#                 # elif G.nodes[node]['label'] == 'IsSame':
+#                 #     attr1, attr2 = operators[bfs[node][0]], operators[bfs[node][1]]
+#                 #     operators[node] = IsSame(attr1, attr2)
+#                 elif 'Get' in G.nodes[node]['label']:
+#                     objs = operators[bfs[node][0]]
+#                     operators[node] = operator_families[G.nodes[node]['label']](objs)
+#                     for pred in list(G.predecessors(node)):
+#                         temp[pred].append(node)
+#                 elif G.nodes[node]['label'] in const.LOGIC_OPS:
+#                     if len(bfs[node]) < 2:
+#                         temp[node] += bfs[node]
+#                     else:
+#                         op1, op2 = operators[bfs[node][0]], operators[bfs[node][1]]
+#                         operators[node] = operator_families[G.nodes[node]['label']](op1, op2)
+#                         for pred in list(G.predecessors(node)):
+#                             temp[pred].append(node)
+#         bfs = temp
+#         print(operators, bfs)
+#     return operators[roots[0]]
 
 
-def convert_operators(G, ops, operators, roots, bfs, operator_families, whens):
-    while not all(isinstance(operators[root], Operator) for root in roots):
-        # convert op from list of strings to list of operators
-        temp = defaultdict(list)
-        for node in bfs:
-            if not isinstance(operators[node], Operator):
-                if ops[node] == 'Select':
-                    operators[node] = Select(when=whens.pop())
-                elif ops[node] == 'Exist':
-                    operators[node] = Exist(operators[bfs[node][0]])
-                elif ops[node] == 'IsSame':
-                    attr1, attr2 = operators[bfs[node][0]], operators[bfs[node][1]]
-                    operators[node] = IsSame(attr1, attr2)
-                elif 'Get' in ops[node]:
-                    objs = operators[bfs[node][0]]
-                    operators[node] = operator_families[ops[node]](objs)
-                elif ops[node] in const.LOGIC_OPS:
-                    op1, op2 = operators[bfs[node][0]], operators[bfs[node][1]]
-                    operators[node] = operator_families[ops[node]](op1, op2)
-                elif ops[node] == 'Switch':
-                    # when initializing switch, the predecessors are initialized first,
-                    # loop over the 2 subtrees, and init do_if1, do_if2
-                    condition = operators[bfs[node][0]]
-
-                    left_subgraph, right_subgraph = subgraphs_from_switch(G, node)
-                    left_leafs, right_leafs = get_leafs(left_subgraph, ops), get_leafs(right_subgraph, ops)
-                    left_roots, right_roots = get_roots(left_subgraph), get_roots(right_subgraph)
-
-                    bfs1 = {leaf: list() for leaf in left_leafs}
-                    bfs2 = {leaf: list() for leaf in right_leafs}
-                    do_if1 = convert_operators(left_subgraph, ops, operators, left_roots,
-                                               bfs1, operator_families, whens)
-                    do_if2 = convert_operators(right_subgraph, ops, operators, right_roots,
-                                               bfs2, operator_families, whens)
-                    operators[node] = Switch(condition, do_if1, do_if2)
-                    # from the leafs, if a switch occurs, then task._operator = Switch(tree_left, tree_right)
-                    # otherwise, if a task is linear without branching, task_operator = roots[0]
-                    return operators[node]
-            for pred in list(G.predecessors(node)):
-                temp[pred].append(node)
-        bfs = temp
-    return operators[roots[0]]
-
-
-def get_operator_dict():
-    return {cls.__name__: cls for cls in all_subclasses(Operator)}
-
-
-# only use if you have a random operator graph
-def task_generation(graph_fp=None):
-    """
-    automatic task generation based on graph operator
-    :param graph_fp: the file path of the graph pickle file (see auto_task_utils.py)
-    :return:
-    """
+def subtask_generation(subtask):
+    subtask_G, root, op_count = subtask
     operator_families = get_operator_dict()
 
-    if graph_fp is None:
-        graph_fp = './autoTask/task_info.pkl'
-    with open(graph_fp, 'rb') as f:
-        graphs = pickle.load(f)
+    operators = {node[0]: node[1]['label'] for node in subtask_G.nodes(data=True)}
+    selects = [op for op in subtask_G.nodes() if 'Select' == operators[op]]
 
-    attrs = const.ATTRS
-    tasks = list()
+    const.DATA.MAX_MEMORY = len(selects) + 1
+    whens = sg.check_whens(sg.sample_when(len(selects)))
+    n_frames = const.compare_when(whens) + 1
+    whens = {select: when for select, when in zip(selects, whens)}
 
-    for idx, operator_graph in enumerate(graphs):
-        ops, adj_matrix = operator_graph
-        operators = ops.copy()
+    op = convert_operators(subtask_G, root, operators, operator_families, whens)
+    return op, TemporalTask(operator=op, n_frames=n_frames)
 
-        assert all(isinstance(op, str) for op in ops)
-        for j, op in enumerate(ops):
-            if op == 'Equal':
-                ops[j] = 'IsSame'
-            elif op == 'switch':
-                ops[j] = 'Switch'
 
-        # check all operators are valid
-        if any(op not in operator_families for op in ops):
-            # raise NotImplementedError
-            continue
-
-        op_count = classify_operators(ops)
-        G: nx.DiGraph = nx.from_numpy_matrix(adj_matrix, create_using=nx.DiGraph)
-        roots = get_roots(G)
-        leafs = get_leafs(G, ops)
-        # generate a lastk for each select
-        whens = sg.check_whens(sg.sample_when(len(op_count['select'])))
-        n_frames = const.compare_when(whens) + 1
-
-        # generate attributes for the selects attached to exists that do not have
-        # operators (i.e. Exist -> Select -> GetCategory -> Select) attached to them
-        for node, _ in op_count['exist']:
-            select = list(G.successors(node))[0]
-            if not list(G.successors(select)):
-                operators[select] = Select(attrs=[sg.random_attr(np.random.choice(attrs))], when=whens.pop())
-            else:
-                if not 'Get' in ops[list(G.successors(select))[0]]:
-                    operators[select] = Select(attrs=[sg.random_attr(np.random.choice(attrs))], when=whens.pop())
-                else:
-                    print(ops[list(G.successors(select))[0]])
-
-        bfs = {leaf: list() for leaf in leafs}
-        operator = convert_operators(G, ops, operators, roots, bfs, operator_families, whens)
-
-        if all(isinstance(op, Operator) for op in operators):
-            task = TemporalTask(operator=operator, n_frames=n_frames)
-            tasks.append(task)
-            print(idx, task)
-        else:
-            raise RuntimeError('Could not convert all operators')
-    return tasks
+def switch_generation(conditional, do_if, do_else, **kwargs):
+    if not isinstance(conditional, tuple):
+        conditional_op, if_op, else_op = conditional, do_if, do_else
+    else:
+        conditional_op, _ = subtask_generation(conditional)
+        if_op, _ = subtask_generation(do_if)
+        else_op, _ = subtask_generation(do_else)
+    op = Switch(conditional_op, if_op, else_op, **kwargs)
+    return op, TemporalTask(operator=op)
 
 
 get_family_dict = OrderedDict([
@@ -1333,7 +1315,3 @@ get_family_dict = OrderedDict([
     ('view_angle', GetViewAngle),
     ('loc', GetLoc)
 ])
-
-if __name__ == '__main__':
-    # TODO: generate compo 3 autotasks
-    task_generation()

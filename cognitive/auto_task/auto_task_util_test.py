@@ -31,25 +31,32 @@ class UtilTest(unittest.TestCase):
         samples = [util.sample_children_op(0, 'Select', 10) for _ in range(10)]
 
     def test_subtask_graph_generator(self):
-        G, root, op_count = util.subtask_graph_generator(10)
+        G, root, op_count = util.subtask_graph_generator(10, select_limit=True)
         A = nx.nx_agraph.to_agraph(G)
         A.draw("subtask.png", prog="dot")
 
     def test_switch_generator(self):
-        do_if = util.subtask_graph_generator(10)
-        do_else = util.subtask_graph_generator(10, count=do_if[2]+1)
-        G, switch_count, count = util.switch_generator(do_if, do_else, count=do_else[2]+1)
-        A = nx.nx_agraph.to_agraph(do_if[0])
-        A.draw("do_if.png", prog="dot")
-        A = nx.nx_agraph.to_agraph(do_else[0])
-        A.draw("do_else.png", prog="dot")
+        do_if = util.subtask_graph_generator()
+        do_else = util.subtask_graph_generator(count=do_if[2]+1)
+        conditional = util.subtask_graph_generator(count=do_else[2]+1)
+
+        G, switch_count, count = util.switch_generator(conditional, do_if, do_else)
+        # A = nx.nx_agraph.to_agraph(do_if[0])
+        # A.draw("do_if.png", prog="dot")
+        # A = nx.nx_agraph.to_agraph(do_else[0])
+        # A.draw("do_else.png", prog="dot")
+
         A = nx.nx_agraph.to_agraph(G)
         A.draw("switch.png", prog="dot")
+        G = G.reverse()
+        A = nx.nx_agraph.to_agraph(G)
+        A.draw("switch_reverse.png", prog="dot")
+
 
     def test_branch_generator(self):
         G = nx.DiGraph()
-        G.add_node(1, label='Exist')
-        util.branch_generator(G, 'Exist', 1, 0, 10)
+        G.add_node(1, label='And')
+        util.branch_generator(G, 'And', 1, 20, 0, 10)
         print(G.nodes(data=True))
         A = nx.nx_agraph.to_agraph(G)
         A.draw("branch.png", prog="dot")

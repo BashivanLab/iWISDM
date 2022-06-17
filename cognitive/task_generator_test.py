@@ -20,10 +20,12 @@ from __future__ import division
 from __future__ import print_function
 
 import unittest
+import networkx as nx
 
 from cognitive import constants as const
 from cognitive import stim_generator as sg
 from cognitive import task_generator as tg
+from cognitive.auto_task import auto_task_util as util
 
 
 def targets_to_str(targets):
@@ -31,7 +33,6 @@ def targets_to_str(targets):
 
 
 class TaskGeneratorTest(unittest.TestCase):
-
     def testSelectUpdate(self):
         shape1, shape2 = sg.sample_shape(2)
         while shape1 == shape2:
@@ -90,6 +91,45 @@ class TaskGeneratorTest(unittest.TestCase):
 
     def testTaskGeneration(self):
         tg.task_generation()
+
+    def testGetLeafs(self):
+        G, root, op_count = util.subtask_graph_generator()
+        leafs = tg.get_leafs(G)
+        print([G.nodes[node]['label'] for node in leafs])
+
+    def testConvertOperators(self):
+        const.DATA = const.Data()
+        G, root, op_count = util.subtask_graph_generator()
+        A = nx.nx_agraph.to_agraph(G)
+        A.draw("convert.png", prog="dot")
+        operators = {node[0]: node[1]['label'] for node in G.nodes(data=True)}
+
+        operator_families = tg.get_operator_dict()
+        selects = [op for op in G.nodes() if operators[op] == 'Select']
+        const.DATA.MAX_MEMORY = len(selects) + 1
+        whens = sg.check_whens(sg.sample_when(len(selects)))
+        n_frames = const.compare_when(whens) + 1
+
+        whens = {select: when for select, when in zip(selects, whens)}
+        op = tg.convert_operators(G, root, operators, operator_families, whens)
+        task = tg.TemporalTask(operator=op, n_frames=n_frames)
+        print(task)
+
+    def testSubTaskGeneration(self):
+        const.DATA = const.Data()
+        subtask = util.subtask_graph_generator()
+        print(tg.subtask_generation(subtask)[1])
+
+    def testSwitchGeneration(self):
+        const.DATA = const.Data()
+        do_if = util.subtask_graph_generator()
+        do_else = util.subtask_graph_generator(count=do_if[2] + 1)
+        conditional = util.subtask_graph_generator(count=do_else[2] + 1)
+        G, _, _ = util.switch_generator(conditional, do_if, do_else)
+        A = nx.nx_agraph.to_agraph(G)
+        A.draw("convert_switch.png", prog="dot")
+        print(tg.switch_generation(conditional, do_if, do_else))
+
 
 if __name__ == '__main__':
     unittest.main()
