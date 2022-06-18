@@ -284,25 +284,33 @@ if __name__ == '__main__':
             shutil.rmtree(fp)
         os.makedirs(fp)
 
-        G, task = None, None
+        count = 0
+        subtask_graph = subtask_graph_generator(count=count, max_op=args.max_op, max_depth=args.max_depth,
+                                                select_limit=args.select_limit)
+        subtask = tg.subtask_generation(subtask_graph)
+        count = subtask_graph[2] + 1
         for _ in range(args.max_switch):
-            if random.random() < args.switch_threshold:
-                conditional = random.choice(boolean_tasks)
-                if G and task:
-                    if random.random() < 0.5:
-                        do_if, do_else = G, random.choice(tasks)
-                        do_if_task, do_else_task = task, tg.subtask_generation(do_else)
-                    else:
-                        do_if, do_else = random.choice(tasks), G
-                        do_if_task, do_else_task = tg.subtask_generation(do_if), task
-                else:
-                    do_if, do_else = random.choice(tasks), random.choice(tasks)
-                    do_if_task, do_else_task = tg.subtask_generation(do_if), tg.subtask_generation(do_else)
+            if random.random() < args.switch_threshold:  # if add switch
+                new_task_graph = subtask_graph_generator(count=count, max_op=args.max_op, max_depth=args.max_depth,
+                                                         select_limit=args.select_limit)
+                count = new_task_graph[2] + 1
 
-                G = switch_generator(conditional, do_if, do_else)
-                task = tg.switch_generation(do_if_task[0], do_if_task[0], do_else_task[0])
-            else:
-                if not G and not task:
-                    G = random.choice(tasks)
-                    task = tg.subtask_generation(G)
-        write_instance(G, task[0], fp)
+                conditional = subtask_graph_generator(count=count, max_op=args.max_op, max_depth=args.max_depth,
+                                                      select_limit=args.select_limit,
+                                                      root_op=random.choice(boolean_ops))
+                conditional_task = tg.subtask_generation(conditional)
+                count = conditional[2] + 1
+                if random.random() < 0.5:
+                    do_if = subtask_graph
+                    do_if_task = subtask
+                    do_else = new_task_graph
+                    do_else_task = tg.subtask_generation(do_else)
+                else:
+                    do_if = new_task_graph
+                    do_if_task = tg.subtask_generation(do_if)
+                    do_else = subtask_graph
+                    do_else_task = subtask
+                subtask_graph = switch_generator(conditional, do_if, do_else)
+                count = subtask_graph[2] + 1
+                subtask = tg.switch_generation(conditional_task[0], do_if_task[0], do_else_task[0])
+        write_instance(subtask_graph, subtask[0], fp)

@@ -35,10 +35,16 @@ class UtilTest(unittest.TestCase):
         A = nx.nx_agraph.to_agraph(G)
         A.draw("subtask.png", prog="dot")
 
+    def test_Relabel_Graph(self):
+        do_if_graph, _, _ = util.subtask_graph_generator()
+        print(do_if_graph.nodes(data='label'))
+        relabeled_graph = util.relabel_graph(do_if_graph, 20)
+        print(relabeled_graph.nodes(data='label'))
+
     def test_switch_generator(self):
         do_if = util.subtask_graph_generator()
-        do_else = util.subtask_graph_generator(count=do_if[2]+1)
-        conditional = util.subtask_graph_generator(count=do_else[2]+1)
+        do_else = util.subtask_graph_generator(count=do_if[2] + 1)
+        conditional = util.subtask_graph_generator(count=do_else[2] + 1)
 
         G, switch_count, count = util.switch_generator(conditional, do_if, do_else)
         # A = nx.nx_agraph.to_agraph(do_if[0])
@@ -52,7 +58,6 @@ class UtilTest(unittest.TestCase):
         A = nx.nx_agraph.to_agraph(G)
         A.draw("switch_reverse.png", prog="dot")
 
-
     def test_branch_generator(self):
         G = nx.DiGraph()
         G.add_node(1, label='And')
@@ -60,6 +65,7 @@ class UtilTest(unittest.TestCase):
         print(G.nodes(data=True))
         A = nx.nx_agraph.to_agraph(G)
         A.draw("branch.png", prog="dot")
+
 
 if __name__ == '__main__':
     unittest.main()

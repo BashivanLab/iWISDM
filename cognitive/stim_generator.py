@@ -1158,7 +1158,7 @@ def sample_when(n=1):
     :param n:
     :return: a list of 'lastk', in random order
     """
-    return [random_when() for i in range(n)]
+    return np.random.choice(const.DATA.ALLWHENS, size=n, p=const.DATA.ALLWHENS_PROB, replace=False)
 
 
 def check_whens(whens):
