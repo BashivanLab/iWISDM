@@ -37,7 +37,7 @@ def obj_str(loc=None, obj=None, category=None, view_angle=None,
             when=None, space_type=None):
     """Get a string describing an object with attributes."""
 
-    loc = loc or sg.Loc(None)
+    loc = loc or sg.Loc(space=sg.random_grid_space(), value=None)
     category = category or sg.SNCategory(None)
     obj = obj or sg.SNObject(category=category, value=None)
     view_angle = view_angle or sg.SNViewAngle(sn_object=obj, value=None)
@@ -146,7 +146,7 @@ class Task(object):
         # Print contents of stack
         return stack
 
-    def guess_objset(self, objset, epoch_now, should_be=None):
+    def guess_objset(self, objset, epoch_now, should_be=None, temporal_switch=False):
         nodes = self.topological_sort()
         should_be_dict = defaultdict(lambda: None)
 
@@ -172,7 +172,7 @@ class Task(object):
                 outputs = inputs
 
             if isinstance(node, Switch):
-                if not node.both_options_avail:
+                if temporal_switch:
                     children = node.child
                     if random.random() > 0.5:
                         children.pop(1)
@@ -183,6 +183,7 @@ class Task(object):
             else:
                 children = node.child
             # Update the should_be dictionary for the node children
+
             for c, output in zip(children, outputs):
                 if not isinstance(c, Operator):  # if c is not an Operator
                     continue
@@ -277,6 +278,11 @@ class TemporalTask(Task):
         new_task._first_shareable = self.first_shareable
         new_task.n_distractors = self.n_distractors
         new_task.avg_mem = self.avg_mem
+        nodes = self.topological_sort()
+        # TODO: multiple get pointing to same instance of select
+        # for n in nodes:
+        #     if isinstance(n, Select):
+        #         self.
         new_task._operator = self._operator.copy()
         return new_task
 
@@ -308,12 +314,16 @@ class TemporalTask(Task):
                 return False
         return True
 
-    def filter_selects(self, lastk):
+    def filter_selects(self, lastk=None):
         selects = list()
         for node in self.topological_sort():
             if isinstance(node, Select):
-                if node.when == lastk and self.check_attrs(node):
-                    selects.append(node)
+                if lastk:
+                    if node.when == lastk and self.check_attrs(node):
+                        selects.append(node)
+                else:
+                    if self.check_attrs(node):
+                        selects.append(node)
         return selects
 
     def get_relevant_attribute(self, lastk):
@@ -340,25 +350,31 @@ class TemporalTask(Task):
         :param lastk:
         :param objs:
         :type copy: TemporalTask
-        :return: True if reinit is successful, False otherwise
+        :return: None if there are no leaf selects, list of objs otherwise
         """
         assert all([o.when == objs[0].when for o in objs])
 
         filter_selects, copy_filter_selects = self.filter_selects(lastk), copy.filter_selects(lastk)
 
-        assert len(filter_selects) == len(copy_filter_selects)
+        # uncomment if multiple stim per frame
+        # assert len(filter_selects) == len(copy_filter_selects)
         if len(objs) < len(filter_selects):
             print('Not enough objects for select')
             return None
 
         if filter_selects:
             filter_objs = random.sample(objs, k=len(filter_selects))
-            for (select, copy_select), obj in zip(zip(filter_selects, copy_filter_selects), filter_objs):
-                copy_select.hard_update(obj)
-                select.soft_update(obj)
+            # for (select, copy_select), obj in zip(zip(filter_selects, copy_filter_selects), filter_objs):
+            #     copy_select.hard_update(obj)
+            #     select.soft_update(obj)
+            for select in filter_selects:
+                for obj in filter_objs:
+                    select.soft_update(obj)
+            for select_copy in copy_filter_selects:
+                select_copy.hard_update(obj)
         return filter_objs
 
-    def generate_objset(self, n_distractor=0, average_memory_span=3):
+    def generate_objset(self, n_distractor=0, average_memory_span=3, *args, **kwargs):
         """Guess objset for all n_epoch.
 
         Mathematically, the average_memory_span is n_max_backtrack/3
@@ -374,7 +390,7 @@ class TemporalTask(Task):
         self.n_distractors = n_distractor
         self.avg_mem = average_memory_span
         n_epoch = self.n_frames
-        n_max_backtrack = int(average_memory_span * 3)  # why do this convertion? waste of time?
+        n_max_backtrack = int(average_memory_span * 3)  # why do this conversion? waste of time?
         objset = sg.ObjectSet(n_epoch=n_epoch, n_max_backtrack=n_max_backtrack)
 
         # Guess objects
@@ -384,7 +400,7 @@ class TemporalTask(Task):
         epoch_now = n_epoch - 1
         for _ in range(n_distractor):
             objset.add_distractor(epoch_now)  # distractor
-        objset = self.guess_objset(objset, epoch_now)
+        objset = self.guess_objset(objset, epoch_now, *args, **kwargs)
 
         # epoch_now = n_epoch - 1
         # while epoch_now >= 0:
@@ -459,7 +475,7 @@ class Select(Operator):
                     object = attr
                 elif isinstance(attr, sg.SNViewAngle):
                     view_angle = attr
-        loc = loc or sg.Loc(None)
+        loc = loc or sg.Loc(space=sg.random_grid_space(), value=None)
         category = category or sg.SNCategory(None)
         object = object or sg.SNObject(category, None)
         view_angle = view_angle or sg.SNViewAngle(object, None)
@@ -487,10 +503,11 @@ class Select(Operator):
         if const.DATA.INVALID in (loc, category, object, view_angle):
             return const.DATA.INVALID
 
-        if self.space_type is not None:
-            space = loc.get_space_to(self.space_type)
-        else:
-            space = sg.Space(None)
+        space = None
+        # if self.space_type is not None:
+        #     space = loc.get_space_to(self.space_type)
+        # else:
+        #     space = sg.Space(None)
 
         subset = objset.select(
             epoch_now,
@@ -504,13 +521,15 @@ class Select(Operator):
         return subset
 
     def copy(self):
-        new_loc = self.loc.copy()
-        new_cat = self.category.copy()
-        new_obj = self.object.copy()
-        new_view = self.view_angle.copy()
-        new_st = self.space_type.copy() if self.space_type is not None else self.space_type
-        return Select(loc=new_loc, category=new_cat, object=new_obj,
-                      view_angle=new_view, when=self.when, space_type=new_st)
+        return Select(loc=self.loc, category=self.category, object=self.object, view_angle=self.view_angle,
+                      when=self.when, space_type=self.space_type)
+        # new_loc = self.loc.copy()
+        # new_cat = self.category.copy()
+        # new_obj = self.object.copy()
+        # new_view = self.view_angle.copy()
+        # new_st = self.space_type.copy() if self.space_type is not None else self.space_type
+        # return Select(loc=new_loc, category=new_cat, object=new_obj,
+        #               view_angle=new_view, when=self.when, space_type=new_st)
 
     def hard_update(self, obj: sg.Object):
         assert obj.check_attrs()
@@ -587,7 +606,7 @@ class Select(Operator):
           TypeError: when should_be is not a list of Object instances
           NotImplementedError: when should_be is a list and has length > 1
         """
-        # print(should_be[0])
+
         if should_be is None:
             raise NotImplementedError('This should not happen.')
 
@@ -616,6 +635,7 @@ class Select(Operator):
                 if attr is not const.DATA.INVALID and attr.has_value:
                     if attr_type == 'loc' and self.space_type is not None:
                         attr = attr.get_space_to(self.space_type)
+                        print('space type is not none')
                     attr_new_object.append(attr)
                 else:
                     attr_type_not_fixed.append(attr_type)
@@ -655,7 +675,9 @@ class Select(Operator):
                 else:
                     attr_expected_in.append(Skip())
 
-        # no target output given
+        # no target output given, only happens when parent node is Exist
+        # and the expected input of exist is does not exist.
+        # Basically making sure an object with this attribute does not exist
         if not should_be:
             # First determine the attributes to flip later
             attr_type_to_flip = list()
@@ -1081,7 +1103,6 @@ class IsSame(Operator):
     def get_expected_input(self, should_be, objset, epoch_now):
         if should_be is None:
             should_be = random.random() > 0.5
-
         # Determine which attribute should be fixed and which shouldn't
         attr1_value = self.attr1(objset, epoch_now)
         attr2_value = self.attr2(objset, epoch_now)
@@ -1102,9 +1123,21 @@ class IsSame(Operator):
             attr1_assign = attr2_value if should_be else sg.another_attr(attr2_value)
             attr2_assign = Skip()
         else:
-            attr = sg.random_attr(self.attr_type)
-            attr1_assign = attr
-            attr2_assign = attr if should_be else sg.another_attr(attr)
+            if self.attr_type == 'view_angle':
+                obj = sg.random_attr('object')
+                while len(const.DATA.ALLVIEWANGLES[obj.category.value][obj.value]) < 2:
+                    obj = sg.random_attr('object')
+                attr = sg.random_view_angle(obj)
+                attr1_assign = attr
+                attr2_assign = attr if should_be else sg.another_attr(attr)
+            elif self.attr_type == 'loc':
+                attr = sg.random_attr('loc')
+                attr1_assign = attr
+                attr2_assign = attr.space.sample() if should_be else sg.another_attr(attr)
+            else:
+                attr = sg.random_attr(self.attr_type)
+                attr1_assign = attr
+                attr2_assign = attr if should_be else sg.another_attr(attr)
         return attr1_assign, attr2_assign
 
 
@@ -1220,10 +1253,22 @@ def convert_operators(G, node, operators, operator_families, whens):
         elif operators[node] == 'Exist':
             return Exist(convert_operators(G, children[0], operators, operator_families, whens))
         elif 'Get' in operators[node]:
-            return operator_families[operators[node]](convert_operators(G, children[0], operators, operator_families, whens))
+            return operator_families[operators[node]](
+                convert_operators(G, children[0], operators, operator_families, whens))
         elif operators[node] in const.LOGIC_OPS:
             assert len(children) > 1
             ops = [convert_operators(G, c, operators, operator_families, whens) for c in children]
+            if isinstance(ops[0], sg.Attribute) or isinstance(ops[1], sg.Attribute):
+                if isinstance(ops[0], sg.Attribute):
+                    attr = ops[0]
+                    op = ops[1]
+                    attr_i = 0
+                else:
+                    attr = ops[1]
+                    op = ops[0]
+                    attr_i = 1
+                if attr.attr_type != op.attr_type:
+                    ops[attr_i] = sg.random_attr(op.attr_type)
             return operator_families[operators[node]](ops[0], ops[1])
         else:
             raise ValueError(f"Unknown Operator {operators[node]}")
@@ -1232,6 +1277,7 @@ def convert_operators(G, node, operators, operator_families, whens):
             return Select(when=whens[node])
         else:
             return sg.random_attr(random.choice(const.ATTRS))
+
 
 # def convert_operators(G, operators, roots, bfs, operator_families, whens):
 #     print(G.nodes(data=True))
@@ -1299,14 +1345,13 @@ def subtask_generation(subtask):
 
 
 def switch_generation(conditional, do_if, do_else, **kwargs):
-    if not isinstance(conditional, tuple):
-        conditional_op, if_op, else_op = conditional, do_if, do_else
-    else:
-        conditional_op, _ = subtask_generation(conditional)
-        if_op, _ = subtask_generation(do_if)
-        else_op, _ = subtask_generation(do_else)
+    conditional_op, conditional_task = conditional
+    if_op, if_task = do_if
+    else_op, else_task = do_else
     op = Switch(conditional_op, if_op, else_op, **kwargs)
-    return op, TemporalTask(operator=op)
+    n_frames = conditional_task.n_frames + if_task.n_frames + else_task.n_frames
+    const.DATA.MAX_MEMORY = n_frames
+    return op, TemporalTask(operator=op, n_frames=n_frames)
 
 
 get_family_dict = OrderedDict([

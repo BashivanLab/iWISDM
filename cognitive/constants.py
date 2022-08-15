@@ -25,6 +25,7 @@ import os
 import numpy as np
 import pandas as pd
 from PIL import Image
+from collections import OrderedDict
 
 AVG_MEM = 3
 # TODO: if only 1 stim per frame, then number of selects is limited by max_memory
@@ -55,7 +56,7 @@ DATA = None
 
 # TODO: train_DATA, validation_DATA for split
 class Data:
-    def __init__(self, dir_path=None, max_memory=4):
+    def __init__(self, dir_path=None, max_memory=3, grid_size=[2, 2]):
         if dir_path is None:
             dir_path = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))),
                                     './data/min_shapenet_easy_angle')
@@ -115,6 +116,8 @@ class Data:
         self.train_image_path = None
         self.valid_image_path = None
 
+        self.grid = get_grid(grid_size)
+
     def get_shapenet_object(self, obj, obj_size, training_path=None, validation_path=None, train=True):
         if not train:
             if validation_path is None:
@@ -153,6 +156,9 @@ class Data:
 
         return img
 
+    def get_grid_key(self, space):
+        return list(self.grid.keys())[list(self.grid.values()).index(list(space._value))]
+
     @property
     def LASTMAP(self):
         return {f'last{k}': k for k in range(self.MAX_MEMORY + 1)}
@@ -190,6 +196,18 @@ def get_prefs(grid_size):
     prefs = (np.array([prefs_x, prefs_y]).astype('float32')).T
     return prefs
 
+
+def get_grid(grid_size):
+    # return (grid_size,grid_size) array of sg.space.values
+
+    grid_size[0], grid_size[1] = grid_size[0] + 1, grid_size[1] + 1
+    x_coords, y_coords = np.linspace(0, 1, grid_size[0]), np.linspace(0, 1, grid_size[1])
+    xx, yy = np.meshgrid(x_coords, y_coords, sparse=True)
+    xx, yy = xx.flatten(), yy.flatten()
+    grid_spaces = {(i, j): [(x_i, x_k), (y_i, y_k)] for i, (x_i, x_k) in enumerate(zip(xx[0::], xx[1::])) for
+                   j, (y_i, y_k) in enumerate(zip(yy[0::], yy[1::]))}
+
+    return OrderedDict(grid_spaces)
 
 GRID_SIZE = 7
 PREFS = get_prefs(GRID_SIZE)

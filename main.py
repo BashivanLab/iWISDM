@@ -115,22 +115,10 @@ class FileWriter(object):
 
             os.remove(self._file_name())
 
-# TODO: move to stim_generator
-def add_fixation_cue(canvas, cue_size=0.05):
-    """
 
-    :param canvas: numpy array of shape: (img_size, img_size, 3)
-    :param cue_size: size of the fixation cue
-    :return:
-    """
-    img_size = canvas.shape[0]
-    radius = int(cue_size * img_size)
-    center = (canvas.shape[0] // 2, canvas.shape[1] // 2)
-    thickness = int(0.02 * img_size)
-    cv2.line(canvas, (center[0] - radius, center[1]),
-             (center[0] + radius, center[1]), (255, 255, 255), thickness)
-    cv2.line(canvas, (center[0], center[1] - radius),
-             (center[0], center[1] + radius), (255, 255, 255), thickness)
+# TODO: move to stim_generator
+
+
 
 # TODO: move to stim_generator
 def write_task_instance(fname, task_info, img_size, fixation_cue=True):
@@ -140,7 +128,7 @@ def write_task_instance(fname, task_info, img_size, fixation_cue=True):
     for i, (epoch, frame) in enumerate(zip(sg.render(objset, img_size), task_info.frame_info)):
         if fixation_cue:
             if not any('ending' in description for description in frame.description):
-                add_fixation_cue(epoch)
+                sg.add_fixation_cue(epoch)
         img = Image.fromarray(epoch, 'RGB')
         filename = os.path.join(fname, f'epoch{i}.png')
         img.save(filename)
@@ -164,9 +152,8 @@ def write_task_instance(fname, task_info, img_size, fixation_cue=True):
         json.dump(task_info.frame_info.dump(), f, indent=4)
 
 
-
 def generate_temporal_example(max_memory, max_distractors, task_family,
-                              whens=None, first_shareable=None):
+                              whens=None, first_shareable=None, *args, **kwargs):
     """
     generate 1 task objset and composition info object
 
@@ -184,10 +171,10 @@ def generate_temporal_example(max_memory, max_distractors, task_family,
     # memory value
     avg_mem = round(max_memory / 3.0 + 0.01, 2)
     if max_distractors == 0:
-        objset = task.generate_objset(average_memory_span=avg_mem)
+        objset = task.generate_objset(average_memory_span=avg_mem, *args, **kwargs)
     else:
         objset = task.generate_objset(n_distractor=random.randint(1, max_distractors),
-                                      average_memory_span=avg_mem)
+                                      average_memory_span=avg_mem, *args, **kwargs)
     # Getting targets can remove some objects from objset.
     # Create example fields after this call.
     frame_info = ig.FrameInfo(task, objset)
@@ -210,7 +197,7 @@ def generate_compo_temporal_example(max_memory, max_distractors, families, n_tas
 
     whens = kwargs.pop('whens', [None for _ in range(n_tasks)])
 
-    if not isinstance(whens[0], list) and not None in whens:
+    if not isinstance(whens[0], list):
         whens = [whens for _ in range(n_tasks)]
     if n_tasks == 1:
         return generate_temporal_example(max_memory, max_distractors, families, whens=whens[0], *args, **kwargs)
@@ -238,6 +225,8 @@ def generate_dataset(examples_per_family, output_dir='./data',
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
+    # TODO: add task_family order instance folders
+    #  e.g. families = [CompareLoc, CompareCat] could have 4 different task orders
     families_count = defaultdict(lambda: 0)
     if families is None or families == 'all':
         families = list(task_bank.task_family_dict.keys())
@@ -247,6 +236,7 @@ def generate_dataset(examples_per_family, output_dir='./data',
     train_examples = total_examples * train
     validation_examples = total_examples * validation
 
+    # creating task folder names
     fam_str = '_'.join(families)
     if train != 0.7 and validation != 0.3:
         base_fname = os.path.join(output_dir,
@@ -328,10 +318,10 @@ def main():
         composition = args.nback_length - args.nback + 1
         generate_dataset(examples_per_family=args.trials_per_family, output_dir=args.output_dir,
                          composition=composition, img_size=args.img_size,
-                         random_families=args.random_families, families=args.families,
+                         random_families=args.non_random_families, families=args.families,
                          train=args.training, validation=args.validation, fixation_cue=args.fixation_cue,
                          max_memory=args.max_memory, max_distractors=args.max_distractors,
-                         whens=whens, first_shareable=1)
+                         whens=whens, first_shareable=1, temporal_switch=args.temporal_switch)
     elif args.seq_length > 0:
         first_shareable = 1
 
@@ -347,20 +337,21 @@ def main():
             whens = [[last_when, 'last0'] for _ in range(args.seq_length)]
         generate_dataset(examples_per_family=args.trials_per_family, output_dir=args.output_dir,
                          composition=args.seq_length, img_size=args.img_size,
-                         random_families=args.random_families, families=args.families,
+                         random_families=args.non_random_families, families=args.families,
                          train=args.training, validation=args.validation, fixation_cue=args.fixation_cue,
                          max_memory=args.max_memory, max_distractors=args.max_distractors,
-                         whens=whens, first_shareable=first_shareable)
+                         whens=whens, first_shareable=first_shareable, temporal_switch=args.temporal_switch)
     else:
         whens = [None]
         if args.fix_delay:
-            whens = [f'last{const.MAX_MEMORY}', 'last0']
+            # TODO: move this into task.init
+            whens = [f'last{const.DATA.MAX_MEMORY}', 'last0']
         generate_dataset(examples_per_family=args.trials_per_family, output_dir=args.output_dir,
                          composition=args.composition, img_size=args.img_size,
-                         random_families=args.random_families, families=args.families,
+                         random_families=args.non_random_families, families=args.families,
                          train=args.training, validation=args.validation, fixation_cue=args.fixation_cue,
                          max_memory=args.max_memory, max_distractors=args.max_distractors,
-                         whens=whens, first_shareable=None)
+                         whens=whens, first_shareable=None, temporal_switch=args.temporal_switch)
 
     # # from task_bank.task_family_dict
     # tasks = ['CompareLoc', 'CompareObject', 'CompareCategory', 'CompareViewAngle']

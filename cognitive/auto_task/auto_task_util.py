@@ -1,14 +1,18 @@
 import json
 import shutil
+import timeit
 
 import numpy as np
 import random
 import networkx as nx
 from tqdm import tqdm
 from collections import defaultdict
-from cognitive.auto_task.arguments import get_args
+from arguments import get_args
 from cognitive import task_generator as tg
 from cognitive import constants as const
+from cognitive import stim_generator as sg
+from cognitive import info_generator as ig
+from PIL import Image
 import os
 import matplotlib.pyplot as plt
 from networkx.drawing.nx_pydot import graphviz_layout
@@ -16,6 +20,8 @@ from networkx.drawing.nx_pydot import graphviz_layout
 # TODO: add select attributes, combine helper with task_generator.task_generation
 root_ops = ["GetCategory", "GetLoc", "GetViewAngle", "GetObject", "Exist", "IsSame", "And"]
 boolean_ops = ["Exist", "IsSame", "And"]
+boolean_ops.remove('Exist')
+root_ops.remove('Exist')
 # uncomment to add ops
 # root_ops += ["NotSame", "Or", "Xor"]
 # boolean_ops += ["NotSame", "Or", "Xor"]
@@ -61,7 +67,63 @@ op_dict = {"Select":
            "And":
                {"n_downstream": 2,
                 "downstream": ["Exist", "IsSame", "And"],
-                "sample_dist": [1 / 2, 1 / 2, 0],
+                "sample_dist": [1, 0, 0],
+                "same_children_op": False
+                },
+           # "Or":
+           #     {"n_downstream": 2,
+           #      "downstream": ["Exist", "IsSame", "NotSame", "And", "Or", "Xor"],
+           #      "sample_dist": [1 / 3, 1 / 3, 1 / 3, 0, 0, 0],
+           #      "same_children_op": False
+           #      },
+           # "Xor":
+           #     {"n_downstream": 2,
+           #      "downstream": ["Exist", "IsSame", "NotSame", "And", "Or", "Xor"],
+           #      "sample_dist": [1 / 3, 1 / 3, 1 / 3, 0, 0, 0],
+           #      "same_children_op": False
+           #      },
+           # "NotSame":
+           #     {"n_downstream": 2,
+           #      "downstream": ["GetCategory", "GetLoc", "GetViewAngle", "GetObject"],
+           #      "sample_dist": [1 / 4, 1 / 4, 1 / 4, 1 / 4],
+           #      "same_children_op": True,
+           #      },
+           }
+op_dict = {"Select":
+               {"n_downstream": 4,
+                "downstream": ["GetCategory", "GetLoc", "GetViewAngle", "GetObject", "None"],
+                "same_children_op": False
+                },
+           "GetCategory":
+               {"n_downstream": 1,
+                "downstream": ["Select"],
+                "sample_dist": [1]
+                },
+           "GetLoc":
+               {"n_downstream": 1,
+                "downstream": ["Select"],
+                "sample_dist": [1]
+                },
+           "GetViewAngle":
+               {"n_downstream": 1,
+                "downstream": ["Select"],
+                "sample_dist": [1]
+                },
+           "GetObject":
+               {"n_downstream": 1,
+                "downstream": ["Select"],
+                "sample_dist": [1]
+                },
+           "IsSame":
+               {"n_downstream": 2,
+                "downstream": ["GetCategory", "GetLoc", "GetViewAngle", "GetObject", "CONST"],
+                "sample_dist": [0, 0, 0, 0, 1],
+                "same_children_op": True  # same downstream op
+                },
+           "And":
+               {"n_downstream": 2,
+                "downstream": ["IsSame", "And"],
+                "sample_dist": [1, 0],
                 "same_children_op": False
                 },
            # "Or":
@@ -152,7 +214,7 @@ op_dict = defaultdict(dict, **op_dict)
 #     return node_list, conn_mtx
 
 def sample_children_helper(op_name, op_count, max_op, depth, max_depth):
-    if depth + 1 > max_depth or op_count + 1 > max_op:
+    if depth + 1 > max_depth or op_count + 4 > max_op:
         return np.random.choice(op_dict[op_name]["downstream"], p=op_dict[op_name]["sample_dist"])
     else:
         return np.random.choice(op_dict[op_name]["downstream"])
@@ -188,6 +250,7 @@ def sample_children_op(op_name, op_count, max_op, depth, max_depth, select_op, s
                 else:
                     ops.append('None')
         return ops
+    # TODO: elif op_name == "And", check depth + 2, + 3?
     else:
         if op_dict[op_name]["same_children_op"]:
             child = sample_children_helper(op_name, op_count, max_op, depth, max_depth)
@@ -210,6 +273,10 @@ def branch_generator(G, node, local_count, op_count, max_op, depth, max_depth, s
 
         depth += 1
         parent = op_count
+        if all(op == 'CONST' for op in children):
+            downstream = op_dict['IsSame']['downstream'].copy()
+            downstream.remove('CONST')
+            children[0] = random.choice(downstream)
         for op in children:
             if op != 'None':
                 child = op_count + 1
@@ -219,6 +286,7 @@ def branch_generator(G, node, local_count, op_count, max_op, depth, max_depth, s
 
                 G.add_node(child, label=op)
                 G.add_edge(parent, child)
+
         return op_count
 
 
@@ -251,7 +319,7 @@ def switch_generator(conditional, do_if, do_else):
     return G, switch_count, switch_count
 
 
-def write_instance(G_tuple, task, fp):
+def write_instance(G_tuple, task, fp, img_size=224, fixation_cue=True):
     G, _, _ = G_tuple
     G = G.reverse()
     A = nx.nx_agraph.to_agraph(G)
@@ -263,21 +331,37 @@ def write_instance(G_tuple, task, fp):
     with open(os.path.join(fp, 'adj_dict'), 'w') as f:
         json.dump(nx.to_dict_of_dicts(G), f, indent=4)
     with open(os.path.join(fp, 'instruction'), 'w') as f:
-        json.dump(str(task), f, indent=4)
+        json.dump(str(task[0]), f, indent=4)
+
+    frames_fp = os.path.join(fp, 'frames')
+    if os.path.exists(frames_fp):
+        shutil.rmtree(frames_fp)
+    os.makedirs(frames_fp)
+
+    frame_info = ig.FrameInfo(task[1], task[1].generate_objset())
+    compo_info = ig.TaskInfoCompo(task[1], frame_info)
+    objset = compo_info.frame_info.objset
+    for i, (epoch, frame) in enumerate(zip(sg.render(objset, img_size), compo_info.frame_info)):
+        if fixation_cue:
+            if not any('ending' in description for description in frame.description):
+                sg.add_fixation_cue(epoch)
+        img = Image.fromarray(epoch, 'RGB')
+        filename = os.path.join(frames_fp, f'epoch{i}.png')
+        img.save(filename)
+    examples, compo_example, memory_info = compo_info.get_examples()
+    filename = os.path.join(frames_fp, 'compo_task_example')
+    with open(filename, 'w') as f:
+        json.dump(compo_example, f, indent=4)
     return
 
 
 if __name__ == '__main__':
-    const.DATA = const.Data()
     args = get_args()
     print(args)
 
-    boolean_tasks = [
-        subtask_graph_generator(max_op=args.max_op, max_depth=args.max_depth, select_limit=args.select_limit,
-                                root_op=random.choice(boolean_ops)) for _ in range(args.n_tasks)]
-    tasks = [subtask_graph_generator(max_op=args.max_op, max_depth=args.max_depth, select_limit=args.select_limit) for _
-             in range(args.n_tasks)]
+    const.DATA = const.Data(dir_path=args.stim_dir)
 
+    start = timeit.default_timer()
     for i in range(args.n_tasks):
         fp = os.path.join(args.output_dir, f'{i}')
         if os.path.exists(fp):
@@ -312,5 +396,8 @@ if __name__ == '__main__':
                     do_else_task = subtask
                 subtask_graph = switch_generator(conditional, do_if, do_else)
                 count = subtask_graph[2] + 1
-                subtask = tg.switch_generation(conditional_task[0], do_if_task[0], do_else_task[0])
-        write_instance(subtask_graph, subtask[0], fp)
+                subtask = tg.switch_generation(conditional_task, do_if_task, do_else_task)
+        write_instance(subtask_graph, subtask, fp, args.img_size)
+    stop = timeit.default_timer()
+
+    print('Time: ', stop - start)

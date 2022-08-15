@@ -77,9 +77,6 @@ class Attribute(object):
     #     """Override the default hash behavior."""
     #     return hash(tuple(sorted(self.__dict__.items())))
 
-    def copy(self):
-        return copy.deepcopy(self)
-
     def resample(self):
         raise NotImplementedError('Abstract method.')
 
@@ -106,7 +103,7 @@ def _get_space_to(x0, x1, y0, y1, space_type):
 class Loc(Attribute):
     """Location class."""
 
-    def __init__(self, value=None):
+    def __init__(self, space, value=None):
         """Initialize location.
 
         Args:
@@ -116,6 +113,12 @@ class Loc(Attribute):
         """
         super(Loc, self).__init__(value)
         self.attr_type = 'loc'
+        self.space = space
+
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return self.space == other.space
+        return False
 
     def get_space_to(self, space_type):
         if self.value is None:
@@ -154,32 +157,33 @@ class Space(Attribute):
         Args:
           avoid: a list of locations (tuples) to be avoided
         """
+        mid_point = (1 / 2, 1 / 2)
         if avoid is None:
-            mid_point = (self._value[0][1] - self._value[0][0]) / 2, (self._value[1][1] - self._value[1][0]) / 2
             avoid = [mid_point]
+        else:
+            avoid = avoid + [mid_point]
         # avoid the mid-point for fixation cue
 
         # TODO: sample from 16 points
         n_max_try = 100
         avoid_radius2 = 0.04  # avoid radius squared
-        dx = (self._value[0][1] - self._value[0][0]) * 0.125
+        dx = 0.125
         xrange = (self._value[0][0] + dx, self._value[0][1] - dx)
-        dy = (self._value[1][1] - self._value[1][0]) * 0.125
+        dy = 0.125
         yrange = (self._value[1][0] + dy, self._value[1][1] - dy)
         for i_try in range(n_max_try):
             # Round to 3 decimal places to save space in json dump
-            loc = (round(random.uniform(*xrange), 3),
-                   round(random.uniform(*yrange), 3))
+            loc_sample = (round(random.uniform(*xrange), 3),
+                          round(random.uniform(*yrange), 3))
 
             not_overlapping = True
             for loc_avoid in avoid:
-                not_overlapping *= ((loc[0] - loc_avoid[0]) ** 2 +
-                                    (loc[1] - loc_avoid[1]) ** 2 > avoid_radius2)
+                not_overlapping *= ((loc_sample[0] - loc_avoid[0]) ** 2 +
+                                    (loc_sample[1] - loc_avoid[1]) ** 2 > avoid_radius2)
 
             if not_overlapping:
                 break
-
-        return Loc(loc)
+        return Loc(space=self, value=loc_sample)
 
     def include(self, loc):
         """Check if an unsampled location (a space) includes a loc."""
@@ -348,18 +352,19 @@ class Object(object):
                  when=None,
                  deletable=False):
 
-        self.loc = Loc(value=None)
-        self.space = Space(value=None)
+        self.space = random_grid_space()
+        self.loc = Loc(space=self.space, value=None)
         self.category = SNCategory(value=None)
         self.object = SNObject(self.category, value=None)
         self.view_angle = SNViewAngle(self.object, value=None)
 
         if attrs is not None:
             for a in attrs:
-                if isinstance(a, Loc):
-                    self.loc = a
-                elif isinstance(a, Space):
+                if isinstance(a, Space):
                     self.space = a
+                elif isinstance(a, Loc):
+                    self.loc = a
+                    self.space = a.space
                 elif isinstance(a, SNCategory):
                     self.category = a
                 elif isinstance(a, SNObject):
@@ -444,13 +449,15 @@ class Object(object):
             attrs = const.ATTRS
         for attr in attrs:
             if getattr(self, attr) != getattr(other, attr):
+                print(getattr(self, attr).space, getattr(other, attr).space)
                 return False
         return True
 
     def dump(self):
         """Returns representation of self suitable for dumping as json."""
         return {
-            'location': self.loc.value,
+            'location': str(self.loc.value),
+            'space': const.DATA.get_grid_key(self.loc.space),
             'category': int(self.category.value),
             'object': int(self.object.value),
             'view angle': int(self.view_angle.value),
@@ -493,7 +500,7 @@ class Object(object):
         return True
 
     def copy(self):
-        new_obj = Object(attrs=[Loc(self.loc.value), Space(self.space.value),
+        new_obj = Object(attrs=[Loc(space=Space(self.loc.space.value), value=self.loc.value), Space(self.space.value),
                                 SNCategory(self.category.value), SNObject(self.category, self.object.value),
                                 SNViewAngle(self.object, self.view_angle.value)])
         new_obj.when = self.when
@@ -719,7 +726,7 @@ class ObjectSet(object):
         Returns:
           a list of Object instance that fit the pattern provided by arguments
         """
-        space = space or Space(None)
+        space = space
         category = category or SNCategory(None)
         object = object or SNObject(category=category, value=None)
         view_angle = view_angle or SNViewAngle(sn_object=object, value=None)
@@ -733,7 +740,7 @@ class ObjectSet(object):
         if not isinstance(view_angle, SNViewAngle):
             raise TypeError('view_angle has to be ViewAngle class, is instead of class ' +
                             str(type(SNViewAngle)))
-        assert isinstance(space, Space)
+        # assert isinstance(space, Space)
 
         if merge_idx is None:
             epoch_now -= const.DATA.LASTMAP[when]
@@ -809,7 +816,6 @@ def render_static_obj(canvas, obj, img_size, train=True):
     x_offset, x_end = center[0] - radius, center[0] + radius
     y_offset, y_end = center[1] - radius, center[1] + radius
     shape_net_obj = const.DATA.get_shapenet_object(obj, [radius * 2, radius * 2], train=train)
-
     assert shape_net_obj.size == (x_end - x_offset, y_end - y_offset)
     canvas[x_offset:x_end, y_offset:y_end] = shape_net_obj
 
@@ -990,6 +996,23 @@ def render_target(movie, target):
     return movie_withtarget
 
 
+def add_fixation_cue(canvas, cue_size=0.05):
+    """
+
+    :param canvas: numpy array of shape: (img_size, img_size, 3)
+    :param cue_size: size of the fixation cue
+    :return:
+    """
+    img_size = canvas.shape[0]
+    radius = int(cue_size * img_size)
+    center = (canvas.shape[0] // 2, canvas.shape[1] // 2)
+    thickness = int(0.02 * img_size)
+    cv2.line(canvas, (center[0] - radius, center[1]),
+             (center[0] + radius, center[1]), (255, 255, 255), thickness)
+    cv2.line(canvas, (center[0], center[1] - radius),
+             (center[0], center[1] + radius), (255, 255, 255), thickness)
+
+
 def random_category():
     return SNCategory(random.choice(const.DATA.ALLCATEGORIES))
 
@@ -1096,7 +1119,7 @@ def random_attr(attr_type):
         obj = random_object(random_category())
         return random_fixed_object(obj)
     elif attr_type == 'loc':
-        space = Space()
+        space = random_grid_space()
         return space.sample()
     else:
         raise NotImplementedError('Unknown attr_type :' + str(attr_type))
@@ -1114,7 +1137,7 @@ def another_attr(attr):
     elif isinstance(attr, Space):
         return another_loc(attr)
     elif isinstance(attr, Loc):
-        return another_loc(Space())
+        return another_loc(attr)
     elif attr is const.DATA.INVALID:
         return attr
     else:
@@ -1186,13 +1209,29 @@ def sample_view_angle(k, obj: SNObject):
             random.sample(const.DATA.ALLVIEWANGLES[obj.category.value][obj.value], k)]
 
 
-def another_loc(space):
+def another_loc(loc):
+    # to make things consistent with original COG code, only sample a different grid_space
+    # another approach is keeping track of all grid_space in task class
     n_max_try = 100
     for i_try in range(n_max_try):
-        loc = space.sample()
-        if not space.include(loc):
+        grid_space = loc.space
+        new_grid_space = another_grid_space(grid_space)
+        new_loc = new_grid_space.sample()
+        if not grid_space.include(new_loc):
             break
-    return loc
+    return new_loc
+
+
+def random_grid_space():
+    return Space(random.choice(list(const.DATA.grid.values())))
+
+
+def another_grid_space(space):
+    keys = list(const.DATA.grid.keys()).copy()
+    key = const.DATA.get_grid_key(space)
+    keys.remove(key)
+    new_key = random.choice(keys)
+    return Space(const.DATA.grid[new_key])
 
 
 def main(argv):

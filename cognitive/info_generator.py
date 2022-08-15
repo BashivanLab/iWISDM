@@ -62,7 +62,7 @@ class TaskInfoCompo(object):
     def get_instruction_obj_info(self):
         """
 
-        :return: changed task instruction
+        :return: changed task instruction and obj_info dictionary
         """
         compo_instruction = ''
         obj_info = defaultdict(list)  # key: epoch, value: list of dictionary of object info
@@ -141,7 +141,7 @@ class TaskInfoCompo(object):
 
     def get_examples(self):
         """
-        get tasks examples
+        get task examples
         :return: tuple of list of dictionaries containing information about the requested tasks
         and compo task
         """
@@ -155,7 +155,7 @@ class TaskInfoCompo(object):
                 'epochs': int(task.n_frames),
                 'question': str(task),
                 'objects': [o.dump() for o in self.task_objset[i]],
-                'answers': [const.get_target_value(t) for t in task.get_target(self.task_objset[i])],
+                'answers': [str(const.get_target_value(t)) for t in task.get_target(self.task_objset[i])],
                 'first_shareable': int(task.first_shareable),
             })
         comp_instruction, obj_info = self.get_instruction_obj_info()
@@ -212,12 +212,13 @@ class TaskInfoCompo(object):
         new_task_idx = len(self.tasks)
 
         start = self.frame_info.get_start_frame(new_task_info, relative_tasks={new_task_idx})
+
         objset = sg.ObjectSet(n_epoch=new_task_copy.n_frames, n_max_backtrack=(int(new_task_copy.avg_mem) * 3))
         changed = False
         # change the necessary selects first
         for i, (old_frame, new_frame) in enumerate(zip(self.frame_info[start:], new_task_info.frame_info)):
             lastk = 'last%d' % (len(new_task_info.frame_info) - i - 1)
-            # if there are no objects in the one of the frames, then freely merge
+            # if there are objects in both frames, then update the new task's selects
             if old_frame.objs and new_frame.objs:
                 filter_objs = new_task.reinit(new_task_copy, old_frame.objs, lastk)
                 if filter_objs:
@@ -230,7 +231,7 @@ class TaskInfoCompo(object):
         # get new objset for new task based on updated operators and merge
 
         if changed:
-            # guess objset based on existing objects
+            # guess conflict-free objset based on existing objects
             new_objset = new_task_copy.guess_objset(objset, new_task_copy.n_frames - 1)
             updated_fi = FrameInfo(new_task_copy, new_objset)
             FrameInfo.update_relative_tasks(updated_fi, relative_tasks={new_task_idx})
@@ -280,9 +281,6 @@ class TaskInfoCompo(object):
                     if new_task.reinit(old_frame.objs, lastk, hard_update=False) and \
                             new_task_copy.reinit(old_frame.objs, lastk, hard_update=True):
                         changed = True
-                        # select: object: view_angle: cateogry:
-
-                        # what was the cateogry 1, object 2, viewangle 3 object
                     else:
                         old_frame.compatible_merge(new_frame)
                 else:

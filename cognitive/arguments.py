@@ -8,9 +8,10 @@ def get_args():
     parser.add_argument('--trials_per_family', type=int, default=10)
     parser.add_argument('--output_dir', default='./data')
     parser.add_argument('--stim_dir', default='./data/MULTIF_5_stim')
-    parser.add_argument('--random_families', action='store_false', default=True)
-    parser.add_argument('--families', nargs='*', default=['DelayedCDM'])
+    parser.add_argument('--non_random_families', action='store_false', default=True)
+    parser.add_argument('--families', nargs='*', default=['CompareViewAngle'])
     parser.add_argument('--composition', type=int, default=1)
+    parser.add_argument('--temporal_switch', action='store_true', default=False)
     parser.add_argument('--img_size', type=int, default=224)
     parser.add_argument('--training', type=float, default=0.7)
     parser.add_argument('--validation', type=float, default=0.3)
@@ -20,6 +21,7 @@ def get_args():
     parser.add_argument('--seq_reverse', action='store_true', default=False)
     parser.add_argument('--fix_delay', action='store_true', default=False)
     parser.add_argument('--fixation_cue', action='store_false', default=True)
+
     # TODO: examples of nback, and sequential
     args = parser.parse_args()
     return args

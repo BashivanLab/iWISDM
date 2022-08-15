@@ -27,7 +27,6 @@ from cognitive import stim_generator as sg
 from cognitive import task_generator as tg
 from cognitive.auto_task import auto_task_util as util
 
-
 def targets_to_str(targets):
     return [t.value if hasattr(t, 'value') else str(t) for t in targets]
 
@@ -130,6 +129,14 @@ class TaskGeneratorTest(unittest.TestCase):
         A.draw("convert_switch.png", prog="dot")
         print(tg.switch_generation(conditional, do_if, do_else))
 
+    def testAddObj(self):
+        const.DATA = const.Data()
+        obj = sg.Object(when='last0')
+        objset = sg.ObjectSet(n_epoch=5)
+        temp = objset.add(obj, epoch_now=0).copy()
+        for i in range(1,5):
+            temp = objset.add(temp, epoch_now=i).copy()
+        print(objset)
 
 if __name__ == '__main__':
     unittest.main()
