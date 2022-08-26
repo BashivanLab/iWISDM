@@ -1,11 +1,14 @@
 """ Classes for building composite tasks
 """
+import random
+
 import numpy as np
 
 import cognitive.constants as const
 import cognitive.stim_generator as sg
 import cognitive.task_generator as tg
 import re
+from functools import partial
 from collections import defaultdict
 
 
@@ -54,6 +57,7 @@ class TaskInfoCompo(object):
 
         self.task_objset[0] = frame_info.objset.copy()
         self.frame_info = frame_info
+        self.tempo_dict = dict()
 
     def __len__(self):
         # return number of tasks involved
@@ -64,10 +68,10 @@ class TaskInfoCompo(object):
 
         :return: changed task instruction and obj_info dictionary
         """
-        compo_instruction = ''
-        obj_info = defaultdict(list)  # key: epoch, value: list of dictionary of object info
 
+        obj_info = defaultdict(list)  # key: epoch, value: list of dictionary of object info
         count = 0
+        cur = 0
         for epoch, objs in sorted(self.frame_info.objset.dict.items()):
             for i, obj in enumerate(objs):
                 count += 1
@@ -77,7 +81,10 @@ class TaskInfoCompo(object):
                 info['tasks'] = set()  # tasks that involve the stim
                 info['attended_attr'] = defaultdict(set)  # key: task, value: attribute of the stim that are relevant
                 obj_info[epoch].append(info)
-        # TODO: make dict of frame.relative_tasks and objs
+
+        compo_instruction = ''
+        if self.tempo_dict:
+            compo_instruction += 'compo task 1: '
         # for each frame, find the tasks that use the stimuli. For each of these tasks,
         # compare the object in task_objset with obj, and rename lastk with ith object
         was_delay = False
@@ -88,6 +95,7 @@ class TaskInfoCompo(object):
                     compo_instruction += f'observe object {info_dict["count"]}, '
                     # info_dict['tasks'] = {task: False for task in frame.relative_tasks}
                 add_delay, was_delay = False, False
+
             for d in frame.description:
                 if 'ending' in d:  # align object count with lastk for each task
                     task_idx = int(re.search(r'\d+', d).group())
@@ -105,6 +113,7 @@ class TaskInfoCompo(object):
                             match['tasks'].add(task_idx)
                             match['attended_attr'][task_idx] = match['attended_attr'][task_idx].union(
                                 self.tasks[task_idx].get_relevant_attribute(f'last{k}'))
+                            cur += 1
                         else:
                             raise RuntimeError('No match')
                     # string += re.sub(pattern=f'last\d+ object',
@@ -112,6 +121,16 @@ class TaskInfoCompo(object):
                     #                                    objs=obj_info), string=task_q)
                     compo_instruction += task_q
                     add_delay, was_delay = False, False
+
+                    if self.tempo_dict:
+                        # in temporal switch, if at the end of the original task,
+                        # then add the conditional texts in the instruction
+                        if epoch == len(self.tempo_dict['self']['answers']) - 1:
+                            compo_instruction += ' if end of compo task 1 is true, then do compo task 2: '
+                            compo_instruction += object_add(self.tempo_dict['task1']['instruction'], cur)
+                            compo_instruction += 'otherwise, do compo task 3: '
+                            compo_instruction += object_add(self.tempo_dict['task2']['instruction'], cur)
+                            return compo_instruction, obj_info
             if add_delay and not was_delay:
                 compo_instruction += 'delay, '
                 was_delay = True
@@ -158,6 +177,7 @@ class TaskInfoCompo(object):
                 'answers': [str(const.get_target_value(t)) for t in task.get_target(self.task_objset[i])],
                 'first_shareable': int(task.first_shareable),
             })
+
         comp_instruction, obj_info = self.get_instruction_obj_info()
         obj_info_json = obj_info.copy()
 
@@ -292,6 +312,29 @@ class TaskInfoCompo(object):
             self.task_objset[new_task_idx] = new_task_info.task_objset[0]
         self.tasks.append(new_task)
 
+    def temporal_switch(self, task_info1, task_info2, switch_first=None):
+        assert isinstance(task_info1, TaskInfoCompo)
+        assert isinstance(task_info2, TaskInfoCompo)
+
+        if any(task.is_bool_output() for task in [self.tasks[-1], task_info1.tasks[-1], task_info2.tasks[-1]]):
+            raise ValueError('Temporal switch tasks must have boolean outputs')
+
+        self.tempo_dict['self'] = self.get_examples()[1]
+        self.tempo_dict['task1'] = task_info1.get_examples()[1]
+        self.tempo_dict['task2'] = task_info2.get_examples()[1]
+        # current implementation of compo_task is by combining pre-generated objsets
+        # so have to rely on main.py to generate both branches
+        if not switch_first:
+            answer = self.tempo_dict['self']['answers'][len(self.frame_info) - 1]
+            if answer not in ['true', 'false']:
+                raise ValueError('End of task is not boolean output')
+            switch_first = True if answer == 'true' else False
+        task_info = task_info1 if switch_first else task_info2
+
+        self.frame_info.first_shareable = len(self.frame_info)
+        self.merge(task_info)
+        return
+
 
 class FrameInfo(object):
     def __init__(self, task, objset):
@@ -416,7 +459,9 @@ class FrameInfo(object):
 
         if len(shareable_frames) == 0:
             # queue, add frames and start merging
+            self.first_shareable = len(self.frame_list)
             self.add_new_frames(new_task_len, relative_tasks)
+
             self.last_task_end = len(self.frame_list) - 1
             self.last_task = list(relative_tasks)[0]
             self.first_shareable = new_first_shareable + first_shareable
@@ -500,3 +545,12 @@ class FrameInfo(object):
             return 'frame: ' + str(self.idx) + ', relative tasks: ' + \
                    ','.join([str(i) for i in self.relative_tasks]) \
                    + ' objects: ' + ','.join([str(o) for o in self.objs])
+
+
+def add(match, x):
+    val = match.group()
+    return re.sub(r'\d+', lambda m: str(int(m.group()) + x), val)
+
+
+def object_add(t, x):
+    return re.sub(r'object \d+', partial(add, x=x), t)

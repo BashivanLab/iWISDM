@@ -253,6 +253,8 @@ def generate_dataset(examples_per_family, output_dir='./data',
     if not os.path.exists(validation_fname):
         os.makedirs(validation_fname)
 
+    # TODO: temporal_switch generation pipeline. User specify compo vs switch or randomly.
+    #  If randomly, how to split compo and switch?
     if random_families:
         p = np.random.permutation(total_examples)
         i = 0
@@ -290,6 +292,10 @@ def generate_dataset(examples_per_family, output_dir='./data',
             info = compo_tasks[0]
             for task in compo_tasks[1:]:
                 info.merge(task)
+            # TODO: find boolean output task and apply temporal switch
+            #  draw diagram for branching structure of temporal composition/switch
+            #  put in info_generator?
+            info.temporal_switch()
 
             # Write the example randomly to training or validation folder
             split = bool(random.getrandbits(1))

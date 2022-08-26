@@ -192,6 +192,39 @@ class InfoGeneratorTest(unittest.TestCase):
         compo_info.merge(compo_info2, reuse=1)
         print(str(compo_info))
 
+    def testTemporalSwitch(self):
+        const.DATA = const.Data()
+        categories = sg.sample_category(4)
+        objects = [sg.sample_object(k=1, category=cat)[0] for cat in categories]
+        view_angles = [sg.sample_view_angle(k=1, obj=obj)[0] for obj in objects]
+
+        op1 = tg.Select(category=categories[0], when='last2')
+        op2 = tg.Select(category=categories[1], when=f'last1')
+        new_task1 = tg.TemporalTask(tg.IsSame(tg.GetCategory(op1), tg.GetCategory(op2)), 3)
+
+        op3 = tg.Select(category=categories[2], when='last3')
+        op4 = tg.Select(category=categories[3], when='last2')
+        new_task2 = tg.TemporalTask(tg.IsSame(tg.GetCategory(op3), tg.GetCategory(op4)), 4)
+        op3 = tg.Select(object=objects[0], when='last3')
+        op4 = tg.Select(object=objects[1], when='last2')
+        new_task3 = tg.TemporalTask(tg.IsSame(tg.GetObject(op3), tg.GetObject(op4)), 4)
+
+        new_task1_objset = new_task1.generate_objset()
+        fi1 = ig.FrameInfo(new_task1, new_task1_objset)
+        compo_info = ig.TaskInfoCompo(new_task1, fi1)
+        new_task2_objset = new_task2.generate_objset()
+        fi2 = ig.FrameInfo(new_task2, new_task2_objset)
+        compo_info2 = ig.TaskInfoCompo(new_task2, fi2)
+        new_task3_objset = new_task3.generate_objset()
+        fi3 = ig.FrameInfo(new_task3, new_task3_objset)
+        compo_info3 = ig.TaskInfoCompo(new_task3, fi3)
+
+        compo_info.temporal_switch(compo_info2, compo_info3)
+        print(compo_info.get_examples()[1]['instruction'])
+
+    def testObjectAddOne(self):
+        t = 'observe object 1, observe object 2, category of object 1 equal category of object 2 ?observe object 3, observe object 4, delay, object of object 3 equal object of object 4 ?'
+        print(ig.object_add(t,2))
 
 if __name__ == '__main__':
     unittest.main()

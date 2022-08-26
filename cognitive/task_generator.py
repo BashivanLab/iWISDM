@@ -262,6 +262,11 @@ class Task(object):
         # return [self(objset, epoch_now) for epoch_now in range(0,objset.n_epoch)]
         return [self(objset, objset.n_epoch - 1)]
 
+    def is_bool_output(self):
+        if self._operator in BOOL_OP:
+            return True
+        return False
+
 
 class TemporalTask(Task):
     def __init__(self, operator=None, n_frames=None, first_shareable=None, whens=None):
@@ -1360,3 +1365,6 @@ get_family_dict = OrderedDict([
     ('view_angle', GetViewAngle),
     ('loc', GetLoc)
 ])
+
+
+BOOL_OP = [IsSame, Exist, And, Switch]
