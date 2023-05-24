@@ -32,6 +32,8 @@ import networkx as nx
 from cognitive import constants as const
 from cognitive import stim_generator as sg
 
+from typing import Tuple, Union, Dict, Callable
+
 
 def obj_str(loc=None, obj=None, category=None, view_angle=None,
             when=None, space_type=None):
@@ -116,9 +118,9 @@ class Task(object):
         return len(self._all_nodes)
 
     def topological_sort_visit(self, node, visited, stack):
-        """Recursive function that visits a node."""
+        """Recursive function that visits a root."""
 
-        # Mark the current node as visited.
+        # Mark the current root as visited.
         visited[node] = True
 
         # Recur for all the vertices adjacent to this vertex
@@ -182,7 +184,7 @@ class Task(object):
                     children = node.child
             else:
                 children = node.child
-            # Update the should_be dictionary for the node children
+            # Update the should_be dictionary for the root children
 
             for c, output in zip(children, outputs):
                 if not isinstance(c, Operator):  # if c is not an Operator
@@ -194,7 +196,7 @@ class Task(object):
                     # If not assigned, assign
                     should_be_dict[c] = output
                 else:
-                    # if child is an operator and there's already assigned expected output to the cur node's child
+                    # if child is an operator and there's already assigned expected output to the cur root's child
                     # If assigned, for each object, try to merge them
                     if isinstance(c, Select):
                         # Loop over new output
@@ -665,7 +667,7 @@ class Select(Operator):
 
             # If an attribute of select is an operator, then the expected input is
             # the value of obj
-            # attr_new_object is the output for the subsequent node children
+            # attr_new_object is the output for the subsequent root children
             attr_expected_in = list()
             for attr_type in ['loc', 'category', 'object', 'view_angle']:
                 a = getattr(self, attr_type)
@@ -680,7 +682,7 @@ class Select(Operator):
                 else:
                     attr_expected_in.append(Skip())
 
-        # no target output given, only happens when parent node is Exist
+        # no target output given, only happens when parent root is Exist
         # and the expected input of exist is does not exist.
         # Basically making sure an object with this attribute does not exist
         if not should_be:
@@ -1188,12 +1190,16 @@ class And(Operator):
         return op1_assign, op2_assign
 
 
+TASK = Tuple[Union[Operator, sg.Attribute], TemporalTask]
+
+
 def all_subclasses(cls):
     return set(cls.__subclasses__()).union(
         [s for c in cls.__subclasses__() for s in all_subclasses(c)])
 
 
-def get_operator_dict():
+def get_operator_dict() -> Dict[str, Operator]:
+    # function to retrieve class names and their classes
     return {cls.__name__: cls for cls in all_subclasses(Operator)}
 
 
@@ -1215,23 +1221,23 @@ def classify_operators(ops):
     return counts
 
 
-def get_roots(G):
+def get_roots(G: nx.DiGraph):
     return [n for n, d in G.in_degree() if d == 0]
 
 
-def get_leafs(G):
+def get_leafs(G: nx.DiGraph):
     leafs = [x for x in G.nodes() if G.out_degree(x) == 0 and G.in_degree(x) == 1]
     assert all(leaf == 'Select' or leaf == 'CONST' for leaf in [G.nodes[node]['label'] for node in leafs])
     return leafs
 
 
-# def subgraphs_from_switch(G: nx.DiGraph, node):
-#     preds = list(G.predecessors(node))
+# def subgraphs_from_switch(G: nx.DiGraph, root):
+#     preds = list(G.predecessors(root))
 #     left, right = preds[0], preds[1]
 #
 #     cut_G = G.copy()
-#     cut_G.remove_edge(left, node)
-#     cut_G.remove_edge(right, node)
+#     cut_G.remove_edge(left, root)
+#     cut_G.remove_edge(right, root)
 #
 #     subgraphs = (cut_G.subgraph(c) for c in nx.connected_components(cut_G.to_undirected()))
 #     left_subgraph, right_subgraph = None, None
@@ -1242,10 +1248,20 @@ def get_leafs(G):
 #             right_subgraph = graph
 #     return left_subgraph, right_subgraph
 
-def convert_operators(G, node, operators, operator_families, whens):
-    if list(G.successors(node)):
-        children = list(G.successors(node))
-        if operators[node] == 'Select':
+def convert_operators(G, root, operators: Dict[int, str], operator_families: Dict[int, Callable], whens) -> Union[Operator, sg.Attribute]:
+    """
+    given a task graph G, convert it into an operator that is already nested with its successors
+    :param G: the task graph, nx.Graph
+    :param root: the node number of the root operator
+    :param operators: dictionary for converting node number to operator name
+    :param operator_families:
+    :param whens:
+    :return:
+    """
+    if list(G.successors(root)):
+        children = list(G.successors(root))
+        # check the root's type of operator
+        if operators[root] == 'Select':
             attr_dict = {attr: None for attr in const.ATTRS}
             for child in children:
                 if 'Get' in operators[child]:
@@ -1254,13 +1270,15 @@ def convert_operators(G, node, operators, operator_families, whens):
                     attr_dict[attr] = convert_operators(G, child, operators, operator_families, whens)
                 else:
                     raise ValueError(f'Select cannot have {operators[child]} as a child operator')
-            return Select(**attr_dict, when=whens[node])
-        elif operators[node] == 'Exist':
+            return Select(**attr_dict, when=whens[root])
+        elif operators[root] == 'Exist':
             return Exist(convert_operators(G, children[0], operators, operator_families, whens))
-        elif 'Get' in operators[node]:
-            return operator_families[operators[node]](
+        elif 'Get' in operators[root]:
+            # init a Get operator
+            return operator_families[operators[root]](
                 convert_operators(G, children[0], operators, operator_families, whens))
-        elif operators[node] in const.LOGIC_OPS:
+        elif operators[root] in const.LOGIC_OPS:
+            # init a boolean operator
             assert len(children) > 1
             ops = [convert_operators(G, c, operators, operator_families, whens) for c in children]
             if isinstance(ops[0], sg.Attribute) or isinstance(ops[1], sg.Attribute):
@@ -1274,12 +1292,12 @@ def convert_operators(G, node, operators, operator_families, whens):
                     attr_i = 1
                 if attr.attr_type != op.attr_type:
                     ops[attr_i] = sg.random_attr(op.attr_type)
-            return operator_families[operators[node]](ops[0], ops[1])
+            return operator_families[operators[root]](ops[0], ops[1])
         else:
-            raise ValueError(f"Unknown Operator {operators[node]}")
+            raise ValueError(f"Unknown Operator {operators[root]}")
     else:
-        if operators[node] == 'Select':
-            return Select(when=whens[node])
+        if operators[root] == 'Select':
+            return Select(when=whens[root])
         else:
             return sg.random_attr(random.choice(const.ATTRS))
 
@@ -1289,51 +1307,51 @@ def convert_operators(G, node, operators, operator_families, whens):
 #     while not all(isinstance(operators[root], Operator) for root in roots):
 #         # convert op from list of strings to list of operators
 #         temp = defaultdict(list)
-#         for node in bfs:
-#             if not isinstance(operators[node], Operator):
-#                 if G.nodes[node]['label'] == 'Select':
-#                     if bfs[node]:
+#         for root in bfs:
+#             if not isinstance(operators[root], Operator):
+#                 if G.nodes[root]['label'] == 'Select':
+#                     if bfs[root]:
 #                         attr_dict = {attr: None for attr in const.ATTRS}
-#                         for op in bfs[node]:
+#                         for op in bfs[root]:
 #                             if 'Get' in G.nodes[op]['label']:
 #                                 attr = G.nodes[op]['label'].split('Get')[1].lower()
 #                                 attr = 'view_angle' if attr == 'viewangle' else attr
 #                                 attr_dict[attr] = operators[op]
-#                         operators[node] = Select(**attr_dict, when=whens.pop())
+#                         operators[root] = Select(**attr_dict, when=whens.pop())
 #                     else:
-#                         operators[node] = Select(when=whens.pop())
-#                     for pred in list(G.predecessors(node)):
-#                         temp[pred].append(node)
-#                 elif G.nodes[node]['label'] == 'CONST':
-#                     operators[node] = sg.random_attr(random.choice(const.ATTRS))
-#                     for pred in list(G.predecessors(node)):
-#                         temp[pred].append(node)
-#                 elif G.nodes[node]['label'] == 'Exist':
-#                     operators[node] = Exist(operators[bfs[node][0]])
-#                     for pred in list(G.predecessors(node)):
-#                         temp[pred].append(node)
-#                 # elif G.nodes[node]['label'] == 'IsSame':
-#                 #     attr1, attr2 = operators[bfs[node][0]], operators[bfs[node][1]]
-#                 #     operators[node] = IsSame(attr1, attr2)
-#                 elif 'Get' in G.nodes[node]['label']:
-#                     objs = operators[bfs[node][0]]
-#                     operators[node] = operator_families[G.nodes[node]['label']](objs)
-#                     for pred in list(G.predecessors(node)):
-#                         temp[pred].append(node)
-#                 elif G.nodes[node]['label'] in const.LOGIC_OPS:
-#                     if len(bfs[node]) < 2:
-#                         temp[node] += bfs[node]
+#                         operators[root] = Select(when=whens.pop())
+#                     for pred in list(G.predecessors(root)):
+#                         temp[pred].append(root)
+#                 elif G.nodes[root]['label'] == 'CONST':
+#                     operators[root] = sg.random_attr(random.choice(const.ATTRS))
+#                     for pred in list(G.predecessors(root)):
+#                         temp[pred].append(root)
+#                 elif G.nodes[root]['label'] == 'Exist':
+#                     operators[root] = Exist(operators[bfs[root][0]])
+#                     for pred in list(G.predecessors(root)):
+#                         temp[pred].append(root)
+#                 # elif G.nodes[root]['label'] == 'IsSame':
+#                 #     attr1, attr2 = operators[bfs[root][0]], operators[bfs[root][1]]
+#                 #     operators[root] = IsSame(attr1, attr2)
+#                 elif 'Get' in G.nodes[root]['label']:
+#                     objs = operators[bfs[root][0]]
+#                     operators[root] = operator_families[G.nodes[root]['label']](objs)
+#                     for pred in list(G.predecessors(root)):
+#                         temp[pred].append(root)
+#                 elif G.nodes[root]['label'] in const.LOGIC_OPS:
+#                     if len(bfs[root]) < 2:
+#                         temp[root] += bfs[root]
 #                     else:
-#                         op1, op2 = operators[bfs[node][0]], operators[bfs[node][1]]
-#                         operators[node] = operator_families[G.nodes[node]['label']](op1, op2)
-#                         for pred in list(G.predecessors(node)):
-#                             temp[pred].append(node)
+#                         op1, op2 = operators[bfs[root][0]], operators[bfs[root][1]]
+#                         operators[root] = operator_families[G.nodes[root]['label']](op1, op2)
+#                         for pred in list(G.predecessors(root)):
+#                             temp[pred].append(root)
 #         bfs = temp
 #         print(operators, bfs)
 #     return operators[roots[0]]
 
 
-def subtask_generation(subtask):
+def subtask_generation(subtask) -> TASK:
     subtask_G, root, op_count = subtask
     operator_families = get_operator_dict()
 
@@ -1349,7 +1367,10 @@ def subtask_generation(subtask):
     return op, TemporalTask(operator=op, n_frames=n_frames)
 
 
-def switch_generation(conditional, do_if, do_else, **kwargs):
+def switch_generation(conditional: TASK, do_if: TASK, do_else: TASK, **kwargs) -> TASK:
+    """
+    combines all 3 temporal tasks and initialize the switch operator
+    """
     conditional_op, conditional_task = conditional
     if_op, if_task = do_if
     else_op, else_task = do_else
@@ -1365,6 +1386,5 @@ get_family_dict = OrderedDict([
     ('view_angle', GetViewAngle),
     ('loc', GetLoc)
 ])
-
 
 BOOL_OP = [IsSame, Exist, And, Switch]

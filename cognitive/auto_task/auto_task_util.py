@@ -1,23 +1,31 @@
 import json
 import shutil
 import timeit
+from arguments import get_args
+from collections import defaultdict
+
+from cognitive import task_generator as tg
+from cognitive import constants as const
+from cognitive import stim_generator as sg
+from cognitive import info_generator as ig
 
 import numpy as np
 import random
 import networkx as nx
 from tqdm import tqdm
-from collections import defaultdict
-from arguments import get_args
-from cognitive import task_generator as tg
-from cognitive import constants as const
-from cognitive import stim_generator as sg
-from cognitive import info_generator as ig
 from PIL import Image
 import os
 import matplotlib.pyplot as plt
 from networkx.drawing.nx_pydot import graphviz_layout
 
+from typing import Tuple, Union
+
+# Tuples of the graph object, the root root_op number, and the
+GRAPH_TUPLE = Tuple[nx.DiGraph, int, int]
+TASK = Tuple[Union[tg.Operator, sg.Attribute], tg.TemporalTask]
+
 # TODO: add select attributes, combine helper with task_generator.task_generation
+# root_ops are the operators to begin a task
 root_ops = ["GetCategory", "GetLoc", "GetViewAngle", "GetObject", "Exist", "IsSame", "And"]
 boolean_ops = ["Exist", "IsSame", "And"]
 boolean_ops.remove('Exist')
@@ -25,9 +33,15 @@ root_ops.remove('Exist')
 # uncomment to add ops
 # root_ops += ["NotSame", "Or", "Xor"]
 # boolean_ops += ["NotSame", "Or", "Xor"]
+
+# all tasks end with select
 leaf_op = ["Select"]
 mid_op = ["Switch"]
 
+# dictionary specifying which operators can follow an operator,
+# e.g. GetCategory follows selecting an object
+# 4 operators are related to Select: category, location, view_angle, and the exact object
+# if the operator is None, then a random constant is sampled for that attribute
 op_dict = {"Select":
                {"n_downstream": 4,
                 "downstream": ["GetCategory", "GetLoc", "GetViewAngle", "GetObject", "None"],
@@ -214,6 +228,15 @@ op_dict = defaultdict(dict, **op_dict)
 #     return node_list, conn_mtx
 
 def sample_children_helper(op_name, op_count, max_op, depth, max_depth):
+    """
+    helper function to ensure the task graph is not too complex
+    :param op_name: the current operator
+    :param op_count: the current number of operators
+    :param max_op: the maximum number of operators allowed
+    :param depth: the current depth
+    :param max_depth: the maximum depth of the task graph
+    :return: a random operator to follow the
+    """
     if depth + 1 > max_depth or op_count + 4 > max_op:
         return np.random.choice(op_dict[op_name]["downstream"], p=op_dict[op_name]["sample_dist"])
     else:
@@ -231,7 +254,7 @@ def sample_children_op(op_name, op_count, max_op, depth, max_depth, select_op, s
         if select_downstream is None:
             select_downstream = op_dict['Select']['downstream']
 
-        if select_op:  # if select at least one op for select attribute
+        if select_op:  # if select at least one operator for select attribute
             get = random.choice(["GetCategory", "GetLoc", "GetViewAngle", "GetObject"])
             ops.append(get)
 
@@ -259,15 +282,25 @@ def sample_children_op(op_name, op_count, max_op, depth, max_depth, select_op, s
             return [sample_children_helper(op_name, op_count, max_op, depth, max_depth) for _ in range(n_downstream)]
 
 
-def branch_generator(G, node, local_count, op_count, max_op, depth, max_depth, select_op=False, select_downstream=None):
-    if node == 'None':
+def branch_generator(G: nx.DiGraph,
+                     root_op: str,
+                     local_count: int,
+                     op_count: int,
+                     max_op: int,
+                     depth: int,
+                     max_depth: int,
+                     select_op=False,
+                     select_downstream=None) -> int:
+    # function to complete a branch of subtask graph based on a root operator,
+    # modifies G in place, and returns the leaf node number
+    if root_op == 'None':
         return None
-    elif node == 'CONST':
+    elif root_op == 'CONST':
         return op_count
     else:
-        select_op = True if node == 'Exist' else select_op
-        children = sample_children_op(node, local_count, max_op, depth, max_depth, select_op, select_downstream)
-        if node == 'Select' and any('Get' in c for c in children):
+        select_op = True if root_op == 'Exist' else select_op
+        children = sample_children_op(root_op, local_count, max_op, depth, max_depth, select_op, select_downstream)
+        if root_op == 'Select' and any('Get' in c for c in children):
             select_downstream = ['None'] * 4
             select_op = False
 
@@ -283,14 +316,22 @@ def branch_generator(G, node, local_count, op_count, max_op, depth, max_depth, s
                 local_count += 1
                 op_count = branch_generator(G, op, local_count, op_count + 1, max_op, depth, max_depth, select_op,
                                             select_downstream)
-
                 G.add_node(child, label=op)
                 G.add_edge(parent, child)
-
         return op_count
 
 
-def subtask_graph_generator(count=0, max_op=20, max_depth=10, select_limit=False, root_op=None):
+def subtask_graph_generator(count=0, max_op=20, max_depth=10, select_limit=False, root_op=None) -> \
+        GRAPH_TUPLE:
+    """
+    main function for generating subtasks
+    uses networkx to compose the task graphs
+    :param count: the root_op number of the root
+    :param select_limit: whether to add operator after selects. if True, then constants are sampled
+    :param root_op: the root operator
+    :return: Tuple
+    """
+    # initialize the graph and save the root_op number of the root
     G = nx.DiGraph()
     root = count
 
@@ -301,54 +342,66 @@ def subtask_graph_generator(count=0, max_op=20, max_depth=10, select_limit=False
     local_count = 1
     op_count = branch_generator(G, root_op, local_count, op_count, max_op, 1, max_depth,
                                 select_downstream=select_downstream)
-
     return G, root, op_count
 
 
-def switch_generator(conditional, do_if, do_else):
+def switch_generator(conditional: GRAPH_TUPLE, do_if, do_else: GRAPH_TUPLE) -> GRAPH_TUPLE:
+    # combine the 3 subtasks into the switch task graph by using networkx compose_all
     do_if_graph, do_if_root, do_if_node = do_if
     do_else_graph, do_else_root, do_else_node = do_else
     conditional_graph, conditional_root, conditional_node = conditional
 
+    # combine all 3 graphs and add edges
     G: nx.DiGraph = nx.compose_all([do_if_graph, do_else_graph, conditional_graph])
     switch_count = conditional_node + 1
     G.add_node(switch_count, label='Switch')
+    # note that all directed edges are reversed later at task construction
+    # after reversal, switch operator is connected to the selects of do_if and do_else
+    # the root of conditional is then connected to the switch operator
     G.add_edge(do_if_node, switch_count)
     G.add_edge(do_else_node, switch_count)
     G.add_edge(switch_count, conditional_root)
     return G, switch_count, switch_count
 
 
-def write_instance(G_tuple, task, fp, img_size=224, fixation_cue=True):
+def write_instance(G_tuple: GRAPH_TUPLE, task: TASK, fp: str, img_size=224, fixation_cue=True) -> None:
+    """
+    function for saving the automatically generated task
+    """
     G, _, _ = G_tuple
     G = G.reverse()
     A = nx.nx_agraph.to_agraph(G)
     A.draw(os.path.join(fp, "operator_graph.png"), prog="dot")
-    operators = {node[0]: node[1]['label'] for node in G.nodes(data=True)}
+    node_labels = {node[0]: node[1]['label'] for node in G.nodes(data=True)}
 
+    # save root_op label dictionary
     with open(os.path.join(fp, 'node_labels'), 'w') as f:
-        json.dump(operators, f, indent=4)
+        json.dump(node_labels, f, indent=4)
+    # save adjacency matrix for reconstruction
     with open(os.path.join(fp, 'adj_dict'), 'w') as f:
         json.dump(nx.to_dict_of_dicts(G), f, indent=4)
+    # save the task instruction
     with open(os.path.join(fp, 'instruction'), 'w') as f:
         json.dump(str(task[0]), f, indent=4)
 
+    # save the actual generated frames into another folder
     frames_fp = os.path.join(fp, 'frames')
     if os.path.exists(frames_fp):
         shutil.rmtree(frames_fp)
     os.makedirs(frames_fp)
-
     frame_info = ig.FrameInfo(task[1], task[1].generate_objset())
     compo_info = ig.TaskInfoCompo(task[1], frame_info)
     objset = compo_info.frame_info.objset
     for i, (epoch, frame) in enumerate(zip(sg.render(objset, img_size), compo_info.frame_info)):
+        # add cross in the center of the image
         if fixation_cue:
             if not any('ending' in description for description in frame.description):
                 sg.add_fixation_cue(epoch)
         img = Image.fromarray(epoch, 'RGB')
         filename = os.path.join(frames_fp, f'epoch{i}.png')
         img.save(filename)
-    examples, compo_example, memory_info = compo_info.get_examples()
+
+    _, compo_example, _ = compo_info.get_examples()
     filename = os.path.join(frames_fp, 'compo_task_example')
     with open(filename, 'w') as f:
         json.dump(compo_example, f, indent=4)
@@ -363,12 +416,14 @@ if __name__ == '__main__':
 
     start = timeit.default_timer()
     for i in range(args.n_tasks):
+        # make directory for saving task information
         fp = os.path.join(args.output_dir, f'{i}')
         if os.path.exists(fp):
             shutil.rmtree(fp)
         os.makedirs(fp)
 
         count = 0
+        # generate a subtask graph and actual task
         subtask_graph = subtask_graph_generator(count=count, max_op=args.max_op, max_depth=args.max_depth,
                                                 select_limit=args.select_limit)
         subtask = tg.subtask_generation(subtask_graph)

@@ -1106,7 +1106,7 @@ def another_fixed_object(fixed_object):
         raise NotImplementedError()
 
 
-def random_attr(attr_type):
+def random_attr(attr_type) -> Attribute:
     if attr_type == 'object':
         category = random_category()
         return random_object(category)
