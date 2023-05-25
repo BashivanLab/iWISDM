@@ -398,11 +398,10 @@ class Object(object):
                self.view_angle.object == self.object
 
     def change_category(self, category: SNCategory):
-        '''
-        change the category of the object, and resample the attributes
-        :param category:
-        :return:
-        '''
+        """
+        change the category of the object, and resample the related attributes
+        :param category: the new category
+        """
         self.category = category
         self.object.category = category
         self.object.sample()
@@ -449,7 +448,7 @@ class Object(object):
             attrs = const.ATTRS
         for attr in attrs:
             if getattr(self, attr) != getattr(other, attr):
-                print(getattr(self, attr).space, getattr(other, attr).space)
+                # print(getattr(self, attr).space, getattr(other, attr).space)
                 return False
         return True
 
@@ -487,16 +486,12 @@ class Object(object):
         new_attr = dict()
         # TODO(gryang): What to do with self.when and self.loc?
         for attr_type in ['category', 'object', 'view_angle']:
-            if not getattr(self, attr_type).has_value:
-                new_attr[attr_type] = getattr(obj, attr_type)
-            elif not getattr(obj, attr_type).has_value:
-                new_attr[attr_type] = getattr(self, attr_type)
-            else:
+            new_attr = getattr(obj, attr_type)
+            self_attr = getattr(self, attr_type)
+            if not self_attr.has_value and new_attr.has_value:
+                self.change_attr(new_attr)
+            elif new_attr.has_value and self_attr.has_value:
                 return False
-
-        for attr_type in ['category', 'object', 'view_angle']:
-            setattr(self, attr_type, new_attr[attr_type])
-
         return True
 
     def copy(self):

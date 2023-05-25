@@ -65,7 +65,7 @@ class Data:
         if not os.path.exists(self.dir_path):
             print('Data folder does not exist.')
         pkls = sorted([fname for fname in glob.glob(f'{dir_path}/**/*.pkl', recursive=True)])
-        print(dir_path)
+        print('Stimuli Directory: ', dir_path)
 
         assert len(pkls) > 0
         self.pkl = pkls[0]
@@ -78,7 +78,6 @@ class Data:
                                                          & (self.df['obj_mod'] == cat)]['ang_mod'].unique())
 
         self.MAX_MEMORY = max_memory
-
         OBJECTPERCATEGORY = 14
         CATEGORIES = 12
         VIEW_ANGLES = 4
@@ -208,6 +207,7 @@ def get_grid(grid_size):
                    j, (y_i, y_k) in enumerate(zip(yy[0::], yy[1::]))}
 
     return OrderedDict(grid_spaces)
+
 
 GRID_SIZE = 7
 PREFS = get_prefs(GRID_SIZE)

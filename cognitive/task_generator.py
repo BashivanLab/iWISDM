@@ -148,13 +148,21 @@ class Task(object):
         # Print contents of stack
         return stack
 
-    def guess_objset(self, objset, epoch_now, should_be=None, temporal_switch=False):
+    def guess_objset(self, objset: sg.ObjectSet, epoch_now: int, should_be=None, temporal_switch=False):
+        """
+        main function for generating frames based on task graph structure
+        iterate through each node in topological order, and propagate the expected inputs from
+        predecessors to the successors
+        :return: the updated objset after going through the task graph
+        """
         nodes = self.topological_sort()
         should_be_dict = defaultdict(lambda: None)
 
         if should_be is not None:
             should_be_dict[nodes[0]] = should_be
 
+        # iterate over all nodes in topological order
+        # while updating the expected input from the successors/children of the current node
         for node in nodes:
             should_be = should_be_dict[node]
             if isinstance(should_be, Skip):
@@ -168,12 +176,14 @@ class Task(object):
             else:
                 inputs = node.get_expected_input(should_be)
 
+            # outputs is a list of
             if len(node.child) == 1:
                 outputs = [inputs]  ## xl:for later interation
             else:
                 outputs = inputs
 
             if isinstance(node, Switch):
+                # for temporal switch, randomly select 1 branch to instantiate
                 if temporal_switch:
                     children = node.child
                     if random.random() > 0.5:
@@ -184,8 +194,8 @@ class Task(object):
                     children = node.child
             else:
                 children = node.child
-            # Update the should_be dictionary for the root children
 
+            # Update the should_be dictionary for the children
             for c, output in zip(children, outputs):
                 if not isinstance(c, Operator):  # if c is not an Operator
                     continue
@@ -195,9 +205,10 @@ class Task(object):
                 if should_be_dict[c] is None:
                     # If not assigned, assign
                     should_be_dict[c] = output
+                # if child is an operator and there's already assigned expected output
                 else:
-                    # if child is an operator and there's already assigned expected output to the cur root's child
                     # If assigned, for each object, try to merge them
+                    # currently, only selects should have pre-assigned output
                     if isinstance(c, Select):
                         # Loop over new output
                         for o in output:
@@ -213,7 +224,6 @@ class Task(object):
                                 should_be_dict[c].append(o)
                     else:
                         raise NotImplementedError()
-
         return objset
 
     @property
@@ -1248,7 +1258,8 @@ def get_leafs(G: nx.DiGraph):
 #             right_subgraph = graph
 #     return left_subgraph, right_subgraph
 
-def convert_operators(G, root, operators: Dict[int, str], operator_families: Dict[int, Callable], whens) -> Union[Operator, sg.Attribute]:
+def convert_operators(G, root, operators: Dict[int, str], operator_families: Dict[int, Callable], whens) -> Union[
+    Operator, sg.Attribute]:
     """
     given a task graph G, convert it into an operator that is already nested with its successors
     :param G: the task graph, nx.Graph

@@ -452,6 +452,7 @@ if __name__ == '__main__':
                 subtask_graph = switch_generator(conditional, do_if, do_else)
                 count = subtask_graph[2] + 1
                 subtask = tg.switch_generation(conditional_task, do_if_task, do_else_task)
+        # TODO: some guess objset error where ValueError occurs
         write_instance(subtask_graph, subtask, fp, args.img_size)
     stop = timeit.default_timer()
 
