@@ -370,8 +370,9 @@ def write_instance(G_tuple: GRAPH_TUPLE, task: TASK, fp: str, img_size=224, fixa
     """
     G, _, _ = G_tuple
     G = G.reverse()
-    A = nx.nx_agraph.to_agraph(G)
-    A.draw(os.path.join(fp, "operator_graph.png"), prog="dot")
+    # draw the task graph for visualization
+    # A = nx.nx_agraph.to_agraph(G)
+    # A.draw(os.path.join(fp, "operator_graph.png"), prog="dot")
     node_labels = {node[0]: node[1]['label'] for node in G.nodes(data=True)}
 
     # save root_op label dictionary
