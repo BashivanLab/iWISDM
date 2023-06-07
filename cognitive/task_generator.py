@@ -22,6 +22,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import json
 from collections import defaultdict, OrderedDict
 
 import numpy as np
@@ -32,7 +33,7 @@ import networkx as nx
 from cognitive import constants as const
 from cognitive import stim_generator as sg
 
-from typing import Tuple, Union, Dict, Callable
+from typing import Tuple, Union, Dict, Callable, List
 
 
 def obj_str(loc=None, obj=None, category=None, view_angle=None,
@@ -431,6 +432,18 @@ class TemporalTask(Task):
 
         return objset
 
+    def to_json(self, fp):
+        info = dict()
+        info['n_frames'] = self.n_frames
+        info['first_shareable'] = self.first_shareable
+        info['n_distractors'] = self.n_distractors
+        info['avg_mem'] = self.avg_mem
+        info['whens'] = self.whens
+        info['operator'] = self._operator.to_json()
+        with open(fp, 'w') as f:
+            json.dump(info, f, indent=4)
+        return info
+
 
 class Operator(object):
     """Base class for task constructors."""
@@ -467,6 +480,20 @@ class Operator(object):
           should_be: the supposed output
         """
         raise NotImplementedError('get_expected_input method is not defined.')
+
+    def child_json(self):
+        return [c.to_json() for c in self.child]
+
+    def self_json(self):
+        return {}
+
+    def to_json(self):
+        # return the dictionary for storing into json
+        info = dict()
+        info['name'] = self.__class__.__name__
+        info['child'] = self.child_json()
+        info.update(self.self_json())
+        return info
 
 
 class Select(Operator):
@@ -744,6 +771,9 @@ class Select(Operator):
 
         # Return the expected inputs
         return [objset] + attr_expected_in
+
+    def self_json(self):
+        return {'when': self.when}
 
 
 class Get(Operator):
@@ -1092,7 +1122,7 @@ class IsSame(Operator):
         self.set_child([self.attr1, self.attr2])
 
         if (not self.attr1_is_op) and (not self.attr2_is_op):
-            raise ValueError('attr1 and attr2 can not both be Attribute instances.')
+            raise ValueError('attr1 and attr2 cannot both be Attribute instances.')
 
         self.attr_type = self.attr1.attr_type
         assert self.attr_type == self.attr2.attr_type
@@ -1201,6 +1231,7 @@ class And(Operator):
 
 
 TASK = Tuple[Union[Operator, sg.Attribute], TemporalTask]
+GRAPH_TUPLE = Tuple[nx.DiGraph, int, int]
 
 
 def all_subclasses(cls):
@@ -1211,6 +1242,11 @@ def all_subclasses(cls):
 def get_operator_dict() -> Dict[str, Operator]:
     # function to retrieve class names and their classes
     return {cls.__name__: cls for cls in all_subclasses(Operator)}
+
+
+def get_attr_dict() -> Dict[str, Operator]:
+    # function to retrieve class names and their classes
+    return {cls.__name__: cls for cls in all_subclasses(sg.Attribute)}
 
 
 def classify_operators(ops):
@@ -1258,15 +1294,19 @@ def get_leafs(G: nx.DiGraph):
 #             right_subgraph = graph
 #     return left_subgraph, right_subgraph
 
-def convert_operators(G, root, operators: Dict[int, str], operator_families: Dict[int, Callable], whens) -> Union[
-    Operator, sg.Attribute]:
+def convert_operators(
+        G: nx.DiGraph,
+        root: int,
+        operators: Dict[int, str],
+        operator_families: Dict[str, Callable], whens) -> Union[Operator, sg.Attribute]:
     """
     given a task graph G, convert it into an operator that is already nested with its successors
+    this is done by traversing the graph
     :param G: the task graph, nx.Graph
     :param root: the node number of the root operator
     :param operators: dictionary for converting node number to operator name
     :param operator_families:
-    :param whens:
+    :param whens: each select is associated with 1 when
     :return:
     """
     if list(G.successors(root)):
@@ -1311,6 +1351,72 @@ def convert_operators(G, root, operators: Dict[int, str], operator_families: Dic
             return Select(when=whens[root])
         else:
             return sg.random_attr(random.choice(const.ATTRS))
+
+
+def load_operator_json(
+        op_dict: dict,
+        operator_families: Dict[str, Callable] = None,
+        attr_families: Dict[str, Callable] = None,
+) -> Union[Operator, sg.Attribute]:
+    """
+    given json dictionary, convert it into an operator that is already nested with its successors
+    :param op_dict: the operator dictionary
+    :param operator_families:
+    :param attr_families
+    :return:
+    """
+    if operator_families is None:
+        operator_families = get_operator_dict()
+    if attr_families is None:
+        attr_families = get_attr_dict()
+    name = op_dict['name']
+    if not 'value' in op_dict:
+        children: List[dict] = op_dict['child']
+        # check the type of operator
+        if name == 'Select':
+            attr_dict = {attr: None for attr in const.ATTRS}
+            for d in children:
+                if not 'value' in d:
+                    if 'Get' in d['name']:
+                        attr = d['name'].split('Get')[1].lower()
+                        attr = 'view_angle' if attr == 'viewangle' else attr
+                        attr_dict[attr] = load_operator_json(children[0], operator_families, attr_families)
+                    else:
+                        raise ValueError(f'Select cannot have {children[0]["name"]} as a child operator')
+            return Select(**attr_dict, when=op_dict['when'])
+        elif name == 'Exist':
+            return Exist(load_operator_json(children[0], operator_families, attr_families))
+        elif 'Get' in name:
+            # init a Get operator
+            return operator_families[name](
+                load_operator_json(children[0], operator_families, attr_families))
+        elif name in const.LOGIC_OPS:
+            # init a boolean operator
+            assert len(children) > 1
+            ops = [load_operator_json(c, operator_families, attr_families) for c in children]
+            if isinstance(ops[0], sg.Attribute) or isinstance(ops[1], sg.Attribute):
+                if isinstance(ops[0], sg.Attribute):
+                    attr = ops[0]
+                    op = ops[1]
+                    attr_i = 0
+                else:
+                    attr = ops[1]
+                    op = ops[0]
+                    attr_i = 1
+                # match the attribute type of the operator
+                if attr.attr_type != op.attr_type:
+                    ops[attr_i] = sg.random_attr(op.attr_type)
+            return operator_families[name](ops[0], ops[1])
+        elif name == 'Switch':
+            assert len(children) == 3
+            statement, do_if_true, do_if_false = [load_operator_json(d, operator_families, attr_families) for d in
+                                                  children]
+            return Switch(statement, do_if_true, do_if_false)
+        else:
+            raise ValueError(f"Unknown Operator {name}")
+    else:
+        # we have reached an attribute
+        return attr_families[name](value=op_dict['value'])
 
 
 # def convert_operators(G, operators, roots, bfs, operator_families, whens):
@@ -1362,19 +1468,20 @@ def convert_operators(G, root, operators: Dict[int, str], operator_families: Dic
 #     return operators[roots[0]]
 
 
-def subtask_generation(subtask) -> TASK:
-    subtask_G, root, op_count = subtask
+def subtask_generation(subtask_graph: GRAPH_TUPLE, op_dict: dict = None) -> TASK:
+    subtask_G, root, _ = subtask_graph
     operator_families = get_operator_dict()
 
-    operators = {node[0]: node[1]['label'] for node in subtask_G.nodes(data=True)}
-    selects = [op for op in subtask_G.nodes() if 'Select' == operators[op]]
+    if op_dict is None:
+        op_dict = {node[0]: node[1]['label'] for node in subtask_G.nodes(data=True)}
+    selects = [op for op in subtask_G.nodes() if 'Select' == op_dict[op]]
 
     const.DATA.MAX_MEMORY = len(selects) + 1
     whens = sg.check_whens(sg.sample_when(len(selects)))
     n_frames = const.compare_when(whens) + 1
     whens = {select: when for select, when in zip(selects, whens)}
 
-    op = convert_operators(subtask_G, root, operators, operator_families, whens)
+    op = convert_operators(subtask_G, root, op_dict, operator_families, whens)
     return op, TemporalTask(operator=op, n_frames=n_frames)
 
 

@@ -73,6 +73,11 @@ class Attribute(object):
     def __hash__(self):
         return hash(self.value)
 
+    def to_json(self):
+        info = dict()
+        info['name'] = self.__class__.__name__
+        info['value'] = self.value
+        return info
     # def __hash__(self):
     #     """Override the default hash behavior."""
     #     return hash(tuple(sorted(self.__dict__.items())))

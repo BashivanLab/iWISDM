@@ -1,9 +1,9 @@
 import json
 import shutil
 import timeit
-from arguments import get_args
 from collections import defaultdict
 
+from cognitive.auto_task.arguments import get_args
 from cognitive import task_generator as tg
 from cognitive import constants as const
 from cognitive import stim_generator as sg
@@ -20,7 +20,7 @@ from networkx.drawing.nx_pydot import graphviz_layout
 
 from typing import Tuple, Union
 
-# Tuples of the graph object, the root root_op number, and the
+# Tuples of the graph object, the root root_op number, and the number of operators
 GRAPH_TUPLE = Tuple[nx.DiGraph, int, int]
 TASK = Tuple[Union[tg.Operator, sg.Attribute], tg.TemporalTask]
 
@@ -364,34 +364,33 @@ def switch_generator(conditional: GRAPH_TUPLE, do_if, do_else: GRAPH_TUPLE) -> G
     return G, switch_count, switch_count
 
 
-def write_instance(G_tuple: GRAPH_TUPLE, task: TASK, fp: str, img_size=224, fixation_cue=True) -> None:
-    """
-    function for saving the automatically generated task
-    """
+def write_task_instance(G_tuple: GRAPH_TUPLE, task: TASK, write_fp: str):
     G, _, _ = G_tuple
     G = G.reverse()
     # draw the task graph for visualization
     # A = nx.nx_agraph.to_agraph(G)
     # A.draw(os.path.join(fp, "operator_graph.png"), prog="dot")
+
     node_labels = {node[0]: node[1]['label'] for node in G.nodes(data=True)}
 
     # save root_op label dictionary
-    with open(os.path.join(fp, 'node_labels'), 'w') as f:
+    with open(os.path.join(write_fp, 'node_labels'), 'w') as f:
         json.dump(node_labels, f, indent=4)
-    # save adjacency matrix for reconstruction
-    with open(os.path.join(fp, 'adj_dict'), 'w') as f:
+    # save adjacency matrix for reconstruction, use nx.from_dict_of_dicts to reconstruct
+    with open(os.path.join(write_fp, 'adj_dict'), 'w') as f:
         json.dump(nx.to_dict_of_dicts(G), f, indent=4)
-    # save the task instruction
-    with open(os.path.join(fp, 'instruction'), 'w') as f:
-        json.dump(str(task[0]), f, indent=4)
+    task[1].to_json(os.path.join(fp, 'temporal_task.json'))
+    return None
 
+
+def write_trial_instance(task: tg.TemporalTask, write_fp: str, img_size=224, fixation_cue=True) -> None:
     # save the actual generated frames into another folder
-    frames_fp = os.path.join(fp, 'frames')
+    frames_fp = os.path.join(write_fp, 'frames')
     if os.path.exists(frames_fp):
         shutil.rmtree(frames_fp)
     os.makedirs(frames_fp)
-    frame_info = ig.FrameInfo(task[1], task[1].generate_objset())
-    compo_info = ig.TaskInfoCompo(task[1], frame_info)
+    frame_info = ig.FrameInfo(task, task.generate_objset())
+    compo_info = ig.TaskInfoCompo(task, frame_info)
     objset = compo_info.frame_info.objset
     for i, (epoch, frame) in enumerate(zip(sg.render(objset, img_size), compo_info.frame_info)):
         # add cross in the center of the image
@@ -401,7 +400,6 @@ def write_instance(G_tuple: GRAPH_TUPLE, task: TASK, fp: str, img_size=224, fixa
         img = Image.fromarray(epoch, 'RGB')
         filename = os.path.join(frames_fp, f'epoch{i}.png')
         img.save(filename)
-
     _, compo_example, _ = compo_info.get_examples()
     filename = os.path.join(frames_fp, 'compo_task_example')
     with open(filename, 'w') as f:
@@ -415,46 +413,81 @@ if __name__ == '__main__':
 
     const.DATA = const.Data(dir_path=args.stim_dir)
 
-    start = timeit.default_timer()
-    for i in range(args.n_tasks):
-        # make directory for saving task information
-        fp = os.path.join(args.output_dir, f'{i}')
-        if os.path.exists(fp):
-            shutil.rmtree(fp)
-        os.makedirs(fp)
+    task_dir = args.task_dir
+    if not os.path.isdir(task_dir):
+        raise ValueError('Task Directory not found')
+    if task_dir:
+        start = timeit.default_timer()
+        task_folders = [f.path for f in os.scandir(task_dir) if f.is_dir()]
+        for f in task_folders:
+            try:
+                # uncomment to reconstruct the graph
+                # labels, adj = os.path.join(f, 'node_labels'), os.path.join(f, 'adj_dict')
+                # with open(labels, 'rb') as h:
+                #     labels = json.load(h)
+                # with open(adj, 'rb') as h:
+                #     adj = json.load(h)
+                # g = nx.from_dict_of_dicts(adj, create_using=nx.DiGraph)
+                # g = nx.relabel_nodes(g, labels)
+                # print(sorted(g))
+                task_json_fp = os.path.join(f, 'temporal_task.json')
+                with open(task_json_fp, 'rb') as h:
+                    task_dict = json.load(h)
+                task_dict['operator'] = tg.load_operator_json(task_dict['operator'])
+                temporal_task = tg.TemporalTask(**task_dict)
+                for i in range(args.n_trials):
+                    instance_fp = os.path.join(f, str(i))
+                    if os.path.exists(instance_fp):
+                        shutil.rmtree(instance_fp)
+                    os.makedirs(instance_fp)
 
-        count = 0
-        # generate a subtask graph and actual task
-        subtask_graph = subtask_graph_generator(count=count, max_op=args.max_op, max_depth=args.max_depth,
-                                                select_limit=args.select_limit)
-        subtask = tg.subtask_generation(subtask_graph)
-        count = subtask_graph[2] + 1
-        for _ in range(args.max_switch):
-            if random.random() < args.switch_threshold:  # if add switch
-                new_task_graph = subtask_graph_generator(count=count, max_op=args.max_op, max_depth=args.max_depth,
-                                                         select_limit=args.select_limit)
-                count = new_task_graph[2] + 1
+                    write_trial_instance(temporal_task, instance_fp, args.img_size, args.fixation_cue)
+            except:
+                continue
+        stop = timeit.default_timer()
+        print('Time taken to generate trials: ', stop - start)
+    else:
+        start = timeit.default_timer()
+        # TODO: check for duplicated tasks by comparing task graphs
+        for i in range(args.n_tasks):
+            # make directory for saving task information
+            fp = os.path.join(args.output_dir, f'{i}')
+            if os.path.exists(fp):
+                shutil.rmtree(fp)
+            os.makedirs(fp)
 
-                conditional = subtask_graph_generator(count=count, max_op=args.max_op, max_depth=args.max_depth,
-                                                      select_limit=args.select_limit,
-                                                      root_op=random.choice(boolean_ops))
-                conditional_task = tg.subtask_generation(conditional)
-                count = conditional[2] + 1
-                if random.random() < 0.5:
-                    do_if = subtask_graph
-                    do_if_task = subtask
-                    do_else = new_task_graph
-                    do_else_task = tg.subtask_generation(do_else)
-                else:
-                    do_if = new_task_graph
-                    do_if_task = tg.subtask_generation(do_if)
-                    do_else = subtask_graph
-                    do_else_task = subtask
-                subtask_graph = switch_generator(conditional, do_if, do_else)
-                count = subtask_graph[2] + 1
-                subtask = tg.switch_generation(conditional_task, do_if_task, do_else_task)
-        # TODO: some guess objset error where ValueError occurs
-        write_instance(subtask_graph, subtask, fp, args.img_size)
-    stop = timeit.default_timer()
+            count = 0
+            # generate a subtask graph and actual task
+            subtask_graph = subtask_graph_generator(count=count, max_op=args.max_op, max_depth=args.max_depth,
+                                                    select_limit=args.select_limit)
+            subtask = tg.subtask_generation(subtask_graph)
+            count = subtask_graph[2] + 1
+            for _ in range(args.max_switch):
+                if random.random() < args.switch_threshold:  # if add switch
+                    new_task_graph = subtask_graph_generator(count=count, max_op=args.max_op, max_depth=args.max_depth,
+                                                             select_limit=args.select_limit)
+                    count = new_task_graph[2] + 1
 
-    print('Time: ', stop - start)
+                    conditional = subtask_graph_generator(count=count, max_op=args.max_op, max_depth=args.max_depth,
+                                                          select_limit=args.select_limit,
+                                                          root_op=random.choice(boolean_ops))
+                    conditional_task = tg.subtask_generation(conditional)
+                    count = conditional[2] + 1
+                    if random.random() < 0.5:
+                        do_if = subtask_graph
+                        do_if_task = subtask
+                        do_else = new_task_graph
+                        do_else_task = tg.subtask_generation(do_else)
+                    else:
+                        do_if = new_task_graph
+                        do_if_task = tg.subtask_generation(do_if)
+                        do_else = subtask_graph
+                        do_else_task = subtask
+                    subtask_graph = switch_generator(conditional, do_if, do_else)
+                    count = subtask_graph[2] + 1
+                    subtask = tg.switch_generation(conditional_task, do_if_task, do_else_task)
+            # TODO: some guess objset error where ValueError occurs
+            # write_instance(subtask_graph, subtask, fp, args.img_size, args.n_trials)
+            write_task_instance(subtask_graph, subtask, fp)
+        stop = timeit.default_timer()
+        print('Time taken to generate tasks: ', stop - start)

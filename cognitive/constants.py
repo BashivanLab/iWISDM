@@ -72,10 +72,11 @@ class Data:
         self.df: pd.DataFrame = pd.read_pickle(self.pkl)
         self.MOD_DICT = dict()
         for i in self.df['ctg_mod'].unique():
-            self.MOD_DICT[i] = dict()
+            self.MOD_DICT[int(i)] = dict()
             for cat in self.df.loc[self.df['ctg_mod'] == i]['obj_mod'].unique():
-                self.MOD_DICT[i][cat] = list(self.df.loc[(self.df['ctg_mod'] == i)
-                                                         & (self.df['obj_mod'] == cat)]['ang_mod'].unique())
+                self.MOD_DICT[int(i)][int(cat)] = list(map(int, list(self.df.loc[(self.df['ctg_mod'] == i)
+                                                                       & (self.df['obj_mod'] == cat)][
+                                                               'ang_mod'].unique())))
 
         self.MAX_MEMORY = max_memory
         OBJECTPERCATEGORY = 14
