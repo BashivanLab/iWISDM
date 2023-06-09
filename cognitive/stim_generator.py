@@ -73,11 +73,16 @@ class Attribute(object):
     def __hash__(self):
         return hash(self.value)
 
+    def self_json(self):
+        return {}
+
     def to_json(self):
         info = dict()
         info['name'] = self.__class__.__name__
         info['value'] = self.value
+        info.update(self.self_json())
         return info
+
     # def __hash__(self):
     #     """Override the default hash behavior."""
     #     return hash(tuple(sorted(self.__dict__.items())))
@@ -108,7 +113,7 @@ def _get_space_to(x0, x1, y0, y1, space_type):
 class Loc(Attribute):
     """Location class."""
 
-    def __init__(self, space, value=None):
+    def __init__(self, space=None, value=None):
         """Initialize location.
 
         Args:
@@ -117,6 +122,8 @@ class Loc(Attribute):
           If tuple of floats, then the actual
         """
         super(Loc, self).__init__(value)
+        if space is None:
+            space = random_grid_space()
         self.attr_type = 'loc'
         self.space = space
 
@@ -139,6 +146,9 @@ class Loc(Attribute):
                           'bottom': 'top',
                           }[space_type]
         return self.get_space_to(opposite_space)
+
+    def self_json(self):
+        return {'space': self.space.to_json()}
 
 
 class Space(Attribute):
@@ -247,6 +257,9 @@ class SNObject(Attribute):
     def resample(self):
         self.value = another_object(self).value
 
+    def self_json(self):
+        return {'category': self.category.to_json()}
+
 
 class SNViewAngle(Attribute):
     def __init__(self, sn_object, value):
@@ -264,6 +277,9 @@ class SNViewAngle(Attribute):
 
     def resample(self):
         self.value = another_view_angle(self).value
+
+    def self_json(self):
+        return {'sn_object': self.object.to_json()}
 
 
 class SNFixedObject(Attribute):
@@ -400,7 +416,7 @@ class Object(object):
 
     def check_attrs(self):
         return self.object.category == self.category and \
-               self.view_angle.object == self.object
+            self.view_angle.object == self.object
 
     def change_category(self, category: SNCategory):
         """

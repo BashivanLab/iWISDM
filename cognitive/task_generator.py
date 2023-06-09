@@ -313,7 +313,7 @@ class TemporalTask(Task):
         if no input, start at random frame, including the possibility of non-shareable
         """
         if self._first_shareable is None:
-            self._first_shareable = np.random.choice(np.arange(0, self.n_frames + 1))
+            self._first_shareable = int(np.random.choice(np.arange(0, self.n_frames + 1)))
         return self._first_shareable
 
     @property
@@ -1416,7 +1416,14 @@ def load_operator_json(
             raise ValueError(f"Unknown Operator {name}")
     else:
         # we have reached an attribute
-        return attr_families[name](value=op_dict['value'])
+        init = {}
+        if 'category' in op_dict:
+            init['category'] = load_operator_json(op_dict['category'], operator_families, attr_families)
+        elif 'sn_object' in op_dict:
+            init['sn_object'] = load_operator_json(op_dict['sn_object'], operator_families, attr_families)
+        # elif 'space' in op_dict:
+        #     init['space'] = load_operator_json(op_dict['space'], operator_families, attr_families)
+        return attr_families[name](value=op_dict['value'], **init)
 
 
 # def convert_operators(G, operators, roots, bfs, operator_families, whens):
@@ -1466,7 +1473,6 @@ def load_operator_json(
 #         bfs = temp
 #         print(operators, bfs)
 #     return operators[roots[0]]
-
 
 def subtask_generation(subtask_graph: GRAPH_TUPLE, op_dict: dict = None) -> TASK:
     subtask_G, root, _ = subtask_graph

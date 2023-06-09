@@ -2,6 +2,7 @@ import json
 import shutil
 import timeit
 from collections import defaultdict
+import traceback
 
 from cognitive.auto_task.arguments import get_args
 from cognitive import task_generator as tg
@@ -414,9 +415,10 @@ if __name__ == '__main__':
     const.DATA = const.Data(dir_path=args.stim_dir)
 
     task_dir = args.task_dir
-    if not os.path.isdir(task_dir):
-        raise ValueError('Task Directory not found')
+
     if task_dir:
+        if not os.path.isdir(task_dir):
+            raise ValueError('Task Directory not found')
         start = timeit.default_timer()
         task_folders = [f.path for f in os.scandir(task_dir) if f.is_dir()]
         for f in task_folders:
@@ -434,16 +436,21 @@ if __name__ == '__main__':
                 with open(task_json_fp, 'rb') as h:
                     task_dict = json.load(h)
                 task_dict['operator'] = tg.load_operator_json(task_dict['operator'])
-                temporal_task = tg.TemporalTask(**task_dict)
+                temporal_task = tg.TemporalTask(
+                    operator=task_dict['operator'],
+                    n_frames=task_dict['n_frames'],
+                    first_shareable=task_dict['first_shareable'],
+                    whens=task_dict['whens']
+                )
                 for i in range(args.n_trials):
-                    instance_fp = os.path.join(f, str(i))
+                    instance_fp = os.path.join(f, f'trial_{i}')
                     if os.path.exists(instance_fp):
                         shutil.rmtree(instance_fp)
                     os.makedirs(instance_fp)
 
                     write_trial_instance(temporal_task, instance_fp, args.img_size, args.fixation_cue)
-            except:
-                continue
+            except Exception as e:
+                traceback.print_exc()
         stop = timeit.default_timer()
         print('Time taken to generate trials: ', stop - start)
     else:
@@ -451,7 +458,7 @@ if __name__ == '__main__':
         # TODO: check for duplicated tasks by comparing task graphs
         for i in range(args.n_tasks):
             # make directory for saving task information
-            fp = os.path.join(args.output_dir, f'{i}')
+            fp = os.path.join(args.output_dir, str(i))
             if os.path.exists(fp):
                 shutil.rmtree(fp)
             os.makedirs(fp)

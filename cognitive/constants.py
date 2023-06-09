@@ -56,7 +56,7 @@ DATA = None
 
 # TODO: train_DATA, validation_DATA for split
 class Data:
-    def __init__(self, dir_path=None, max_memory=3, grid_size=[2, 2]):
+    def __init__(self, dir_path=None, max_memory=5, grid_size=[2, 2]):
         if dir_path is None:
             dir_path = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))),
                                     './data/min_shapenet_easy_angle')
@@ -117,6 +117,7 @@ class Data:
         self.valid_image_path = None
 
         self.grid = get_grid(grid_size)
+        print(self.grid)
 
     def get_shapenet_object(self, obj, obj_size, training_path=None, validation_path=None, train=True):
         if not train:
