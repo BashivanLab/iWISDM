@@ -324,7 +324,7 @@ def main():
         composition = args.nback_length - args.nback + 1
         generate_dataset(examples_per_family=args.trials_per_family, output_dir=args.output_dir,
                          composition=composition, img_size=args.img_size,
-                         random_families=args.non_random_families, families=args.families,
+                         random_families=args.random_families, families=args.families,
                          train=args.training, validation=args.validation, fixation_cue=args.fixation_cue,
                          max_memory=args.max_memory, max_distractors=args.max_distractors,
                          whens=whens, first_shareable=1, temporal_switch=args.temporal_switch)
@@ -343,18 +343,18 @@ def main():
             whens = [[last_when, 'last0'] for _ in range(args.seq_length)]
         generate_dataset(examples_per_family=args.trials_per_family, output_dir=args.output_dir,
                          composition=args.seq_length, img_size=args.img_size,
-                         random_families=args.non_random_families, families=args.families,
+                         random_families=args.random_families, families=args.families,
                          train=args.training, validation=args.validation, fixation_cue=args.fixation_cue,
                          max_memory=args.max_memory, max_distractors=args.max_distractors,
                          whens=whens, first_shareable=first_shareable, temporal_switch=args.temporal_switch)
     else:
-        whens = [None]
+        whens = ["last0","last1"]
         if args.fix_delay:
             # TODO: move this into task.init
             whens = [f'last{const.DATA.MAX_MEMORY}', 'last0']
         generate_dataset(examples_per_family=args.trials_per_family, output_dir=args.output_dir,
                          composition=args.composition, img_size=args.img_size,
-                         random_families=args.non_random_families, families=args.families,
+                         random_families=args.random_families, families=args.families,
                          train=args.training, validation=args.validation, fixation_cue=args.fixation_cue,
                          max_memory=args.max_memory, max_distractors=args.max_distractors,
                          whens=whens, first_shareable=None, temporal_switch=args.temporal_switch)

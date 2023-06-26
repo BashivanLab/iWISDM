@@ -1,0 +1,34 @@
+{
+    "epochs": 2,
+    "objects": [
+        {
+            "location": "(0.667, 0.366)",
+            "space": [
+                1,
+                0
+            ],
+            "category": 10,
+            "object": 150,
+            "view angle": 1,
+            "epochs": 0,
+            "is_distractor": false
+        },
+        {
+            "location": "(0.693, 0.806)",
+            "space": [
+                1,
+                1
+            ],
+            "category": 10,
+            "object": 150,
+            "view angle": 1,
+            "epochs": 1,
+            "is_distractor": false
+        }
+    ],
+    "instruction": "observe object 1, observe object 2, view_angle of object 2 equal view_angle of object 1 ?",
+    "answers": [
+        "null",
+        "true"
+    ]
+}

@@ -1,0 +1,35 @@
+{
+    "family": "CompareViewAngleTemporal",
+    "epochs": 2,
+    "question": "view_angle of last0 object equal view_angle of last1 object ?",
+    "objects": [
+        {
+            "location": "(0.132, 0.307)",
+            "space": [
+                0,
+                0
+            ],
+            "category": 10,
+            "object": 150,
+            "view angle": 1,
+            "epochs": 1,
+            "is_distractor": false
+        },
+        {
+            "location": "(0.316, 0.206)",
+            "space": [
+                0,
+                0
+            ],
+            "category": 10,
+            "object": 150,
+            "view angle": 1,
+            "epochs": 0,
+            "is_distractor": false
+        }
+    ],
+    "answers": [
+        "true"
+    ],
+    "first_shareable": 1
+}

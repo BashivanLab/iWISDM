@@ -1,0 +1,62 @@
+{
+    "obj_info": {
+        "0": [
+            {
+                "count": 1,
+                "obj": {
+                    "location": "(0.316, 0.206)",
+                    "space": [
+                        0,
+                        0
+                    ],
+                    "category": 10,
+                    "object": 150,
+                    "view angle": 1,
+                    "epochs": 0,
+                    "is_distractor": false
+                },
+                "tasks": [
+                    0
+                ],
+                "attended_attr": {
+                    "0": [
+                        "view_angle"
+                    ]
+                }
+            }
+        ],
+        "1": [
+            {
+                "count": 2,
+                "obj": {
+                    "location": "(0.132, 0.307)",
+                    "space": [
+                        0,
+                        0
+                    ],
+                    "category": 10,
+                    "object": 150,
+                    "view angle": 1,
+                    "epochs": 1,
+                    "is_distractor": false
+                },
+                "tasks": [
+                    0
+                ],
+                "attended_attr": {
+                    "0": [
+                        "view_angle"
+                    ]
+                }
+            }
+        ]
+    },
+    "task_info": {
+        "0": [
+            "start of task 0"
+        ],
+        "1": [
+            "ending of task 0"
+        ]
+    }
+}
