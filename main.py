@@ -348,7 +348,7 @@ def main():
                          max_memory=args.max_memory, max_distractors=args.max_distractors,
                          whens=whens, first_shareable=first_shareable, temporal_switch=args.temporal_switch)
     else:
-        whens = ["last0","last1"]
+        whens = ["last0", "last1"] # xlei: previously Mark set this as None
         if args.fix_delay:
             # TODO: move this into task.init
             whens = [f'last{const.DATA.MAX_MEMORY}', 'last0']
