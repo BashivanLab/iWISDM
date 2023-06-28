@@ -398,9 +398,9 @@ def write_trial_instance(task: tg.TemporalTask, write_fp: str, img_size=224, fix
         if fixation_cue:
             if not any('ending' in description for description in frame.description):
                 sg.add_fixation_cue(epoch)
-        img = Image.fromarray(epoch, 'RGB')
-        filename = os.path.join(frames_fp, f'epoch{i}.png')
-        img.save(filename)
+        img = Image.fromarray(epoch, 'RGB') # just store rgb
+        #filename = os.path.join(frames_fp, f'epoch{i}.png')
+        #img.save(filename)
     _, compo_example, _ = compo_info.get_examples()
     filename = os.path.join(frames_fp, 'compo_task_example')
     with open(filename, 'w') as f:
