@@ -38,6 +38,7 @@ from collections import defaultdict
 import numpy as np
 import tensorflow.compat.v1 as tf
 
+from cognitive.auto_task.auto_task_util import *
 from cognitive import stim_generator as sg
 from cognitive import task_generator as tg
 import cognitive.task_bank as task_bank
@@ -211,6 +212,9 @@ def generate_temporal_example(max_memory, max_distractors, task_family,
     # Create example fields after this call.
     frame_info = ig.FrameInfo(task, objset)
     compo_info = ig.TaskInfoCompo(task, frame_info)
+
+    write_trial_instance(task, write_fp='dataset\\trials')
+
     return compo_info
 
 
