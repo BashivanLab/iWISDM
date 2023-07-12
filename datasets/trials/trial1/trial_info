@@ -2,22 +2,22 @@
     "epochs": 2,
     "objects": [
         {
-            "location": "(0.83, 0.666)",
+            "location": "(0.819, 0.15)",
             "space": [
                 1,
-                1
+                0
             ],
-            "category": 1,
-            "object": 25,
-            "view angle": 0,
+            "category": 10,
+            "object": 150,
+            "view angle": 1,
             "epochs": 0,
             "is_distractor": false
         },
         {
-            "location": "(0.191, 0.204)",
+            "location": "(0.311, 0.866)",
             "space": [
                 0,
-                0
+                1
             ],
             "category": 10,
             "object": 150,

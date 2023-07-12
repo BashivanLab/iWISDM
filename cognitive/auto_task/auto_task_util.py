@@ -386,10 +386,9 @@ def write_task_instance(G_tuple: GRAPH_TUPLE, task: TASK, write_fp: str):
 
 def write_trial_instance(task: tg.TemporalTask, write_fp: str, img_size=224, fixation_cue=True) -> None:
     # save the actual generated frames into another folder
-    frames_fp = os.path.join(write_fp, 'frames')
-    if os.path.exists(frames_fp):
-        shutil.rmtree(frames_fp)
-    os.makedirs(frames_fp)
+    if os.path.exists(write_fp):
+        shutil.rmtree(write_fp)
+    os.makedirs(write_fp)
     frame_info = ig.FrameInfo(task, task.generate_objset())
     compo_info = ig.TaskInfoCompo(task, frame_info)
     objset = compo_info.frame_info.objset
@@ -399,10 +398,10 @@ def write_trial_instance(task: tg.TemporalTask, write_fp: str, img_size=224, fix
             if not any('ending' in description for description in frame.description):
                 sg.add_fixation_cue(epoch)
         img = Image.fromarray(epoch, 'RGB') # just store rgb
-        #filename = os.path.join(frames_fp, f'epoch{i}.png')
-        #img.save(filename)
+        filename = os.path.join(write_fp, f'epoch{i}.png')
+        img.save(filename)
     _, compo_example, _ = compo_info.get_examples()
-    filename = os.path.join(frames_fp, 'compo_task_example')
+    filename = os.path.join(write_fp, 'trial_info')
     with open(filename, 'w') as f:
         json.dump(compo_example, f, indent=4)
     return

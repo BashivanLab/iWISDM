@@ -185,17 +185,18 @@ def write_task_instance(fname, task_info, img_size, fixation_cue=True):
         json.dump(task_info.frame_info.dump(), f, indent=4)
 
 
-def generate_temporal_example(max_memory, max_distractors, task_family,
+def generate_temporal_example(max_memory, max_distractors, task_family, write_fp,
                               whens=None, first_shareable=None, *args, **kwargs):
     """
-    generate 1 task objset and composition info object
+    generate 1 task objset, 1 composition info object, and write it to file 
 
     :param max_memory:
     :param max_distractors:
     :param task_family:
+    :param write_fp:
     :param whens:
     :param first_shareable:
-    :return:
+    :return: compo_info
     """
     task = task_bank.random_task(task_family, whens, first_shareable)
     assert isinstance(task, tg.TemporalTask)
@@ -213,7 +214,7 @@ def generate_temporal_example(max_memory, max_distractors, task_family,
     frame_info = ig.FrameInfo(task, objset)
     compo_info = ig.TaskInfoCompo(task, frame_info)
 
-    write_trial_instance(task, write_fp='dataset\\trials')
+    imgs = write_trial_instance(task, write_fp=write_fp)
 
     return compo_info
 
@@ -236,9 +237,9 @@ def generate_compo_temporal_example(max_memory, max_distractors, families, n_tas
     if not isinstance(whens[0], list):
         whens = [whens for _ in range(n_tasks)]
     if n_tasks == 1:
-        return generate_temporal_example(max_memory, max_distractors, families, whens=whens[0], *args, **kwargs)
+        return generate_temporal_example(max_memory, max_distractors, families, write_fp='dataset\\trials\\trial'+str(0),whens=whens[0], *args, **kwargs)
 
-    compo_tasks = [generate_temporal_example(max_memory, max_distractors, families, whens=whens[i], *args, **kwargs)
+    compo_tasks = [generate_temporal_example(max_memory, max_distractors, families, write_fp='dataset\\trials\\trial'+str(i),whens=whens[i], *args, **kwargs)
                    for i in range(n_tasks)]
     # temporal combination
     cur_task = compo_tasks[0]
@@ -251,9 +252,8 @@ def generate_compo_temporal_example(max_memory, max_distractors, families, n_tas
 
 class nn_generate_dataset:
     def __init__(self, random_families=True,
-                     composition=1, img_size=224,
+                     composition=5, img_size=224,
                      fixation_cue=True,):
-        self.examples_per_family = 1
         self.random_families = random_families
 
         self.composition = composition
@@ -312,7 +312,7 @@ if __name__ == '__main__':
 
     whens = [f'last{args.nback}', 'last0']
     task_gen_func = nn_generate_dataset( random_families=args.random_families,
-                 composition=1, img_size=224,
+                 composition=5, img_size=224,
                  fixation_cue=True,)
     dt = multfsDataset(task_gen_func)
     dt.reset(families = args.families, max_memory=args.max_memory, max_distractors=args.max_distractors,
