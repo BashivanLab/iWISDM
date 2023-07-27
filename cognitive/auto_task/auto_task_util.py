@@ -169,65 +169,6 @@ op_dict = defaultdict(dict, **op_dict)
 #     op_dict[op]['sample_dist'] = "sample_dist": [1 / 3, 1 / 3, 1 / 3, 0, 0, 0]
 
 
-# def switch_generator(conditional, do_if, do_else):
-#     nl1, cm1 = conditional
-#     nl2, cm2 = do_if
-#     nl3, cm3 = do_else
-#     l1 = len(nl1)
-#     l2 = len(nl2)
-#     l3 = len(nl3)
-#     node_list = nl1 + nl2 + ["switch"] + nl3
-#     conn_mtx = np.zeros((l1 + l2 + l3 + 1, l1 + l2 + l3 + 1))
-#     conn_mtx[:l1, :l1] = cm1
-#     conn_mtx[l1:l1 + l2, l1:l1 + l2] = cm2
-#     conn_mtx[l1 - 1, l1 + l2] = 1
-#     conn_mtx[l1 + l2 - 1, l1 + l2] = 1
-#     conn_mtx[l1 + l2 + 1:, l1 + l2 + 1:] = cm3
-#     conn_mtx[l1 + l2, l1 + l2 + 1] = 1
-#     return [node_list, conn_mtx]
-#
-#
-# def subTask_Generator(max_op=32, ):
-#     conn_mtx = np.zeros((3 ** max_op, 3 ** max_op))
-#     node_list = []
-#     root_node = random.choice(root_ops)
-#     node_list.append(root_node)
-#     curr_node = root_node
-#     curr_node_idx = 0
-#     pos_node_idx = 0
-#     done = False
-#
-#     while not done:  ## how to constraint the number of operators?
-#         curr_node = node_list[curr_node_idx]
-#         if op_dict[curr_node]["n_downstream"] == 1:
-#             if pos_node_idx > max_op:  # select operators based on sample_dist to limit the depth of the tree
-#                 curr_node = random.choices(op_dict[curr_node]["downstream"], op_dict[curr_node]["sample_dist"])[0]
-#             else:
-#                 curr_node = random.choice(op_dict[curr_node]["downstream"])
-#             node_list.append(curr_node)
-#             conn_mtx[curr_node_idx, pos_node_idx + 1] = 1
-#             curr_node_idx += 1
-#             pos_node_idx += 1
-#         elif op_dict[curr_node]["n_downstream"] == 2:
-#             if pos_node_idx > max_op:
-#                 curr_node = random.choices(op_dict[curr_node]["downstream"], op_dict[curr_node]["sample_dist"])[0]
-#             else:
-#                 curr_node = random.choice(op_dict[curr_node]["downstream"])
-#             node_list.append(curr_node)
-#             node_list.append(curr_node)
-#             conn_mtx[curr_node_idx, pos_node_idx + 1] = 1
-#             conn_mtx[curr_node_idx, pos_node_idx + 2] = 1
-#             curr_node_idx += 1
-#             pos_node_idx += 2
-#         elif op_dict[curr_node]["n_downstream"] == 0:
-#             if all([op == "Select" for op in node_list[curr_node_idx:pos_node_idx + 1]]):
-#                 done = True
-#             else:
-#                 curr_node_idx += 1
-#
-#     conn_mtx = conn_mtx[:pos_node_idx + 1, :pos_node_idx + 1]
-#     return node_list, conn_mtx
-
 def sample_children_helper(op_name, op_count, max_op, depth, max_depth):
     """
     helper function to ensure the task graph is not too complex
@@ -346,7 +287,7 @@ def subtask_graph_generator(count=0, max_op=20, max_depth=10, select_limit=False
     return G, root, op_count
 
 
-def switch_generator(conditional: GRAPH_TUPLE, do_if, do_else: GRAPH_TUPLE) -> GRAPH_TUPLE:
+def switch_generator(conditional: GRAPH_TUPLE, do_if: GRAPH_TUPLE, do_else: GRAPH_TUPLE) -> GRAPH_TUPLE:
     # combine the 3 subtasks into the switch task graph by using networkx compose_all
     do_if_graph, do_if_root, do_if_node = do_if
     do_else_graph, do_else_root, do_else_node = do_else
@@ -368,7 +309,7 @@ def switch_generator(conditional: GRAPH_TUPLE, do_if, do_else: GRAPH_TUPLE) -> G
 def write_task_instance(G_tuple: GRAPH_TUPLE, task: TASK, write_fp: str):
     G, _, _ = G_tuple
     G = G.reverse()
-    # draw the task graph for visualization
+    # draw the task graph for visualization, super slow
     # A = nx.nx_agraph.to_agraph(G)
     # A.draw(os.path.join(fp, "operator_graph.png"), prog="dot")
 
@@ -385,6 +326,7 @@ def write_task_instance(G_tuple: GRAPH_TUPLE, task: TASK, write_fp: str):
 
 
 def write_trial_instance(task: tg.TemporalTask, write_fp: str, img_size=224, fixation_cue=True) -> None:
+    # TODO: drawing the frames is slow!
     # save the actual generated frames into another folder
     frames_fp = os.path.join(write_fp, 'frames')
     if os.path.exists(frames_fp):
@@ -400,6 +342,7 @@ def write_trial_instance(task: tg.TemporalTask, write_fp: str, img_size=224, fix
                 sg.add_fixation_cue(epoch)
         img = Image.fromarray(epoch, 'RGB')
         filename = os.path.join(frames_fp, f'epoch{i}.png')
+        # this is slow!
         img.save(filename)
     _, compo_example, _ = compo_info.get_examples()
     filename = os.path.join(frames_fp, 'compo_task_example')
@@ -474,7 +417,6 @@ if __name__ == '__main__':
                     new_task_graph = subtask_graph_generator(count=count, max_op=args.max_op, max_depth=args.max_depth,
                                                              select_limit=args.select_limit)
                     count = new_task_graph[2] + 1
-
                     conditional = subtask_graph_generator(count=count, max_op=args.max_op, max_depth=args.max_depth,
                                                           select_limit=args.select_limit,
                                                           root_op=random.choice(boolean_ops))

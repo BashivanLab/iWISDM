@@ -92,6 +92,7 @@ class Task(object):
             self._operator = operator
 
     def __call__(self, objset, epoch_now):
+        # when you want to get the answer to the ask
         return self._operator(objset, epoch_now)
 
     def __str__(self):
@@ -99,6 +100,7 @@ class Task(object):
         return str(self._operator)
 
     def _get_all_nodes(self, op, visited):
+        # used for topological sort, not need to read
         """Get the total number of operators in the graph starting with op."""
         visited[op] = True
         all_nodes = [op]
@@ -159,6 +161,7 @@ class Task(object):
         nodes = self.topological_sort()
         should_be_dict = defaultdict(lambda: None)
 
+        # if should_be is None, then the output is randomly sampled
         if should_be is not None:
             should_be_dict[nodes[0]] = should_be
 
@@ -166,6 +169,7 @@ class Task(object):
         # while updating the expected input from the successors/children of the current node
         for node in nodes:
             should_be = should_be_dict[node]
+            # checking the type of operator
             if isinstance(should_be, Skip):
                 inputs = Skip() if len(node.child) == 1 else [Skip()] * len(node.child)
             elif isinstance(node, Select):
@@ -176,6 +180,8 @@ class Task(object):
                 inputs = node.get_expected_input(should_be, objset, epoch_now)
             else:
                 inputs = node.get_expected_input(should_be)
+            # e.g. node = IsSame, should_be = True,
+            # expected_input is the output of the children operators
 
             # outputs is a list of
             if len(node.child) == 1:
@@ -184,6 +190,7 @@ class Task(object):
                 outputs = inputs
 
             if isinstance(node, Switch):
+                # based on pouya's request
                 # for temporal switch, randomly select 1 branch to instantiate
                 if temporal_switch:
                     children = node.child
@@ -238,7 +245,7 @@ class Task(object):
         Mathematically, the average_memory_span is n_max_backtrack/3
 
         Args:
-          n_epoch: int, total number of epochs
+          n_epoch: int, total number of epochs, 1 epcoh is 1 frame
           n_distractor: int, number of distractors to add
           average_memory_span: int, the average number of epochs by which an object
             need to be held in working memory, if needed at all
@@ -1425,54 +1432,6 @@ def load_operator_json(
         #     init['space'] = load_operator_json(op_dict['space'], operator_families, attr_families)
         return attr_families[name](value=op_dict['value'], **init)
 
-
-# def convert_operators(G, operators, roots, bfs, operator_families, whens):
-#     print(G.nodes(data=True))
-#     while not all(isinstance(operators[root], Operator) for root in roots):
-#         # convert op from list of strings to list of operators
-#         temp = defaultdict(list)
-#         for root in bfs:
-#             if not isinstance(operators[root], Operator):
-#                 if G.nodes[root]['label'] == 'Select':
-#                     if bfs[root]:
-#                         attr_dict = {attr: None for attr in const.ATTRS}
-#                         for op in bfs[root]:
-#                             if 'Get' in G.nodes[op]['label']:
-#                                 attr = G.nodes[op]['label'].split('Get')[1].lower()
-#                                 attr = 'view_angle' if attr == 'viewangle' else attr
-#                                 attr_dict[attr] = operators[op]
-#                         operators[root] = Select(**attr_dict, when=whens.pop())
-#                     else:
-#                         operators[root] = Select(when=whens.pop())
-#                     for pred in list(G.predecessors(root)):
-#                         temp[pred].append(root)
-#                 elif G.nodes[root]['label'] == 'CONST':
-#                     operators[root] = sg.random_attr(random.choice(const.ATTRS))
-#                     for pred in list(G.predecessors(root)):
-#                         temp[pred].append(root)
-#                 elif G.nodes[root]['label'] == 'Exist':
-#                     operators[root] = Exist(operators[bfs[root][0]])
-#                     for pred in list(G.predecessors(root)):
-#                         temp[pred].append(root)
-#                 # elif G.nodes[root]['label'] == 'IsSame':
-#                 #     attr1, attr2 = operators[bfs[root][0]], operators[bfs[root][1]]
-#                 #     operators[root] = IsSame(attr1, attr2)
-#                 elif 'Get' in G.nodes[root]['label']:
-#                     objs = operators[bfs[root][0]]
-#                     operators[root] = operator_families[G.nodes[root]['label']](objs)
-#                     for pred in list(G.predecessors(root)):
-#                         temp[pred].append(root)
-#                 elif G.nodes[root]['label'] in const.LOGIC_OPS:
-#                     if len(bfs[root]) < 2:
-#                         temp[root] += bfs[root]
-#                     else:
-#                         op1, op2 = operators[bfs[root][0]], operators[bfs[root][1]]
-#                         operators[root] = operator_families[G.nodes[root]['label']](op1, op2)
-#                         for pred in list(G.predecessors(root)):
-#                             temp[pred].append(root)
-#         bfs = temp
-#         print(operators, bfs)
-#     return operators[roots[0]]
 
 def subtask_generation(subtask_graph: GRAPH_TUPLE, op_dict: dict = None) -> TASK:
     subtask_G, root, _ = subtask_graph

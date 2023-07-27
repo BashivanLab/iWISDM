@@ -54,7 +54,6 @@ def get_target_value(t):
 DATA = None
 
 
-# TODO: train_DATA, validation_DATA for split
 class Data:
     def __init__(self, dir_path=None, max_memory=5, grid_size=[2, 2]):
         if dir_path is None:
@@ -75,8 +74,8 @@ class Data:
             self.MOD_DICT[int(i)] = dict()
             for cat in self.df.loc[self.df['ctg_mod'] == i]['obj_mod'].unique():
                 self.MOD_DICT[int(i)][int(cat)] = list(map(int, list(self.df.loc[(self.df['ctg_mod'] == i)
-                                                                       & (self.df['obj_mod'] == cat)][
-                                                               'ang_mod'].unique())))
+                                                                                 & (self.df['obj_mod'] == cat)][
+                                                                         'ang_mod'].unique())))
 
         self.MAX_MEMORY = max_memory
         OBJECTPERCATEGORY = 14
@@ -213,12 +212,3 @@ def get_grid(grid_size):
 
 GRID_SIZE = 7
 PREFS = get_prefs(GRID_SIZE)
-
-# config = {'dataset': 'yang',
-#           'pnt_net': True,
-#           'in_voc_size': len(INPUTVOCABULARY),
-#           'grid_size': GRID_SIZE,
-#           'out_voc_size': len(OUTPUTVOCABULARY),
-#           'maxseqlength': MAXSEQLENGTH,
-#           'prefs': PREFS,
-#           }
