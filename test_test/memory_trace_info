@@ -4,9 +4,9 @@
             {
                 "count": 1,
                 "obj": {
-                    "location": "(0.625, 0.125)",
+                    "location": "(0.699, 0.3)",
                     "space": [
-                        2,
+                        1,
                         0
                     ],
                     "category": 10,
@@ -29,13 +29,13 @@
             {
                 "count": 2,
                 "obj": {
-                    "location": "(0.625, 0.125)",
+                    "location": "(0.209, 0.806)",
                     "space": [
-                        2,
-                        0
+                        0,
+                        1
                     ],
-                    "category": 1,
-                    "object": 25,
+                    "category": 10,
+                    "object": 150,
                     "view angle": 0,
                     "epochs": 1,
                     "is_distractor": false

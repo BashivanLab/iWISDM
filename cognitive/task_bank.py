@@ -25,7 +25,7 @@ import tensorflow.compat.v1 as tf
 from cognitive import stim_generator as sg
 from cognitive import task_generator as tg
 from cognitive.task_generator import TemporalTask
-from cognitive import constants as const
+
 
 FLAGS = tf.app.flags.FLAGS
 

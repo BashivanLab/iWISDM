@@ -369,8 +369,8 @@ def write_task_instance(G_tuple: GRAPH_TUPLE, task: TASK, write_fp: str):
     G, _, _ = G_tuple
     G = G.reverse()
     # draw the task graph for visualization
-    # A = nx.nx_agraph.to_agraph(G)
-    # A.draw(os.path.join(fp, "operator_graph.png"), prog="dot")
+    A = nx.nx_agraph.to_agraph(G)
+    A.draw(os.path.join(fp, "operator_graph.png"), prog="dot")
 
     node_labels = {node[0]: node[1]['label'] for node in G.nodes(data=True)}
 

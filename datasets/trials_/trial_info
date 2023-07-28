@@ -2,10 +2,10 @@
     "epochs": 2,
     "objects": [
         {
-            "location": "(0.699, 0.3)",
+            "location": "(0.755, 0.764)",
             "space": [
                 1,
-                0
+                1
             ],
             "category": 10,
             "object": 150,
@@ -14,14 +14,14 @@
             "is_distractor": false
         },
         {
-            "location": "(0.209, 0.806)",
+            "location": "(0.837, 0.669)",
             "space": [
-                0,
+                1,
                 1
             ],
             "category": 10,
             "object": 150,
-            "view angle": 0,
+            "view angle": 1,
             "epochs": 1,
             "is_distractor": false
         }
@@ -29,6 +29,6 @@
     "instruction": "observe object 1, observe object 2, loc of object 1 equal loc of object 2 ?",
     "answers": [
         "null",
-        "false"
+        "true"
     ]
 }
