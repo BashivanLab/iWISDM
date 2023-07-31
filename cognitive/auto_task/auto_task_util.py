@@ -245,6 +245,7 @@ def sample_children_helper(op_name, op_count, max_op, depth, max_depth):
 
 
 def sample_children_op(op_name, op_count, max_op, depth, max_depth, select_op, select_downstream):
+    # bug op_dict is sometimes {}
     n_downstream = op_dict[op_name]["n_downstream"]
 
     if n_downstream == 1:
@@ -370,7 +371,7 @@ def write_task_instance(G_tuple: GRAPH_TUPLE, task: TASK, write_fp: str):
     G = G.reverse()
     # draw the task graph for visualization
     A = nx.nx_agraph.to_agraph(G)
-    A.draw(os.path.join(fp, "operator_graph.png"), prog="dot")
+    A.draw(os.path.join(write_fp, "operator_graph.png"), prog="dot")
 
     node_labels = {node[0]: node[1]['label'] for node in G.nodes(data=True)}
 
@@ -380,7 +381,7 @@ def write_task_instance(G_tuple: GRAPH_TUPLE, task: TASK, write_fp: str):
     # save adjacency matrix for reconstruction, use nx.from_dict_of_dicts to reconstruct
     with open(os.path.join(write_fp, 'adj_dict'), 'w') as f:
         json.dump(nx.to_dict_of_dicts(G), f, indent=4)
-    task[1].to_json(os.path.join(fp, 'temporal_task.json'))
+    task[1].to_json(os.path.join(write_fp, 'temporal_task.json'))
     return None
 
 
@@ -392,6 +393,7 @@ def write_trial_instance(task: tg.TemporalTask, write_fp: str, img_size=224, fix
     frame_info = ig.FrameInfo(task, task.generate_objset())
     compo_info = ig.TaskInfoCompo(task, frame_info)
     objset = compo_info.frame_info.objset
+    print(objset)
     for i, (epoch, frame) in enumerate(zip(sg.render(objset, img_size), compo_info.frame_info)):
         # add cross in the center of the image
         if fixation_cue:

@@ -7,7 +7,7 @@ def get_args():
     parser.add_argument('--max_distractors', type=int, default=0)
     parser.add_argument('--trials_per_family', type=int, default=1)
     parser.add_argument('--output_dir', default='./data')
-    parser.add_argument('--stim_dir', default='./data/MULTIF_5_stim')
+    parser.add_argument('--stim_dir', default='./data/MULTIF_5_stim/MULTIF_5_stim')
     parser.add_argument('--random_families', action='store_false', default=True)
     parser.add_argument('--families', nargs='*', default=['CompareLoc'])
     parser.add_argument('--composition', type=int, default=3)
