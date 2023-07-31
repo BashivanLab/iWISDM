@@ -27,7 +27,6 @@ from collections import defaultdict, OrderedDict
 
 import numpy as np
 import random
-import pickle
 import networkx as nx
 
 from cognitive import constants as const
@@ -80,6 +79,57 @@ class Skip(object):
         pass
 
 
+class Operator(object):
+    """Base class for task constructors."""
+
+    def __init__(self):
+        # Whether or not this operator is the final operator
+        self.child = list()
+        self.parent = list()
+
+    def __str__(self):
+        pass
+
+    def __call__(self, objset, epoch_now):
+        del objset
+        del epoch_now
+
+    def copy(self):
+        raise NotImplementedError
+
+    def set_child(self, child):
+        """Set operators as children."""
+        try:
+            child.parent.append(self)
+            self.child.append(child)
+        except AttributeError:
+            for c in child:
+                self.set_child(c)
+
+    # def get_partial_expected_input(self, should_be=None, ):
+    def get_expected_input(self, should_be=None):
+        """Guess and update the objset at this epoch.
+
+        Args:
+          should_be: the supposed output
+        """
+        raise NotImplementedError('get_expected_input method is not defined.')
+
+    def child_json(self):
+        return [c.to_json() for c in self.child]
+
+    def self_json(self):
+        return {}
+
+    def to_json(self):
+        # return the dictionary for storing into json
+        info = dict()
+        info['name'] = self.__class__.__name__
+        info['child'] = self.child_json()
+        info.update(self.self_json())
+        return info
+
+
 class Task(object):
     """Base class for tasks."""
 
@@ -98,6 +148,28 @@ class Task(object):
     def __str__(self):
         # TODO: is_active flag for operators, drop out nodes when one branch is not part of instruction
         return str(self._operator)
+
+    def _add_all_nodes(self, op: Union[Operator, sg.Attribute], visited: dict, G: nx.DiGraph, count: int):
+        visited[op] = True
+        parent = count
+        node_label = type(parent).__name__
+        G.add_node(parent, label=node_label)
+        if node_label == 'Switch':
+            conditional_op, if_op, else_op = op.child[0], op.child[1], op.child[2]
+            conditional_root = count + 1
+            _, if_node = self._add_all_nodes(conditional_op, visited, G, conditional_root)
+            _, else_node = self._add_all_nodes(if_op, visited, G, if_node + 1)
+            G.add_edge(if_node, parent)
+            G.add_edge(else_node, parent)
+            G.add_edge(parent, conditional_root)
+            return G, count
+        else:
+            for c in op.child:
+                if isinstance(c, Operator) and not visited[c]:
+                    child = count + 1
+                    _, count = self._add_all_nodes(c, visited, G, child)
+                    G.add_edge(parent, child)
+        return G, count
 
     def _get_all_nodes(self, op, visited):
         # used for topological sort, not need to read
@@ -451,56 +523,10 @@ class TemporalTask(Task):
             json.dump(info, f, indent=4)
         return info
 
-
-class Operator(object):
-    """Base class for task constructors."""
-
-    def __init__(self):
-        # Whether or not this operator is the final operator
-        self.child = list()
-        self.parent = list()
-
-    def __str__(self):
-        pass
-
-    def __call__(self, objset, epoch_now):
-        del objset
-        del epoch_now
-
-    def copy(self):
-        raise NotImplementedError
-
-    def set_child(self, child):
-        """Set operators as children."""
-        try:
-            child.parent.append(self)
-            self.child.append(child)
-        except AttributeError:
-            for c in child:
-                self.set_child(c)
-
-    # def get_partial_expected_input(self, should_be=None, ):
-    def get_expected_input(self, should_be=None):
-        """Guess and update the objset at this epoch.
-
-        Args:
-          should_be: the supposed output
-        """
-        raise NotImplementedError('get_expected_input method is not defined.')
-
-    def child_json(self):
-        return [c.to_json() for c in self.child]
-
-    def self_json(self):
-        return {}
-
-    def to_json(self):
-        # return the dictionary for storing into json
-        info = dict()
-        info['name'] = self.__class__.__name__
-        info['child'] = self.child_json()
-        info.update(self.self_json())
-        return info
+    def to_graph(self, fp=None):
+        G = nx.DiGraph()
+        visited = defaultdict(lambda: False)
+        return self._add_all_nodes(self._operator, visited, G, 0)
 
 
 class Select(Operator):

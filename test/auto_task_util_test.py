@@ -21,9 +21,12 @@ from __future__ import print_function
 
 import unittest
 import networkx as nx
+import numpy as np
+import random
 
 from cognitive import constants as const
 from cognitive.auto_task import auto_task_util as util
+import cognitive.task_generator as tg
 
 
 class UtilTest(unittest.TestCase):
@@ -74,10 +77,10 @@ class UtilTest(unittest.TestCase):
         G.add_node(4, label='Select')
         G.add_node(5, label='Select')
 
-        G.add_edge(1,2)
-        G.add_edge(1,3)
-        G.add_edge(2,4)
-        G.add_edge(3,5)
+        G.add_edge(1, 2)
+        G.add_edge(1, 3)
+        G.add_edge(2, 4)
+        G.add_edge(3, 5)
 
         G = G.reverse()
         A = nx.nx_agraph.to_agraph(G)
@@ -90,10 +93,10 @@ class UtilTest(unittest.TestCase):
         G.add_node(3, label='GetCategory')
         G.add_node(4, label='Select')
         G.add_node(5, label='Select')
-        G.add_edge(1,2)
-        G.add_edge(1,3)
-        G.add_edge(2,4)
-        G.add_edge(3,5)
+        G.add_edge(1, 2)
+        G.add_edge(1, 3)
+        G.add_edge(2, 4)
+        G.add_edge(3, 5)
 
         G.add_node(6, label='IsSame')
         G.add_node(7, label='GetObject')
@@ -117,11 +120,21 @@ class UtilTest(unittest.TestCase):
 
         G.add_node(16, label='Switch')
         G.add_edge(5, 16)
-        G.add_edge(9,16)
+        G.add_edge(9, 16)
         G.add_edge(16, 11)
         G = G.reverse()
         A = nx.nx_agraph.to_agraph(G)
         A.draw('RandomTask1.png', prog='dot')
+
+    def test_task_generation(self):
+        const.DATA = const.Data()
+        graph, task = util.task_generator(1, 1, 10, 3, True)
+        G = graph[0]
+        G = G.reverse()
+        A = nx.nx_agraph.to_agraph(G)
+        A.draw('RandomTask1.png', prog='dot')
+        task[1].to_graph('/Users/markbai/PycharmProjects/COG_v3_shapenet/test/reconstruct.png')
+
 
 if __name__ == '__main__':
     unittest.main()

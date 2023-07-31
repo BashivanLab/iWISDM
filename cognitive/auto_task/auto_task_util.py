@@ -19,9 +19,10 @@ import os
 import matplotlib.pyplot as plt
 from networkx.drawing.nx_pydot import graphviz_layout
 
-from typing import Tuple, Union
+from typing import Tuple, Union, List
 
-# Tuples of the graph object, the root root_op number, and the number of operators
+# Tuples of the graph object, the root root_op number, and the number of operators,
+# needed to compose graphs in switch generation
 GRAPH_TUPLE = Tuple[nx.DiGraph, int, int]
 TASK = Tuple[Union[tg.Operator, sg.Attribute], tg.TemporalTask]
 
@@ -68,67 +69,6 @@ op_dict = {"Select":
                 "downstream": ["Select"],
                 "sample_dist": [1]
                 },
-           "Exist":
-               {"n_downstream": 1,
-                "downstream": ["Select"],
-                "sample_dist": [1]
-                },
-           "IsSame":
-               {"n_downstream": 2,
-                "downstream": ["GetCategory", "GetLoc", "GetViewAngle", "GetObject"],
-                "sample_dist": [1 / 4, 1 / 4, 1 / 4, 1 / 4],
-                "same_children_op": True  # same downstream op
-                },
-           "And":
-               {"n_downstream": 2,
-                "downstream": ["Exist", "IsSame", "And"],
-                "sample_dist": [1, 0, 0],
-                "same_children_op": False
-                },
-           # "Or":
-           #     {"n_downstream": 2,
-           #      "downstream": ["Exist", "IsSame", "NotSame", "And", "Or", "Xor"],
-           #      "sample_dist": [1 / 3, 1 / 3, 1 / 3, 0, 0, 0],
-           #      "same_children_op": False
-           #      },
-           # "Xor":
-           #     {"n_downstream": 2,
-           #      "downstream": ["Exist", "IsSame", "NotSame", "And", "Or", "Xor"],
-           #      "sample_dist": [1 / 3, 1 / 3, 1 / 3, 0, 0, 0],
-           #      "same_children_op": False
-           #      },
-           # "NotSame":
-           #     {"n_downstream": 2,
-           #      "downstream": ["GetCategory", "GetLoc", "GetViewAngle", "GetObject"],
-           #      "sample_dist": [1 / 4, 1 / 4, 1 / 4, 1 / 4],
-           #      "same_children_op": True,
-           #      },
-           }
-op_dict = {"Select":
-               {"n_downstream": 4,
-                "downstream": ["GetCategory", "GetLoc", "GetViewAngle", "GetObject", "None"],
-                "same_children_op": False
-                },
-           "GetCategory":
-               {"n_downstream": 1,
-                "downstream": ["Select"],
-                "sample_dist": [1]
-                },
-           "GetLoc":
-               {"n_downstream": 1,
-                "downstream": ["Select"],
-                "sample_dist": [1]
-                },
-           "GetViewAngle":
-               {"n_downstream": 1,
-                "downstream": ["Select"],
-                "sample_dist": [1]
-                },
-           "GetObject":
-               {"n_downstream": 1,
-                "downstream": ["Select"],
-                "sample_dist": [1]
-                },
            "IsSame":
                {"n_downstream": 2,
                 "downstream": ["GetCategory", "GetLoc", "GetViewAngle", "GetObject", "CONST"],
@@ -138,7 +78,7 @@ op_dict = {"Select":
            "And":
                {"n_downstream": 2,
                 "downstream": ["IsSame", "And"],
-                "sample_dist": [1, 0],
+                "sample_dist": [0.8, 0.2],
                 "same_children_op": False
                 },
            # "Or":
@@ -171,31 +111,42 @@ op_dict = defaultdict(dict, **op_dict)
 
 def sample_children_helper(op_name, op_count, max_op, depth, max_depth):
     """
-    helper function to ensure the task graph is not too complex
+    helper function to ensure the task graph is not too complex, and return the child operator
     :param op_name: the current operator
     :param op_count: the current number of operators
     :param max_op: the maximum number of operators allowed
     :param depth: the current depth
     :param max_depth: the maximum depth of the task graph
-    :return: a random operator to follow the
+    :return: a randomly sampled operator to follow the parent node
     """
-    if depth + 1 > max_depth or op_count + 4 > max_op:
+    if depth + 1 > max_depth or op_count + 4 > max_op or op_name == 'And':  # this prevents very complicated tasks
         return np.random.choice(op_dict[op_name]["downstream"], p=op_dict[op_name]["sample_dist"])
     else:
         return np.random.choice(op_dict[op_name]["downstream"])
 
 
-def sample_children_op(op_name, op_count, max_op, depth, max_depth, select_op, select_downstream):
+def sample_children_op(op_name: str, op_count: int, max_op: int, depth: int, max_depth: int, select_op: bool,
+                       select_downstream: List[str]) -> List[str]:
+    """
+    sample the children operators given the operator name
+    :param op_name: the name of the parent node
+    :param op_count: operator count
+    :param max_op: max number of operators allowed
+    :param depth: current depth
+    :param max_depth: max depth allowed
+    :param select_op: Boolean, does select follow an operator
+    :param select_downstream: the downstream options that can be sampled from
+    :return: list of operators
+    """
     n_downstream = op_dict[op_name]["n_downstream"]
-
+    # how many children need to be sampled
     if n_downstream == 1:
         return [random.choice(op_dict[op_name]["downstream"])]
     elif op_name == 'Select':
-        ops = list()
+        ops = list()  # append children operators
 
         if select_downstream is None:
             select_downstream = op_dict['Select']['downstream']
-
         if select_op:  # if select at least one operator for select attribute
             get = random.choice(["GetCategory", "GetLoc", "GetViewAngle", "GetObject"])
             ops.append(get)
@@ -207,15 +158,14 @@ def sample_children_op(op_name, op_count, max_op, depth, max_depth, select_op, s
             return ['None' for _ in range(n_downstream)]
 
         for _ in range(n_downstream):
-            if np.random.random() < 0.8:
+            if np.random.random() < 0.8:  # make sure not too many operators follow
                 ops.append('None')
             else:
-                if select_downstream:
+                if select_downstream:  # sample a downstream op
                     ops.append(select_downstream.pop(random.randrange(len(select_downstream))))
                 else:
                     ops.append('None')
         return ops
-    # TODO: elif op_name == "And", check depth + 2, + 3?
     else:
         if op_dict[op_name]["same_children_op"]:
             child = sample_children_helper(op_name, op_count, max_op, depth, max_depth)
@@ -226,7 +176,6 @@ def sample_children_op(op_name, op_count, max_op, depth, max_depth, select_op, s
 
 def branch_generator(G: nx.DiGraph,
                      root_op: str,
-                     local_count: int,
                      op_count: int,
                      max_op: int,
                      depth: int,
@@ -236,27 +185,36 @@ def branch_generator(G: nx.DiGraph,
     # function to complete a branch of subtask graph based on a root operator,
     # modifies G in place, and returns the leaf node number
     if root_op == 'None':
-        return None
+        return None  # don't add any nodes or edges
     elif root_op == 'CONST':
-        return op_count
+        return op_count  # don't add any nodes or edges
     else:
+        # exist always follows a select with operator as child
         select_op = True if root_op == 'Exist' else select_op
-        children = sample_children_op(root_op, local_count, max_op, depth, max_depth, select_op, select_downstream)
+        children = sample_children_op(op_name=root_op,
+                                      op_count=op_count + 1,
+                                      max_op=max_op,
+                                      depth=depth,
+                                      max_depth=max_depth,
+                                      select_op=select_op,
+                                      select_downstream=select_downstream)
+
         if root_op == 'Select' and any('Get' in c for c in children):
             select_downstream = ['None'] * 4
             select_op = False
 
-        depth += 1
+        depth += 1  # increment depth count
         parent = op_count
-        if all(op == 'CONST' for op in children):
+        if all(op == 'CONST' for op in children):  # make sure we are not comparing two constants
             downstream = op_dict['IsSame']['downstream'].copy()
             downstream.remove('CONST')
-            children[0] = random.choice(downstream)
-        for op in children:
+            children[0] = random.choice(downstream)  # add a Get op to compare with the constant
+        for op in children:  # loop over sampled children and modify the graph in place
             if op != 'None':
                 child = op_count + 1
-                local_count += 1
-                op_count = branch_generator(G, op, local_count, op_count + 1, max_op, depth, max_depth, select_op,
+                # recursively generate branches based on the child operator
+                # op_count is incremented based on how many nodes were added in the child branch
+                op_count = branch_generator(G, op, child, max_op, depth, max_depth, select_op,
                                             select_downstream)
                 G.add_node(child, label=op)
                 G.add_edge(parent, child)
@@ -266,12 +224,13 @@ def branch_generator(G: nx.DiGraph,
 def subtask_graph_generator(count=0, max_op=20, max_depth=10, select_limit=False, root_op=None) -> \
         GRAPH_TUPLE:
     """
-    main function for generating subtasks
+    function for generating subtask graphs
     uses networkx to compose the task graphs
     :param count: the root_op number of the root
-    :param select_limit: whether to add operator after selects. if True, then constants are sampled
+    :param select_limit: whether to add operator after selects. if True, then constants are sampled.
+    If false, then operators could be sampled
     :param root_op: the root operator
-    :return: Tuple
+    :return: GRAPH_TUPLE of (nx.DiGraph(), node number of the graph root, operator count)
     """
     # initialize the graph and save the root_op number of the root
     G = nx.DiGraph()
@@ -280,11 +239,55 @@ def subtask_graph_generator(count=0, max_op=20, max_depth=10, select_limit=False
     op_count = count
     root_op = root_op if root_op else random.choice(root_ops)
     G.add_node(op_count, label=root_op)
+
     select_downstream = ['None'] * 4 if select_limit else None
-    local_count = 1
-    op_count = branch_generator(G, root_op, local_count, op_count, max_op, 1, max_depth,
+    op_count = branch_generator(G, root_op, op_count, max_op, 1, max_depth,
                                 select_downstream=select_downstream)
     return G, root, op_count
+
+
+def task_generator(max_switch: int, switch_threshold: float, max_op: int, max_depth: int, select_limit: bool) -> Tuple[
+    GRAPH_TUPLE, TASK]:
+    """
+    function to generate a random task graph and corresponding task
+    :param max_switch: the maximum number of switch operators allowed
+    :param switch_threshold: how likely a switch operator is sampled
+    :param max_op: max number of operators allowed
+    :param max_depth: max depth of the task graph
+    :param select_limit: whether to add operator after selects. if True, then constants are sampled.
+    If false, then operators could be sampled
+    :return: The random task graph tuple and task tuple
+    """
+    count = 0
+    # generate a subtask graph and actual task
+    subtask_graph = subtask_graph_generator(count=count, max_op=max_op, max_depth=max_depth,
+                                            select_limit=select_limit)
+    subtask = tg.subtask_generation(subtask_graph)
+    count = subtask_graph[2] + 1  # start a new subtask graph node number according to old graph
+    for _ in range(max_switch):
+        if random.random() < switch_threshold:  # if add switch
+            new_task_graph = subtask_graph_generator(count=count, max_op=max_op, max_depth=max_depth,
+                                                     select_limit=select_limit)
+            count = new_task_graph[2] + 1
+            conditional = subtask_graph_generator(count=count, max_op=max_op, max_depth=max_depth,
+                                                  select_limit=select_limit,
+                                                  root_op=random.choice(boolean_ops))
+            conditional_task = tg.subtask_generation(conditional)
+            count = conditional[2] + 1
+            if random.random() < 0.5:
+                do_if = subtask_graph
+                do_if_task = subtask
+                do_else = new_task_graph
+                do_else_task = tg.subtask_generation(do_else)
+            else:
+                do_if = new_task_graph
+                do_if_task = tg.subtask_generation(do_if)
+                do_else = subtask_graph
+                do_else_task = subtask
+            subtask_graph = switch_generator(conditional, do_if, do_else)
+            count = subtask_graph[2] + 1
+            subtask = tg.switch_generation(conditional_task, do_if_task, do_else_task)
+    return subtask_graph, subtask
 
 
 def switch_generator(conditional: GRAPH_TUPLE, do_if: GRAPH_TUPLE, do_else: GRAPH_TUPLE) -> GRAPH_TUPLE:
@@ -406,37 +409,13 @@ if __name__ == '__main__':
                 shutil.rmtree(fp)
             os.makedirs(fp)
 
-            count = 0
-            # generate a subtask graph and actual task
-            subtask_graph = subtask_graph_generator(count=count, max_op=args.max_op, max_depth=args.max_depth,
-                                                    select_limit=args.select_limit)
-            subtask = tg.subtask_generation(subtask_graph)
-            count = subtask_graph[2] + 1
-            for _ in range(args.max_switch):
-                if random.random() < args.switch_threshold:  # if add switch
-                    new_task_graph = subtask_graph_generator(count=count, max_op=args.max_op, max_depth=args.max_depth,
-                                                             select_limit=args.select_limit)
-                    count = new_task_graph[2] + 1
-                    conditional = subtask_graph_generator(count=count, max_op=args.max_op, max_depth=args.max_depth,
-                                                          select_limit=args.select_limit,
-                                                          root_op=random.choice(boolean_ops))
-                    conditional_task = tg.subtask_generation(conditional)
-                    count = conditional[2] + 1
-                    if random.random() < 0.5:
-                        do_if = subtask_graph
-                        do_if_task = subtask
-                        do_else = new_task_graph
-                        do_else_task = tg.subtask_generation(do_else)
-                    else:
-                        do_if = new_task_graph
-                        do_if_task = tg.subtask_generation(do_if)
-                        do_else = subtask_graph
-                        do_else_task = subtask
-                    subtask_graph = switch_generator(conditional, do_if, do_else)
-                    count = subtask_graph[2] + 1
-                    subtask = tg.switch_generation(conditional_task, do_if_task, do_else_task)
+            task_graph, task = task_generator(args.max_switch,
+                                              args.switch_threshold,
+                                              args.max_op,
+                                              args.max_depth,
+                                              args.select_limit)
             # TODO: some guess objset error where ValueError occurs
             # write_instance(subtask_graph, subtask, fp, args.img_size, args.n_trials)
-            write_task_instance(subtask_graph, subtask, fp)
+            write_task_instance(task_graph, task, fp)
         stop = timeit.default_timer()
         print('Time taken to generate tasks: ', stop - start)
