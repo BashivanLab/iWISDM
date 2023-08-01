@@ -361,6 +361,7 @@ class Task(object):
 
 
 class TemporalTask(Task):
+    # goal: combine multiple tasks together
     def __init__(self, operator=None, n_frames=None, first_shareable=None, whens=None):
         super(TemporalTask, self).__init__(operator)
         self.n_frames = n_frames
@@ -370,6 +371,7 @@ class TemporalTask(Task):
         self.whens = whens
 
     def copy(self):
+        # duplicate the task
         new_task = TemporalTask()
         new_task.n_frames = self.n_frames
         new_task._first_shareable = self.first_shareable
@@ -397,6 +399,7 @@ class TemporalTask(Task):
 
     @property
     def instance_size(self):
+        # todo: what is the point of instance size?
         pass
 
     @staticmethod
@@ -412,6 +415,7 @@ class TemporalTask(Task):
         return True
 
     def filter_selects(self, lastk=None):
+        # choose select node that match the delay parameter lastk
         selects = list()
         for node in self.topological_sort():
             if isinstance(node, Select):
@@ -424,6 +428,8 @@ class TemporalTask(Task):
         return selects
 
     def get_relevant_attribute(self, lastk):
+        # return the attribute of the object that is not randomly selected on lastk frame
+        # for merging check purpose
         attrs = set()
         # TODO: recurse to the root of the tree for switch?
         for lastk_select in self.filter_selects(lastk):
@@ -872,7 +878,7 @@ class Get(Operator):
 
 class Go(Get):
     """Go to location of object."""
-
+    ## todo: is this redundant?
     def __init__(self, objs):
         super(Go, self).__init__('loc', objs)
 
@@ -903,6 +909,7 @@ class GetLoc(Get):
 
 
 class GetFixedObject(Get):
+    #### todo: this is not used elsewhere except for task bank CompareFixedObjectTemporal task
     def __init__(self, objs):
         super(GetFixedObject, self).__init__('fixed_object', objs)
 
@@ -914,6 +921,7 @@ class GetFixedObject(Get):
 
 
 class GetTime(Operator):
+    ## todo: redundant?
     """Get time of an object.
 
     This operator is not tested and not finished.

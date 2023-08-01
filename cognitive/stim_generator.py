@@ -44,7 +44,7 @@ import tensorflow as tf
 from cognitive import constants as const
 
 
-class Attribute(object):
+class AtAtribute(object):
     """Base class for attributes."""
 
     def __init__(self, value):
@@ -283,6 +283,7 @@ class SNViewAngle(Attribute):
 
 
 class SNFixedObject(Attribute):
+    ## todo: same as the comment in task bank: not sure what you mean by fixedobject
     def __init__(self, sn_object, value):
         if value is not None:
             assert isinstance(sn_object, SNObject)
@@ -505,6 +506,7 @@ class Object(object):
           bool: True if successfully merged, False otherwise
         """
         new_attr = dict()
+        # todo: is this redundant?
         # TODO(gryang): What to do with self.when and self.loc?
         for attr_type in ['category', 'object', 'view_angle']:
             new_attr = getattr(obj, attr_type)
@@ -670,6 +672,7 @@ class ObjectSet(object):
 
     def add_distractor(self, epoch_now):
         """Add a distractor."""
+        ## todo: I guess we don't need it as well?
         category = random_category()
         object = random_object(category)
         obj1 = Object([category, object], when='last', deletable=True)
@@ -695,6 +698,7 @@ class ObjectSet(object):
         Raises:
           ValueError: if n_epoch + x <= 0
         """
+        ## todo: redundant?
         self.n_epoch += x
         if self.n_epoch < 1:
             raise ValueError('n_epoch + x <= 0')

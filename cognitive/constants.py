@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+## todo: do we need this license statement?
 
 """Store all the constants."""
 
@@ -27,15 +28,22 @@ import pandas as pd
 from PIL import Image
 from collections import OrderedDict
 
+# average memory duration: how many frames each object can be retained in the memory
 AVG_MEM = 3
 # TODO: if only 1 stim per frame, then number of selects is limited by max_memory
 
+# define all available operators for constructing graphs
 LOGIC_OPS = ['And', 'Or', 'Xor', 'IsSame']
 BOOLEAN_OUT_OPS = ['IsSame', 'Exist', 'And', 'Or', 'Xor', 'NotEqual']
+
+# attributes available for given dataset (shapenet)
+# need to be updated if other datasets are used
 ATTRS = ['object', 'view_angle', 'category', 'loc']
 
 
 def compare_when(when_list):
+    # input: a list of "last%d"%k
+    # output: the maximum delay the task can take (max k)
     return max(list(map(lambda x: DATA.LASTMAP[x], when_list)))
 
 
@@ -55,6 +63,12 @@ DATA = None
 
 
 class Data:
+    """
+    input:
+        dir_path: file path to the dataset
+        max_memory: maximum frames an object can be used to solve a task
+        grid_size: configuration of the canvas
+    """
     def __init__(self, dir_path=None, max_memory=5, grid_size=[2, 2]):
         if dir_path is None:
             dir_path = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))),
@@ -119,6 +133,7 @@ class Data:
         print(self.grid)
 
     def get_shapenet_object(self, obj, obj_size, training_path=None, validation_path=None, train=True):
+        # sample stimuli that satisfies the properties specified by obj dictionary
         if not train:
             if validation_path is None:
                 if self.valid_image_path is None:
@@ -157,22 +172,27 @@ class Data:
         return img
 
     def get_grid_key(self, space):
+        # convert from space to grid coordinate
         return list(self.grid.keys())[list(self.grid.values()).index(list(space._value))]
 
     @property
     def LASTMAP(self):
+        # all possible delays
         return {f'last{k}': k for k in range(self.MAX_MEMORY + 1)}
 
     @property
     def ALLWHENS(self):
+        # todo: is this redundant to LASTMAP? there are places refering to both but I don't see the difference between the two
         return [f'last{k}' for k in range(self.MAX_MEMORY + 1)]
 
     @property
     def ALLWHENS_PROB(self):
+        # all delays have equal probability
         return [1 / (self.MAX_MEMORY + 1)] * len(self.ALLWHENS)
 
 
 def get_mod_dict(df):
+    # return an exhausitive list of all possible feature combinations
     MOD_DICT = dict()
     for i in df['ctg_mod'].unique():
         MOD_DICT[i] = dict()
@@ -188,6 +208,7 @@ MAXSEQLENGTH = 25
 
 # If use popvec out_type
 def get_prefs(grid_size):
+    # an alternative representation of output type for grid coordinate
     prefs_y, prefs_x = (np.mgrid[0:grid_size, 0:grid_size]) / (grid_size - 1.)
     prefs_x = prefs_x.flatten().astype('float32')
     prefs_y = prefs_y.flatten().astype('float32')
@@ -199,7 +220,8 @@ def get_prefs(grid_size):
 
 def get_grid(grid_size):
     # return (grid_size,grid_size) array of sg.space.values
-
+    # convert from grid to space
+    # todo: difference between space and grid?
     grid_size[0], grid_size[1] = grid_size[0] + 1, grid_size[1] + 1
     x_coords, y_coords = np.linspace(0, 1, grid_size[0]), np.linspace(0, 1, grid_size[1])
     xx, yy = np.meshgrid(x_coords, y_coords, sparse=True)
