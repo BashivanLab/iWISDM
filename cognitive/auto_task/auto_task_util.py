@@ -273,7 +273,6 @@ def task_generator(max_switch: int, switch_threshold: float, max_op: int, max_de
                                                   select_limit=select_limit,
                                                   root_op=random.choice(boolean_ops))
             conditional_task = tg.subtask_generation(conditional)
-            count = conditional[2] + 1
             if random.random() < 0.5:
                 do_if = subtask_graph
                 do_if_task = subtask

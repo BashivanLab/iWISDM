@@ -44,7 +44,7 @@ import tensorflow as tf
 from cognitive import constants as const
 
 
-class AtAtribute(object):
+class Attribute(object):
     """Base class for attributes."""
 
     def __init__(self, value):

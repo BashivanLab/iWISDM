@@ -133,8 +133,10 @@ class UtilTest(unittest.TestCase):
         G = G.reverse()
         A = nx.nx_agraph.to_agraph(G)
         A.draw('RandomTask1.png', prog='dot')
-        task[1].to_graph('/Users/markbai/PycharmProjects/COG_v3_shapenet/test/reconstruct.png')
-
+        G, count = task[1].to_graph('/Users/markbai/PycharmProjects/COG_v3_shapenet/test/reconstruct.png')
+        G = G.reverse()
+        A = nx.nx_agraph.to_agraph(G)
+        A.draw('RandomTask1_reconstruct.png', prog='dot')
 
 if __name__ == '__main__':
     unittest.main()

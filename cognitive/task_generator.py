@@ -152,14 +152,15 @@ class Task(object):
     def _add_all_nodes(self, op: Union[Operator, sg.Attribute], visited: dict, G: nx.DiGraph, count: int):
         visited[op] = True
         parent = count
-        node_label = type(parent).__name__
+        node_label = type(op).__name__
         G.add_node(parent, label=node_label)
         if node_label == 'Switch':
             conditional_op, if_op, else_op = op.child[0], op.child[1], op.child[2]
             conditional_root = count + 1
-            _, if_node = self._add_all_nodes(conditional_op, visited, G, conditional_root)
-            _, else_node = self._add_all_nodes(if_op, visited, G, if_node + 1)
-            G.add_edge(if_node, parent)
+            _, if_root = self._add_all_nodes(conditional_op, visited, G, conditional_root)
+            _, else_root = self._add_all_nodes(if_op, visited, G, if_root + 1)
+            _, else_node = self._add_all_nodes(else_op, visited, G, else_root + 1)
+            G.add_edge(else_root, parent)
             G.add_edge(else_node, parent)
             G.add_edge(parent, conditional_root)
             return G, count
@@ -169,6 +170,12 @@ class Task(object):
                     child = count + 1
                     _, count = self._add_all_nodes(c, visited, G, child)
                     G.add_edge(parent, child)
+                else:
+                    if node_label != 'Select':
+                        child = count + 1
+                        G.add_node(child, label='CONST')
+                        G.add_edge(parent, child)
+                        count += 1
         return G, count
 
     def _get_all_nodes(self, op, visited):
