@@ -542,6 +542,14 @@ class TemporalTask(Task):
         G, _ = self._add_all_nodes(self._operator, visited, G, 0)
         return G
 
+    def draw_graph(self, fp, G: nx.DiGraph = None):
+        if G is None:
+            G = self.to_graph()
+        G = G.reverse()
+        A = nx.nx_agraph.to_agraph(G)
+        A.draw(fp, prog='dot')
+        return
+
 
 class Select(Operator):
     """Selecting the objects that satisfy properties."""
