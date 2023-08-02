@@ -536,10 +536,11 @@ class TemporalTask(Task):
             json.dump(info, f, indent=4)
         return info
 
-    def to_graph(self, fp=None):
+    def to_graph(self):
         G = nx.DiGraph()
         visited = defaultdict(lambda: False)
-        return self._add_all_nodes(self._operator, visited, G, 0)
+        G, _ = self._add_all_nodes(self._operator, visited, G, 0)
+        return G
 
 
 class Select(Operator):
@@ -885,6 +886,7 @@ class Get(Operator):
 
 class Go(Get):
     """Go to location of object."""
+
     ## todo: is this redundant?
     def __init__(self, objs):
         super(Go, self).__init__('loc', objs)
