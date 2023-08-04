@@ -343,7 +343,7 @@ def write_trial_instance(task: tg.TemporalTask, write_fp: str, img_size=224, fix
             if not any('ending' in description for description in frame.description):
                 sg.add_fixation_cue(epoch)
         img = Image.fromarray(epoch, 'RGB')
-        filename = os.path.join(frames_fp, f'epoch{i}.png')
+        filename = os.path.join(write_fp, f'epoch{i}.png')
         # this is slow!
         img.save(filename)
     _, compo_example, _ = compo_info.get_examples()
