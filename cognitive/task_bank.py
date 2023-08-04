@@ -36,7 +36,7 @@ GLOBAL_SEED = None
 
 
 class ExistCategoryOfTemporal(TemporalTask):
-    """Check if exist object with shape of a colored object."""
+    """Check if  object on given frame has the same category with the object on another frame."""
 
     def __init__(self, whens=None, first_shareable=None):
         super(ExistCategoryOfTemporal, self).__init__(whens=whens, first_shareable=first_shareable)
@@ -56,7 +56,8 @@ class ExistCategoryOfTemporal(TemporalTask):
 
 
 class ExistViewAngleOfTemporal(TemporalTask):
-    """Check if exist object with shape of a colored object."""
+    # todo: the previous comment is Check if exist object with shape of a colored object.I believe that is not True
+    """Check if  object on given frame has the same view angle with the object on another frame."""
 
     def __init__(self, whens=None, first_shareable=None):
         super(ExistViewAngleOfTemporal, self).__init__(whens=whens, first_shareable=first_shareable)
@@ -71,11 +72,12 @@ class ExistViewAngleOfTemporal(TemporalTask):
 
     @property
     def instance_size(self):
+        ## todo: could you remind me what is instance_size? we need to update sg.n_sample_color to sg.n_sample_view_angle if possible
         return sg.n_sample_color(2) * sg.n_random_when()
 
 
 class ExistObjectOfTemporal(TemporalTask):
-    """Check if exist object with shape of a colored object."""
+    """Check if on given frame has the same object with another frame"""
 
     def __init__(self, whens=None, first_shareable=None):
         super(ExistViewAngleOfTemporal, self).__init__(whens=whens, first_shareable=first_shareable)
@@ -91,11 +93,12 @@ class ExistObjectOfTemporal(TemporalTask):
 
     @property
     def instance_size(self):
+        ## todo: see previous comments
         return sg.n_sample_color(2) * sg.n_random_when()
 
 
 class CompareCategoryTemporal(TemporalTask):
-    """DMS, Compare category between two objects."""
+    """Compare objects on chosen frames are of the same category or not."""
 
     def __init__(self, whens=None, first_shareable=None):
         super(CompareCategoryTemporal, self).__init__(whens=whens, first_shareable=first_shareable)
@@ -112,11 +115,12 @@ class CompareCategoryTemporal(TemporalTask):
 
     @property
     def instance_size(self):
+        # todo: comments the same as before
         return sg.n_sample_shape(2) * (sg.n_random_when()) ** 2
 
 
 class CompareViewAngleTemporal(TemporalTask):
-    """Compare view_angle between two objects."""
+    """Compare objects on chosen frames are of the same view angle or not"""
 
     def __init__(self, whens=None, first_shareable=None):
         super(CompareViewAngleTemporal, self).__init__(whens=whens, first_shareable=first_shareable)
@@ -133,11 +137,12 @@ class CompareViewAngleTemporal(TemporalTask):
 
     @property
     def instance_size(self):
+        ## todo: same comments as before
         return sg.n_sample_color(2) * (sg.n_random_when()) ** 2
 
 
 class CompareLocTemporal(TemporalTask):
-    """Compare color between two objects."""
+    """Compare objects on chosen frames are of the same location or not"""
 
     def __init__(self, whens=None, first_shareable=None):
         super(CompareLocTemporal, self).__init__(whens=whens, first_shareable=first_shareable)
@@ -154,11 +159,12 @@ class CompareLocTemporal(TemporalTask):
 
     @property
     def instance_size(self):
+        # todo: same comments as before
         return sg.n_sample_shape(2) * (sg.n_random_when()) ** 2
 
 
 class CompareObjectTemporal(TemporalTask):
-    """Compare color between two objects."""
+    """Compare objects on chosen frames are of the same identity or not"""
 
     def __init__(self, whens=None, first_shareable=None):
         super(CompareObjectTemporal, self).__init__(whens=whens, first_shareable=first_shareable)
@@ -180,6 +186,7 @@ class CompareObjectTemporal(TemporalTask):
 
 class CompareFixedObjectTemporal(TemporalTask):
     """Compare between two objects."""
+    ###### todo: not sure about this task????
 
     def __init__(self, whens=None, first_shareable=None):
         super(CompareFixedObjectTemporal, self).__init__(whens=whens, first_shareable=first_shareable)
@@ -196,10 +203,12 @@ class CompareFixedObjectTemporal(TemporalTask):
 
     @property
     def instance_size(self):
+        ## todo: same comments as before
         return sg.n_sample_shape(2) * (sg.n_random_when()) ** 2
 
 
 class SequentialCategoryMatch(TemporalTask):
+    # nback category
     def __init__(self, whens=None, first_shareable=None, n_frames=1):
         super(SequentialCategoryMatch, self).__init__(whens=whens, first_shareable=first_shareable)
         total_frames = n_frames * 2 + random.randint(0, const.MAX_MEMORY - (n_frames * 2) + 1)
@@ -220,10 +229,13 @@ class SequentialCategoryMatch(TemporalTask):
 
     @property
     def instance_size(self):
+        ## todo: same comment as before
         return sg.n_sample_shape(2) * (sg.n_random_when()) ** 2
 
 
 class DelayedCDM(TemporalTask):
+    # contextual decision making
+    # todo: detailed rules  of this task?
     def __init__(self, whens=None, first_shareable=None, attrs=None):
         super(DelayedCDM, self).__init__(whens=whens, first_shareable=first_shareable)
         if self.whens is None:
@@ -250,6 +262,7 @@ class DelayedCDM(TemporalTask):
         self.n_frames = const.compare_when([when1, when2]) + 1
 
 
+## todo: what is the random task here? are these two subtask you wrote for testing composition function?
 class RandomTask1(TemporalTask):
     def __init__(self, whens=None, first_shareable=None):
         super(RandomTask1, self).__init__(whens=whens, first_shareable=first_shareable)

@@ -119,7 +119,6 @@ class FileWriter(object):
 # TODO: move to stim_generator
 
 
-
 # TODO: move to stim_generator
 def write_task_instance(fname, task_info, img_size, fixation_cue=True):
     if not os.path.exists(fname):

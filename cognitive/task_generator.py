@@ -27,7 +27,6 @@ from collections import defaultdict, OrderedDict
 
 import numpy as np
 import random
-import pickle
 import networkx as nx
 
 from cognitive import constants as const
@@ -80,6 +79,57 @@ class Skip(object):
         pass
 
 
+class Operator(object):
+    """Base class for task constructors."""
+
+    def __init__(self):
+        # Whether or not this operator is the final operator
+        self.child = list()
+        self.parent = list()
+
+    def __str__(self):
+        pass
+
+    def __call__(self, objset, epoch_now):
+        del objset
+        del epoch_now
+
+    def copy(self):
+        raise NotImplementedError
+
+    def set_child(self, child):
+        """Set operators as children."""
+        try:
+            child.parent.append(self)
+            self.child.append(child)
+        except AttributeError:
+            for c in child:
+                self.set_child(c)
+
+    # def get_partial_expected_input(self, should_be=None, ):
+    def get_expected_input(self, should_be=None):
+        """Guess and update the objset at this epoch.
+
+        Args:
+          should_be: the supposed output
+        """
+        raise NotImplementedError('get_expected_input method is not defined.')
+
+    def child_json(self):
+        return [c.to_json() for c in self.child]
+
+    def self_json(self):
+        return {}
+
+    def to_json(self):
+        # return the dictionary for storing into json
+        info = dict()
+        info['name'] = self.__class__.__name__
+        info['child'] = self.child_json()
+        info.update(self.self_json())
+        return info
+
+
 class Task(object):
     """Base class for tasks."""
 
@@ -92,13 +142,44 @@ class Task(object):
             self._operator = operator
 
     def __call__(self, objset, epoch_now):
+        # when you want to get the answer to the ask
         return self._operator(objset, epoch_now)
 
     def __str__(self):
         # TODO: is_active flag for operators, drop out nodes when one branch is not part of instruction
         return str(self._operator)
 
+    def _add_all_nodes(self, op: Union[Operator, sg.Attribute], visited: dict, G: nx.DiGraph, count: int):
+        visited[op] = True
+        parent = count
+        node_label = type(op).__name__
+        G.add_node(parent, label=node_label)
+        if node_label == 'Switch':
+            conditional_op, if_op, else_op = op.child[0], op.child[1], op.child[2]
+            conditional_root = count + 1
+            _, if_root = self._add_all_nodes(conditional_op, visited, G, conditional_root)
+            _, else_root = self._add_all_nodes(if_op, visited, G, if_root + 1)
+            _, else_node = self._add_all_nodes(else_op, visited, G, else_root + 1)
+            G.add_edge(else_root, parent)
+            G.add_edge(else_node, parent)
+            G.add_edge(parent, conditional_root)
+            return G, count
+        else:
+            for c in op.child:
+                if isinstance(c, Operator) and not visited[c]:
+                    child = count + 1
+                    _, count = self._add_all_nodes(c, visited, G, child)
+                    G.add_edge(parent, child)
+                else:
+                    if node_label != 'Select':
+                        child = count + 1
+                        G.add_node(child, label='CONST')
+                        G.add_edge(parent, child)
+                        count += 1
+        return G, count
+
     def _get_all_nodes(self, op, visited):
+        # used for topological sort, not need to read
         """Get the total number of operators in the graph starting with op."""
         visited[op] = True
         all_nodes = [op]
@@ -159,6 +240,7 @@ class Task(object):
         nodes = self.topological_sort()
         should_be_dict = defaultdict(lambda: None)
 
+        # if should_be is None, then the output is randomly sampled
         if should_be is not None:
             should_be_dict[nodes[0]] = should_be
 
@@ -166,6 +248,7 @@ class Task(object):
         # while updating the expected input from the successors/children of the current node
         for node in nodes:
             should_be = should_be_dict[node]
+            # checking the type of operator
             if isinstance(should_be, Skip):
                 inputs = Skip() if len(node.child) == 1 else [Skip()] * len(node.child)
             elif isinstance(node, Select):
@@ -176,6 +259,8 @@ class Task(object):
                 inputs = node.get_expected_input(should_be, objset, epoch_now)
             else:
                 inputs = node.get_expected_input(should_be)
+            # e.g. node = IsSame, should_be = True,
+            # expected_input is the output of the children operators
 
             # outputs is a list of
             if len(node.child) == 1:
@@ -184,6 +269,7 @@ class Task(object):
                 outputs = inputs
 
             if isinstance(node, Switch):
+                # based on pouya's request
                 # for temporal switch, randomly select 1 branch to instantiate
                 if temporal_switch:
                     children = node.child
@@ -238,7 +324,7 @@ class Task(object):
         Mathematically, the average_memory_span is n_max_backtrack/3
 
         Args:
-          n_epoch: int, total number of epochs
+          n_epoch: int, total number of epochs, 1 epcoh is 1 frame
           n_distractor: int, number of distractors to add
           average_memory_span: int, the average number of epochs by which an object
             need to be held in working memory, if needed at all
@@ -282,6 +368,7 @@ class Task(object):
 
 
 class TemporalTask(Task):
+    # goal: combine multiple tasks together
     def __init__(self, operator=None, n_frames=None, first_shareable=None, whens=None):
         super(TemporalTask, self).__init__(operator)
         self.n_frames = n_frames
@@ -291,6 +378,7 @@ class TemporalTask(Task):
         self.whens = whens
 
     def copy(self):
+        # duplicate the task
         new_task = TemporalTask()
         new_task.n_frames = self.n_frames
         new_task._first_shareable = self.first_shareable
@@ -318,6 +406,7 @@ class TemporalTask(Task):
 
     @property
     def instance_size(self):
+        # todo: what is the point of instance size?
         pass
 
     @staticmethod
@@ -333,6 +422,7 @@ class TemporalTask(Task):
         return True
 
     def filter_selects(self, lastk=None):
+        # choose select node that match the delay parameter lastk
         selects = list()
         for node in self.topological_sort():
             if isinstance(node, Select):
@@ -345,6 +435,8 @@ class TemporalTask(Task):
         return selects
 
     def get_relevant_attribute(self, lastk):
+        # return the attribute of the object that is not randomly selected on lastk frame
+        # for merging check purpose
         attrs = set()
         # TODO: recurse to the root of the tree for switch?
         for lastk_select in self.filter_selects(lastk):
@@ -444,56 +536,19 @@ class TemporalTask(Task):
             json.dump(info, f, indent=4)
         return info
 
+    def to_graph(self):
+        G = nx.DiGraph()
+        visited = defaultdict(lambda: False)
+        G, _ = self._add_all_nodes(self._operator, visited, G, 0)
+        return G
 
-class Operator(object):
-    """Base class for task constructors."""
-
-    def __init__(self):
-        # Whether or not this operator is the final operator
-        self.child = list()
-        self.parent = list()
-
-    def __str__(self):
-        pass
-
-    def __call__(self, objset, epoch_now):
-        del objset
-        del epoch_now
-
-    def copy(self):
-        raise NotImplementedError
-
-    def set_child(self, child):
-        """Set operators as children."""
-        try:
-            child.parent.append(self)
-            self.child.append(child)
-        except AttributeError:
-            for c in child:
-                self.set_child(c)
-
-    # def get_partial_expected_input(self, should_be=None, ):
-    def get_expected_input(self, should_be=None):
-        """Guess and update the objset at this epoch.
-
-        Args:
-          should_be: the supposed output
-        """
-        raise NotImplementedError('get_expected_input method is not defined.')
-
-    def child_json(self):
-        return [c.to_json() for c in self.child]
-
-    def self_json(self):
-        return {}
-
-    def to_json(self):
-        # return the dictionary for storing into json
-        info = dict()
-        info['name'] = self.__class__.__name__
-        info['child'] = self.child_json()
-        info.update(self.self_json())
-        return info
+    def draw_graph(self, fp, G: nx.DiGraph = None):
+        if G is None:
+            G = self.to_graph()
+        G = G.reverse()
+        A = nx.nx_agraph.to_agraph(G)
+        A.draw(fp, prog='dot')
+        return
 
 
 class Select(Operator):
@@ -840,6 +895,7 @@ class Get(Operator):
 class Go(Get):
     """Go to location of object."""
 
+    ## todo: is this redundant?
     def __init__(self, objs):
         super(Go, self).__init__('loc', objs)
 
@@ -870,6 +926,7 @@ class GetLoc(Get):
 
 
 class GetFixedObject(Get):
+    #### todo: this is not used elsewhere except for task bank CompareFixedObjectTemporal task
     def __init__(self, objs):
         super(GetFixedObject, self).__init__('fixed_object', objs)
 
@@ -881,6 +938,7 @@ class GetFixedObject(Get):
 
 
 class GetTime(Operator):
+    ## todo: redundant?
     """Get time of an object.
 
     This operator is not tested and not finished.
@@ -1425,54 +1483,6 @@ def load_operator_json(
         #     init['space'] = load_operator_json(op_dict['space'], operator_families, attr_families)
         return attr_families[name](value=op_dict['value'], **init)
 
-
-# def convert_operators(G, operators, roots, bfs, operator_families, whens):
-#     print(G.nodes(data=True))
-#     while not all(isinstance(operators[root], Operator) for root in roots):
-#         # convert op from list of strings to list of operators
-#         temp = defaultdict(list)
-#         for root in bfs:
-#             if not isinstance(operators[root], Operator):
-#                 if G.nodes[root]['label'] == 'Select':
-#                     if bfs[root]:
-#                         attr_dict = {attr: None for attr in const.ATTRS}
-#                         for op in bfs[root]:
-#                             if 'Get' in G.nodes[op]['label']:
-#                                 attr = G.nodes[op]['label'].split('Get')[1].lower()
-#                                 attr = 'view_angle' if attr == 'viewangle' else attr
-#                                 attr_dict[attr] = operators[op]
-#                         operators[root] = Select(**attr_dict, when=whens.pop())
-#                     else:
-#                         operators[root] = Select(when=whens.pop())
-#                     for pred in list(G.predecessors(root)):
-#                         temp[pred].append(root)
-#                 elif G.nodes[root]['label'] == 'CONST':
-#                     operators[root] = sg.random_attr(random.choice(const.ATTRS))
-#                     for pred in list(G.predecessors(root)):
-#                         temp[pred].append(root)
-#                 elif G.nodes[root]['label'] == 'Exist':
-#                     operators[root] = Exist(operators[bfs[root][0]])
-#                     for pred in list(G.predecessors(root)):
-#                         temp[pred].append(root)
-#                 # elif G.nodes[root]['label'] == 'IsSame':
-#                 #     attr1, attr2 = operators[bfs[root][0]], operators[bfs[root][1]]
-#                 #     operators[root] = IsSame(attr1, attr2)
-#                 elif 'Get' in G.nodes[root]['label']:
-#                     objs = operators[bfs[root][0]]
-#                     operators[root] = operator_families[G.nodes[root]['label']](objs)
-#                     for pred in list(G.predecessors(root)):
-#                         temp[pred].append(root)
-#                 elif G.nodes[root]['label'] in const.LOGIC_OPS:
-#                     if len(bfs[root]) < 2:
-#                         temp[root] += bfs[root]
-#                     else:
-#                         op1, op2 = operators[bfs[root][0]], operators[bfs[root][1]]
-#                         operators[root] = operator_families[G.nodes[root]['label']](op1, op2)
-#                         for pred in list(G.predecessors(root)):
-#                             temp[pred].append(root)
-#         bfs = temp
-#         print(operators, bfs)
-#     return operators[roots[0]]
 
 def subtask_generation(subtask_graph: GRAPH_TUPLE, op_dict: dict = None) -> TASK:
     subtask_G, root, _ = subtask_graph
