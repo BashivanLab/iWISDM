@@ -336,7 +336,6 @@ def write_trial_instance(task: tg.TemporalTask, write_fp: str, img_size=224, fix
     frame_info = ig.FrameInfo(task, task.generate_objset())
     compo_info = ig.TaskInfoCompo(task, frame_info)
     objset = compo_info.frame_info.objset
-    print(objset)
     for i, (epoch, frame) in enumerate(zip(sg.render(objset, img_size), compo_info.frame_info)):
         # add cross in the center of the image
         if fixation_cue:
