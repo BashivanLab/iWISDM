@@ -290,7 +290,7 @@ class SNViewAngle(Attribute):
 
 
 class SNFixedObject(Attribute):
-    ## todo: same as the comment in task bank: not sure what you mean by fixedobject
+    # used for sanity check, fixed object, only changes view angle
     def __init__(self, sn_object, value):
         if value is not None:
             assert isinstance(sn_object, SNObject)
@@ -423,6 +423,7 @@ class Object(object):
         ])
 
     def check_attrs(self):
+        # sanity check
         return self.object.category == self.category and \
             self.view_angle.object == self.object
 

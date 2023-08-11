@@ -129,426 +129,15 @@ class Operator(object):
         info.update(self.self_json())
         return info
 
-
-class Task(object):
-    """Base class for tasks."""
-
-    def __init__(self, operator=None):
-        if operator is None:
-            self._operator = Operator()
-        else:
-            if not isinstance(operator, Operator):
-                raise TypeError('operator is the wrong type ' + str(type(operator)))
-            self._operator = operator
-
-    def __call__(self, objset, epoch_now):
-        # when you want to get the answer to the ask
-        return self._operator(objset, epoch_now)
-
-    def __str__(self):
-        # TODO: is_active flag for operators, drop out nodes when one branch is not part of instruction
-        return str(self._operator)
-
-    def _add_all_nodes(self, op: Union[Operator, sg.Attribute], visited: dict, G: nx.DiGraph, count: int):
-        visited[op] = True
-        parent = count
-        node_label = type(op).__name__
-        G.add_node(parent, label=node_label)
-        if node_label == 'Switch':
-            conditional_op, if_op, else_op = op.child[0], op.child[1], op.child[2]
-            conditional_root = count + 1
-            _, if_root = self._add_all_nodes(conditional_op, visited, G, conditional_root)
-            _, else_root = self._add_all_nodes(if_op, visited, G, if_root + 1)
-            _, else_node = self._add_all_nodes(else_op, visited, G, else_root + 1)
-            G.add_edge(else_root, parent)
-            G.add_edge(else_node, parent)
-            G.add_edge(parent, conditional_root)
-            return G, count
-        else:
-            for c in op.child:
-                if isinstance(c, Operator) and not visited[c]:
-                    child = count + 1
-                    _, count = self._add_all_nodes(c, visited, G, child)
-                    G.add_edge(parent, child)
-                else:
-                    if node_label != 'Select':
-                        child = count + 1
-                        G.add_node(child, label='CONST')
-                        G.add_edge(parent, child)
-                        count += 1
-        return G, count
-
-    def _get_all_nodes(self, op, visited):
-        # used for topological sort, not need to read
-        """Get the total number of operators in the graph starting with op."""
-        visited[op] = True
-        all_nodes = [op]
-        for c in op.child:
-            if isinstance(c, Operator) and not visited[c]:
-                all_nodes.extend(self._get_all_nodes(c, visited))
-        return all_nodes
-
-    @property
-    def _all_nodes(self):
-        """Return all nodes in a list."""
-        visited = defaultdict(lambda: False)
-        return self._get_all_nodes(self._operator, visited)
-
-    @property
-    def operator_size(self):
-        """Return the number of unique operators."""
-        return len(self._all_nodes)
-
-    def topological_sort_visit(self, node, visited, stack):
-        """Recursive function that visits a root."""
-
-        # Mark the current root as visited.
-        visited[node] = True
-
-        # Recur for all the vertices adjacent to this vertex
-        for child in node.child:
-            if isinstance(child, Operator) and not visited[child]:
-                self.topological_sort_visit(child, visited, stack)
-
-        # Push current vertex to stack which stores result
-        stack.insert(0, node)
-
-    def topological_sort(self):
-        """Perform a topological sort."""
-        nodes = self._all_nodes
-
-        # Mark all the vertices as not visited
-        visited = defaultdict(lambda: False)
-        stack = []
-
-        # Call the recursive helper function to store Topological
-        # Sort starting from all vertices one by one
-        for node in nodes:
-            if not visited[node]:
-                self.topological_sort_visit(node, visited, stack)
-
-        # Print contents of stack
-        return stack
-
-    def guess_objset(self, objset: sg.ObjectSet, epoch_now: int, should_be=None, temporal_switch=False):
+    def check_attrs(self):
         """
-        main function for generating frames based on task graph structure
-        iterate through each node in topological order, and propagate the expected inputs from
-        predecessors to the successors
-        :return: the updated objset after going through the task graph
+        check if any children are operators
+        :return: True if children contain no operators
         """
-        nodes = self.topological_sort()
-        should_be_dict = defaultdict(lambda: None)
-
-        # if should_be is None, then the output is randomly sampled
-        if should_be is not None:
-            should_be_dict[nodes[0]] = should_be
-
-        # iterate over all nodes in topological order
-        # while updating the expected input from the successors/children of the current node
-        for node in nodes:
-            should_be = should_be_dict[node]
-            # checking the type of operator
-            if isinstance(should_be, Skip):
-                inputs = Skip() if len(node.child) == 1 else [Skip()] * len(node.child)
-            elif isinstance(node, Select):
-                inputs = node.get_expected_input(should_be, objset, epoch_now)
-                objset = inputs[0]
-                inputs = inputs[1:]
-            elif isinstance(node, IsSame) or isinstance(node, And):
-                inputs = node.get_expected_input(should_be, objset, epoch_now)
-            else:
-                inputs = node.get_expected_input(should_be)
-            # e.g. node = IsSame, should_be = True,
-            # expected_input is the output of the children operators
-
-            # outputs is a list of
-            if len(node.child) == 1:
-                outputs = [inputs]  ## xl:for later interation
-            else:
-                outputs = inputs
-
-            if isinstance(node, Switch):
-                # based on pouya's request
-                # for temporal switch, randomly select 1 branch to instantiate
-                if temporal_switch:
-                    children = node.child
-                    if random.random() > 0.5:
-                        children.pop(1)
-                    else:
-                        children.pop(2)
-                else:
-                    children = node.child
-            else:
-                children = node.child
-
-            # Update the should_be dictionary for the children
-            for c, output in zip(children, outputs):
-                if not isinstance(c, Operator):  # if c is not an Operator
-                    continue
-                if isinstance(output, Skip):
-                    should_be_dict[c] = Skip()
-                    continue
-                if should_be_dict[c] is None:
-                    # If not assigned, assign
-                    should_be_dict[c] = output
-                # if child is an operator and there's already assigned expected output
-                else:
-                    # If assigned, for each object, try to merge them
-                    # currently, only selects should have pre-assigned output
-                    if isinstance(c, Select):
-                        # Loop over new output
-                        for o in output:
-                            assert isinstance(o, sg.Object)
-                            merged = False
-                            # Loop over previously assigned outputs
-                            for s in should_be_dict[c]:
-                                # Try to merge
-                                merged = s.merge(o)
-                                if merged:
-                                    break
-                            if not merged:
-                                should_be_dict[c].append(o)
-                    else:
-                        raise NotImplementedError()
-        return objset
-
-    @property
-    def instance_size(self):
-        """Return the total number of possible instantiated tasks."""
-        raise NotImplementedError('instance_size is not defined for this task.')
-
-    def generate_objset(self, n_epoch, n_distractor=0, average_memory_span=2):
-        """Guess objset for all n_epoch.
-
-        Mathematically, the average_memory_span is n_max_backtrack/3
-
-        Args:
-          n_epoch: int, total number of epochs, 1 epcoh is 1 frame
-          n_distractor: int, number of distractors to add
-          average_memory_span: int, the average number of epochs by which an object
-            need to be held in working memory, if needed at all
-
-        Returns:
-          objset: full objset for all n_epoch
-        """
-        n_max_backtrack = int(average_memory_span * 3)  ### why do this convertion? waste of time?
-        objset = sg.ObjectSet(n_epoch=n_epoch, n_max_backtrack=n_max_backtrack)
-
-        # Guess objects
-        # Importantly, we generate objset backward in time
-        ## xlei: only update the last epoch
-
-        epoch_now = n_epoch - 1
-        for _ in range(n_distractor):
-            objset.add_distractor(epoch_now)  # distractor
-        objset = self.guess_objset(objset, epoch_now)
-
-        # epoch_now = n_epoch - 1
-        # while epoch_now >= 0:
-        #   if n_distractor == 0:
-        #     break
-        #   else:
-        #     for _ in range(n_distractor):
-        #       objset.add_distractor(epoch_now)  # distractor
-        #     objset = self.guess_objset(objset, epoch_now)
-        #     epoch_now -= 1
-
-        return objset
-
-    def get_target(self, objset):
-
-        # return [self(objset, epoch_now) for epoch_now in range(0,objset.n_epoch)]
-        return [self(objset, objset.n_epoch - 1)]
-
-    def is_bool_output(self):
-        if self._operator in BOOL_OP:
-            return True
-        return False
-
-
-class TemporalTask(Task):
-    # goal: combine multiple tasks together
-    def __init__(self, operator=None, n_frames=None, first_shareable=None, whens=None):
-        super(TemporalTask, self).__init__(operator)
-        self.n_frames = n_frames
-        self._first_shareable = first_shareable
-        self.n_distractors = None
-        self.avg_mem = None
-        self.whens = whens
-
-    def copy(self):
-        # duplicate the task
-        new_task = TemporalTask()
-        new_task.n_frames = self.n_frames
-        new_task._first_shareable = self.first_shareable
-        new_task.n_distractors = self.n_distractors
-        new_task.avg_mem = self.avg_mem
-        nodes = self.topological_sort()
-        # TODO: multiple get pointing to same instance of select
-        # for n in nodes:
-        #     if isinstance(n, Select):
-        #         self.
-        new_task._operator = self._operator.copy()
-        return new_task
-
-    @property
-    def first_shareable(self):
-        """
-
-        :return: the frame at which the task is first shareable.
-        if the task is non-shareable, first_shareable = len(task)
-        if no input, start at random frame, including the possibility of non-shareable
-        """
-        if self._first_shareable is None:
-            self._first_shareable = int(np.random.choice(np.arange(0, self.n_frames + 1)))
-        return self._first_shareable
-
-    @property
-    def instance_size(self):
-        # todo: what is the point of instance size?
-        pass
-
-    @staticmethod
-    def check_attrs(select):
-        """
-        :param select:
-        :return: True if select contains no operators
-        """
-        for attr_type in ['loc', 'category', 'object', 'view_angle']:
-            a = getattr(select, attr_type)
-            if isinstance(a, Operator):
+        for c in self.child:
+            if isinstance(c, Operator):
                 return False
         return True
-
-    def filter_selects(self, lastk=None):
-        # choose select node that match the delay parameter lastk
-        selects = list()
-        for node in self.topological_sort():
-            if isinstance(node, Select):
-                if lastk:
-                    if node.when == lastk and self.check_attrs(node):
-                        selects.append(node)
-                else:
-                    if self.check_attrs(node):
-                        selects.append(node)
-        return selects
-
-    def get_relevant_attribute(self, lastk):
-        # return the attribute of the object that is not randomly selected on lastk frame
-        # for merging check purpose
-        attrs = set()
-        # TODO: recurse to the root of the tree for switch?
-        for lastk_select in self.filter_selects(lastk):
-            for parent_op in lastk_select.parent:
-                if isinstance(parent_op, Get):
-                    attrs.add(parent_op.attr_type)
-                elif isinstance(parent_op, Exist):
-                    for attr in const.ATTRS:
-                        if getattr(lastk_select, attr).value:
-                            attrs.add(attr)
-                elif isinstance(parent_op, IsSame):
-                    for op in parent_op.child:
-                        if not isinstance(op, Operator):
-                            attrs.add(op.attr_type)
-
-        return attrs
-
-    def reinit(self, copy, objs, lastk):
-        """
-        update the task in-place based on provided objects
-        :param lastk:
-        :param objs:
-        :type copy: TemporalTask
-        :return: None if there are no leaf selects, list of objs otherwise
-        """
-        assert all([o.when == objs[0].when for o in objs])
-
-        filter_selects, copy_filter_selects = self.filter_selects(lastk), copy.filter_selects(lastk)
-
-        # uncomment if multiple stim per frame
-        # assert len(filter_selects) == len(copy_filter_selects)
-        if len(objs) < len(filter_selects):
-            print('Not enough objects for select')
-            return None
-
-        if filter_selects:
-            filter_objs = random.sample(objs, k=len(filter_selects))
-            # for (select, copy_select), obj in zip(zip(filter_selects, copy_filter_selects), filter_objs):
-            #     copy_select.hard_update(obj)
-            #     select.soft_update(obj)
-            for select in filter_selects:
-                for obj in filter_objs:
-                    select.soft_update(obj)
-            for select_copy in copy_filter_selects:
-                select_copy.hard_update(obj)
-        return filter_objs
-
-    def generate_objset(self, n_distractor=0, average_memory_span=3, *args, **kwargs):
-        """Guess objset for all n_epoch.
-
-        Mathematically, the average_memory_span is n_max_backtrack/3
-
-        Args:
-          n_distractor: int, number of distractors to add
-          average_memory_span: int, the average number of epochs by which an object
-            need to be held in working memory, if needed at all
-
-        Returns:
-          objset: full objset for all n_epoch
-        """
-        self.n_distractors = n_distractor
-        self.avg_mem = average_memory_span
-        n_epoch = self.n_frames
-        n_max_backtrack = int(average_memory_span * 3)  # why do this conversion? waste of time?
-        objset = sg.ObjectSet(n_epoch=n_epoch, n_max_backtrack=n_max_backtrack)
-
-        # Guess objects
-        # Importantly, we generate objset backward in time
-        ## xlei: only update the last epoch
-
-        epoch_now = n_epoch - 1
-        for _ in range(n_distractor):
-            objset.add_distractor(epoch_now)  # distractor
-        objset = self.guess_objset(objset, epoch_now, *args, **kwargs)
-
-        # epoch_now = n_epoch - 1
-        # while epoch_now >= 0:
-        #   if n_distractor == 0:
-        #     break
-        #   else:
-        #     for _ in range(n_distractor):
-        #       objset.add_distractor(epoch_now)  # distractor
-        #     objset = self.guess_objset(objset, epoch_now)
-        #     epoch_now -= 1
-
-        return objset
-
-    def to_json(self, fp):
-        info = dict()
-        info['n_frames'] = self.n_frames
-        info['first_shareable'] = self.first_shareable
-        info['n_distractors'] = self.n_distractors
-        info['avg_mem'] = self.avg_mem
-        info['whens'] = self.whens
-        info['operator'] = self._operator.to_json()
-        with open(fp, 'w') as f:
-            json.dump(info, f, indent=4)
-        return info
-
-    def to_graph(self):
-        G = nx.DiGraph()
-        visited = defaultdict(lambda: False)
-        G, _ = self._add_all_nodes(self._operator, visited, G, 0)
-        return G
-
-    def draw_graph(self, fp, G: nx.DiGraph = None):
-        if G is None:
-            G = self.to_graph()
-        G = G.reverse()
-        A = nx.nx_agraph.to_agraph(G)
-        A.draw(fp, prog='dot')
-        return
 
 
 class Select(Operator):
@@ -633,6 +222,11 @@ class Select(Operator):
         #               view_angle=new_view, when=self.when, space_type=new_st)
 
     def hard_update(self, obj: sg.Object):
+        """
+        change the attributes based on the attributes of the provided obj
+        :param obj: an object on a frame that select needs to corresponds to
+        :return: True if modification is successful
+        """
         assert obj.check_attrs()
 
         self.category = obj.category
@@ -642,6 +236,13 @@ class Select(Operator):
         return True
 
     def soft_update(self, obj: sg.Object):
+        """
+        change the attributes based on the attributes of the provided obj
+        don't change the attribute if no value has been assigned
+
+        :param obj: an object on a frame that select needs to corresponds to
+        :return: True if modification is successful
+        """
         assert obj.check_attrs()
 
         self.category = obj.category if self.category.has_value else self.category
@@ -1290,6 +891,414 @@ class And(Operator):
                 op1_assign, op2_assign = False, False
 
         return op1_assign, op2_assign
+
+
+class Task(object):
+    """Base class for tasks."""
+
+    def __init__(self, operator=None):
+        if operator is None:
+            self._operator = Operator()
+        else:
+            if not isinstance(operator, Operator):
+                raise TypeError('operator is the wrong type ' + str(type(operator)))
+            self._operator = operator
+
+    def __call__(self, objset, epoch_now):
+        # when you want to get the answer to the ask
+        return self._operator(objset, epoch_now)
+
+    def __str__(self):
+        # TODO: is_active flag for operators, drop out nodes when one branch is not part of instruction
+        return str(self._operator)
+
+    def _add_all_nodes(self, op: Union[Operator, sg.Attribute], visited: dict, G: nx.DiGraph, count: int):
+        visited[op] = True
+        parent = count
+        node_label = type(op).__name__
+        G.add_node(parent, label=node_label)
+        if node_label == 'Switch':
+            conditional_op, if_op, else_op = op.child[0], op.child[1], op.child[2]
+            conditional_root = count + 1
+            _, if_root = self._add_all_nodes(conditional_op, visited, G, conditional_root)
+            _, else_root = self._add_all_nodes(if_op, visited, G, if_root + 1)
+            _, else_node = self._add_all_nodes(else_op, visited, G, else_root + 1)
+            G.add_edge(else_root, parent)
+            G.add_edge(else_node, parent)
+            G.add_edge(parent, conditional_root)
+            return G, count
+        else:
+            for c in op.child:
+                if isinstance(c, Operator) and not visited[c]:
+                    child = count + 1
+                    _, count = self._add_all_nodes(c, visited, G, child)
+                    G.add_edge(parent, child)
+                else:
+                    if node_label != 'Select':
+                        child = count + 1
+                        G.add_node(child, label='CONST')
+                        G.add_edge(parent, child)
+                        count += 1
+        return G, count
+
+    def _get_all_nodes(self, op, visited):
+        # used for topological sort, not need to read
+        """Get the total number of operators in the graph starting with op."""
+        visited[op] = True
+        all_nodes = [op]
+        for c in op.child:
+            if isinstance(c, Operator) and not visited[c]:
+                all_nodes.extend(self._get_all_nodes(c, visited))
+        return all_nodes
+
+    @property
+    def _all_nodes(self):
+        """Return all nodes in a list."""
+        visited = defaultdict(lambda: False)
+        return self._get_all_nodes(self._operator, visited)
+
+    @property
+    def operator_size(self):
+        """Return the number of unique operators."""
+        return len(self._all_nodes)
+
+    def topological_sort_visit(self, node, visited, stack):
+        """Recursive function that visits a root."""
+
+        # Mark the current root as visited.
+        visited[node] = True
+
+        # Recur for all the vertices adjacent to this vertex
+        for child in node.child:
+            if isinstance(child, Operator) and not visited[child]:
+                self.topological_sort_visit(child, visited, stack)
+
+        # Push current vertex to stack which stores result
+        stack.insert(0, node)
+
+    def topological_sort(self):
+        """Perform a topological sort."""
+        nodes = self._all_nodes
+
+        # Mark all the vertices as not visited
+        visited = defaultdict(lambda: False)
+        stack = []
+
+        # Call the recursive helper function to store Topological
+        # Sort starting from all vertices one by one
+        for node in nodes:
+            if not visited[node]:
+                self.topological_sort_visit(node, visited, stack)
+
+        # Print contents of stack
+        return stack
+
+    def guess_objset(self, objset: sg.ObjectSet, epoch_now: int, should_be=None, temporal_switch=False):
+        """
+        main function for generating frames based on task graph structure
+        iterate through each node in topological order, and propagate the expected inputs from
+        predecessors to the successors
+        :return: the updated objset after going through the task graph
+        """
+        nodes = self.topological_sort()
+        should_be_dict = defaultdict(lambda: None)
+
+        # if should_be is None, then the output is randomly sampled
+        if should_be is not None:
+            should_be_dict[nodes[0]] = should_be
+
+        # iterate over all nodes in topological order
+        # while updating the expected input from the successors/children of the current node
+        for node in nodes:
+            should_be = should_be_dict[node]
+            # checking the type of operator
+            if isinstance(should_be, Skip):
+                inputs = Skip() if len(node.child) == 1 else [Skip()] * len(node.child)
+            elif isinstance(node, Select):
+                inputs = node.get_expected_input(should_be, objset, epoch_now)
+                objset = inputs[0]
+                inputs = inputs[1:]
+            elif isinstance(node, IsSame) or isinstance(node, And):
+                inputs = node.get_expected_input(should_be, objset, epoch_now)
+            else:
+                inputs = node.get_expected_input(should_be)
+            # e.g. node = IsSame, should_be = True,
+            # expected_input is the output of the children operators
+
+            # outputs is a list, if node is select, then get_expected_input adds object to objset
+            if len(node.child) == 1:
+                outputs = [inputs]  ## xl:for later interation
+            else:
+                outputs = inputs
+
+            if isinstance(node, Switch):
+                # based on pouya's request
+                # for temporal switch, randomly select 1 branch to instantiate
+                if temporal_switch:
+                    children = node.child
+                    if random.random() > 0.5:
+                        children.pop(1)
+                    else:
+                        children.pop(2)
+                else:
+                    children = node.child
+            else:
+                children = node.child
+
+            # Update the should_be dictionary for the children
+            for c, output in zip(children, outputs):
+                if not isinstance(c, Operator):  # if c is not an Operator
+                    continue
+                if isinstance(output, Skip):
+                    should_be_dict[c] = Skip()
+                    continue
+                if should_be_dict[c] is None:
+                    # If not assigned, assign
+                    should_be_dict[c] = output
+                # if child is an operator and there's already assigned expected output
+                else:
+                    # If assigned, for each object, try to merge them
+                    # currently, only selects should have pre-assigned output
+                    if isinstance(c, Select):
+                        # Loop over new output
+                        for o in output:
+                            assert isinstance(o, sg.Object)
+                            merged = False
+                            # Loop over previously assigned outputs
+                            for s in should_be_dict[c]:
+                                # Try to merge
+                                merged = s.merge(o)
+                                if merged:
+                                    break
+                            if not merged:
+                                should_be_dict[c].append(o)
+                    else:
+                        raise NotImplementedError()
+        return objset
+
+    @property
+    def instance_size(self):
+        """Return the total number of possible instantiated tasks."""
+        raise NotImplementedError('instance_size is not defined for this task.')
+
+    def generate_objset(self, n_epoch, n_distractor=0, average_memory_span=2):
+        """Guess objset for all n_epoch.
+
+        Mathematically, the average_memory_span is n_max_backtrack/3
+
+        Args:
+          n_epoch: int, total number of epochs, 1 epcoh is 1 frame
+          n_distractor: int, number of distractors to add
+          average_memory_span: int, the average number of epochs by which an object
+            need to be held in working memory, if needed at all
+
+        Returns:
+          objset: full objset for all n_epoch
+        """
+        n_max_backtrack = int(average_memory_span * 3)  ### why do this convertion? waste of time?
+        objset = sg.ObjectSet(n_epoch=n_epoch, n_max_backtrack=n_max_backtrack)
+
+        # Guess objects
+        # Importantly, we generate objset backward in time
+        ## xlei: only update the last epoch
+
+        epoch_now = n_epoch - 1
+        for _ in range(n_distractor):
+            objset.add_distractor(epoch_now)  # distractor
+        objset = self.guess_objset(objset, epoch_now)
+
+        # epoch_now = n_epoch - 1
+        # while epoch_now >= 0:
+        #   if n_distractor == 0:
+        #     break
+        #   else:
+        #     for _ in range(n_distractor):
+        #       objset.add_distractor(epoch_now)  # distractor
+        #     objset = self.guess_objset(objset, epoch_now)
+        #     epoch_now -= 1
+
+        return objset
+
+    def get_target(self, objset):
+
+        # return [self(objset, epoch_now) for epoch_now in range(0,objset.n_epoch)]
+        return [self(objset, objset.n_epoch - 1)]
+
+    def is_bool_output(self):
+        if self._operator in BOOL_OP:
+            return True
+        return False
+
+
+class TemporalTask(Task):
+    # goal: combine multiple tasks together
+    def __init__(self, operator=None, n_frames=None, first_shareable=None, whens=None):
+        super(TemporalTask, self).__init__(operator)
+        self.n_frames = n_frames
+        self._first_shareable = first_shareable
+        self.n_distractors = None
+        self.avg_mem = None
+        self.whens = whens
+
+    def copy(self):
+        # duplicate the task
+        new_task = TemporalTask()
+        new_task.n_frames = self.n_frames
+        new_task._first_shareable = self.first_shareable
+        new_task.n_distractors = self.n_distractors
+        new_task.avg_mem = self.avg_mem
+        nodes = self.topological_sort()
+        # TODO: multiple get pointing to same instance of select
+        # for n in nodes:
+        #     if isinstance(n, Select):
+        #         self.
+        new_task._operator = self._operator.copy()
+        return new_task
+
+    @property
+    def first_shareable(self):
+        """
+
+        :return: the frame at which the task is first shareable.
+        if the task is non-shareable, first_shareable = len(task)
+        if no input, start at random frame, including the possibility of non-shareable
+        """
+        if self._first_shareable is None:
+            self._first_shareable = int(np.random.choice(np.arange(0, self.n_frames + 1)))
+        return self._first_shareable
+
+    @property
+    def instance_size(self):
+        # todo: what is the point of instance size?
+        pass
+
+    @staticmethod
+    def filter_selects(self, lastk=None) -> List[Select]:
+        # filter for select operators that corresponds directly to an object and match lastk
+        selects = list()
+        for node in self.topological_sort():
+            if isinstance(node, Select) and node.check_attrs():
+                if lastk and node.when == lastk:
+                    selects.append(node)
+                else:
+                    selects.append(node)
+        return selects
+
+    def get_relevant_attribute(self, lastk):
+        # return the attribute of the object that is not randomly selected on lastk frame
+        # for merging check purpose
+        attrs = set()
+        # TODO: recurse to the root of the tree for switch?
+        for lastk_select in self.filter_selects(lastk):
+            for parent_op in lastk_select.parent:
+                if isinstance(parent_op, Get):
+                    attrs.add(parent_op.attr_type)
+                elif isinstance(parent_op, Exist):
+                    for attr in const.ATTRS:
+                        if getattr(lastk_select, attr).value:
+                            attrs.add(attr)
+                elif isinstance(parent_op, IsSame):
+                    for op in parent_op.child:
+                        if not isinstance(op, Operator):
+                            attrs.add(op.attr_type)
+
+        return attrs
+
+    def reinit(self, copy, objs: List[sg.Object], lastk: str) -> List[sg.Object]:
+        """update the task's selects in-place based on provided objects.
+
+        :param lastk: the frame index with respect to the ending frame
+        .g. if len(frames) is 3, last frame is last0, first frame is last2
+        :param objs: list of objects that the selects need to match
+        :type copy: copy of the TemporalTask
+        :return: None if there are no leaf selects, list of objs otherwise
+        """
+        assert all([o.when == objs[0].when for o in objs])
+
+        filter_selects, copy_filter_selects = self.filter_selects(lastk), copy.filter_selects(lastk)
+
+        # uncomment if multiple stim per frame
+        # assert len(filter_selects) == len(copy_filter_selects)
+
+        filter_objs = list()
+        if filter_selects:
+            if len(objs) < len(filter_selects):
+                print('Not enough objects for select')
+                return None
+            # match objs on that frame with the number of selects
+            filter_objs = random.sample(objs, k=len(filter_selects))
+            for select in filter_selects:
+                for obj in filter_objs:
+                    select.soft_update(obj)
+            for select_copy in copy_filter_selects:
+                select_copy.hard_update(obj)
+        return filter_objs
+
+    def generate_objset(self, n_distractor=0, average_memory_span=3, *args, **kwargs):
+        """Guess objset for all n_epoch.
+
+        Mathematically, the average_memory_span is n_max_backtrack/3
+
+        Args:
+          n_distractor: int, number of distractors to add
+          average_memory_span: int, the average number of epochs by which an object
+            need to be held in working memory, if needed at all
+
+        Returns:
+          objset: full objset for all n_epoch
+        """
+        self.n_distractors = n_distractor
+        self.avg_mem = average_memory_span
+        n_epoch = self.n_frames
+        n_max_backtrack = int(average_memory_span * 3)  # why do this conversion? waste of time?
+        objset = sg.ObjectSet(n_epoch=n_epoch, n_max_backtrack=n_max_backtrack)
+
+        # Guess objects
+        # Importantly, we generate objset backward in time
+        ## xlei: only update the last epoch
+
+        epoch_now = n_epoch - 1
+        for _ in range(n_distractor):
+            objset.add_distractor(epoch_now)  # distractor
+        objset = self.guess_objset(objset, epoch_now, *args, **kwargs)
+
+        # epoch_now = n_epoch - 1
+        # while epoch_now >= 0:
+        #   if n_distractor == 0:
+        #     break
+        #   else:
+        #     for _ in range(n_distractor):
+        #       objset.add_distractor(epoch_now)  # distractor
+        #     objset = self.guess_objset(objset, epoch_now)
+        #     epoch_now -= 1
+
+        return objset
+
+    def to_json(self, fp):
+        info = dict()
+        info['n_frames'] = self.n_frames
+        info['first_shareable'] = self.first_shareable
+        info['n_distractors'] = self.n_distractors
+        info['avg_mem'] = self.avg_mem
+        info['whens'] = self.whens
+        info['operator'] = self._operator.to_json()
+        with open(fp, 'w') as f:
+            json.dump(info, f, indent=4)
+        return info
+
+    def to_graph(self):
+        G = nx.DiGraph()
+        visited = defaultdict(lambda: False)
+        G, _ = self._add_all_nodes(self._operator, visited, G, 0)
+        return G
+
+    def draw_graph(self, fp, G: nx.DiGraph = None):
+        if G is None:
+            G = self.to_graph()
+        G = G.reverse()
+        A = nx.nx_agraph.to_agraph(G)
+        A.draw(fp, prog='dot')
+        return
 
 
 TASK = Tuple[Union[Operator, sg.Attribute], TemporalTask]

@@ -66,62 +66,7 @@ def log_exceptions(func):
     return wrapped_func
 
 
-class FileWriter(object):
-    """Writes per_file examples in a file. Then, picks a new file."""
-
-    def __init__(self, base_name, per_file=100, start_index=0, compress=True):
-        self.per_file = per_file
-        self.base_name = base_name
-        self.compress = compress
-        self.cur_file_index = start_index - 1
-        self.cur_file = None
-        self.written = 0
-        self.file_names = []
-
-        self._new_file()
-
-    def _file_name(self):
-        return '%s_%d.json' % (self.base_name, self.cur_file_index)
-
-    def _new_file(self):
-        if self.cur_file:
-            self.close()
-
-        self.written = 0
-        self.cur_file_index += 1
-        # 'b' is needed because we want to seek from the end. Text files
-        # don't allow seeking from the end (because width of one char is
-        # not fixed)
-        self.cur_file = open(self._file_name(), 'wb')
-        self.file_names.append(self._file_name())
-
-    def write(self, data):
-        if self.written >= self.per_file:
-            self._new_file()
-        self.cur_file.write(data)
-        self.cur_file.write(b'\n')
-        self.written += 1
-
-    def close(self):
-        self.cur_file.seek(-1, os.SEEK_END)
-        # Remove last new line
-        self.cur_file.truncate()
-        self.cur_file.close()
-
-        if self.compress:
-            # Compress the file and delete the original. We can write to compressed
-            # file immediately because truncate() does not work on compressed files.
-            with open(self._file_name(), 'rb') as f_in, \
-                    gzip.open(self._file_name() + '.gz', 'wb') as f_out:
-                shutil.copyfileobj(f_in, f_out)
-
-            os.remove(self._file_name())
-
-
-# TODO: move to stim_generator
-
-
-# TODO: move to stim_generator
+# TODO: move to stim_generator, duplicate in auto_task
 def write_task_instance(fname, task_info, img_size, fixation_cue=True):
     if not os.path.exists(fname):
         os.makedirs(fname)
