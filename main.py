@@ -38,6 +38,8 @@ from collections import defaultdict
 import numpy as np
 import tensorflow.compat.v1 as tf
 
+from typing import List
+
 from cognitive import stim_generator as sg
 from cognitive import task_generator as tg
 import cognitive.task_bank as task_bank
@@ -183,7 +185,7 @@ def generate_temporal_example(max_memory, max_distractors, task_family,
 
 def generate_compo_temporal_example(max_memory, max_distractors, families, n_tasks=1,
                                     *args, **kwargs):
-    '''
+    """
 
     :param first_shareable:
     :param whens:
@@ -192,7 +194,7 @@ def generate_compo_temporal_example(max_memory, max_distractors, families, n_tas
     :param max_distractors:
     :param n_tasks:
     :return: combined TaskInfo Compo
-    '''
+    """
 
     whens = kwargs.pop('whens', [None for _ in range(n_tasks)])
 
@@ -213,7 +215,7 @@ def generate_compo_temporal_example(max_memory, max_distractors, families, n_tas
 # TODO: split training and validation after task generation
 
 def generate_dataset(examples_per_family, output_dir='./data',
-                     random_families=True, families=None,
+                     random_families=True, families: List = None,
                      composition=1, img_size=224,
                      train=0.7, validation=0.3, fixation_cue=True,
                      *args, **kwargs):
@@ -317,6 +319,7 @@ def main():
     const.DATA = const.Data(args.stim_dir)
 
     start = timeit.default_timer()
+    # TODO: recall which is interleave and queue, and separate them
     if args.nback > 0:
         assert all('Compare' in family for family in args.families)
         whens = [f'last{args.nback}', 'last0']

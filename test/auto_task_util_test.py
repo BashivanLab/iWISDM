@@ -1,20 +1,3 @@
-# Copyright 2018 Google LLC
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     https://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ==============================================================================
-
-"""Tests for cognitive/auto_task/auto_task_util"""
-
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -70,6 +53,7 @@ class UtilTest(unittest.TestCase):
         A.draw("branch.png", prog="dot")
 
     def test_write_task(self):
+        const.DATA = const.Data()
         G = nx.DiGraph()
         G.add_node(1, label='IsSame')
         G.add_node(2, label='GetViewAngle')
@@ -82,11 +66,14 @@ class UtilTest(unittest.TestCase):
         G.add_edge(2, 4)
         G.add_edge(3, 5)
 
+        op, task = tg.subtask_generation((G, 1, 5))
+        print(task)
         G = G.reverse()
         A = nx.nx_agraph.to_agraph(G)
         A.draw('CompareViewAngle.png', prog='dot')
+        task.to_json('view_angle.json')
 
-    def test_write_task1(self):
+    def test_write_switch_task(self):
         G = nx.DiGraph()
         G.add_node(1, label='IsSame')
         G.add_node(2, label='GetCategory')
@@ -137,6 +124,7 @@ class UtilTest(unittest.TestCase):
         G = G.reverse()
         A = nx.nx_agraph.to_agraph(G)
         A.draw('RandomTask1_reconstruct.png', prog='dot')
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -1,54 +1,36 @@
-""" Classes for building composite tasks
 """
-import random
+Classes for building composite tasks
+"""
 
 import numpy as np
-
-import cognitive.constants as const
-import cognitive.stim_generator as sg
-import cognitive.task_generator as tg
 import re
 from functools import partial
 from collections import defaultdict
 
+import cognitive.constants as const
+import cognitive.stim_generator as sg
+import cognitive.task_generator as tg
 
-class ReplaceLastK(object):
-    def __init__(self, task_idx, task_objset: sg.ObjectSet, objs: defaultdict):
-        self.count = set()
-        for task_obj in task_objset:
-            matches = set()
-            for i, obj in enumerate(objs):
-                if obj.compare_attrs(task_obj,
-                                     attrs=const.ATTRS):
-                    matches.add(i)
-            while matches:
-                match = max(matches)
-                self.count.add(match)
-                matches.remove(match)
-
-    def __call__(self, match):
-        idx = self.count.pop()
-        return "object {}".format(idx + 1)
+from typing import Tuple, Dict, List, Set
 
 
 class TaskInfoCompo(object):
     """
     Storage of composition information,
     including task_frame_info, task_example, task and objset
-    correct usage: generate frame_info first, then generate TaskInfoCompo
+    correct usage: init objset and frame_info first, then generate TaskInfoCompo
     :param frame_info: FrameInfo
     :param task: task family
     """
 
-    def __init__(self, task, frame_info=None):
+    def __init__(self, task, frame_info):
         # combining with a second task should be implemented incrementally
         assert isinstance(task, tg.TemporalTask)
 
         self.task_objset = dict()
-        self.tasks = [task]
+        self.tasks = [task]  # list of tasks in composition
         self.changed = list()
         if frame_info is None:
-            print('Alert! Correct usage: generate frame_info, then generate TaskInfoCompo')
             if task.n_distractors is None or task.avg_mem is None:
                 objset = task.generate_objset()
             else:
@@ -58,10 +40,6 @@ class TaskInfoCompo(object):
         self.task_objset[0] = frame_info.objset.copy()
         self.frame_info = frame_info
         self.tempo_dict = dict()
-
-    def __len__(self):
-        # return number of tasks involved
-        return len(self.frame_info)
 
     def get_instruction_obj_info(self):
         """
@@ -145,32 +123,36 @@ class TaskInfoCompo(object):
                     return info_dict
         return None
 
-    def get_target_value(self, examples):
+    def get_target_value(self, examples: List[Dict]) -> List[str]:
+        """
+        get the correct response for each frame
+        :param examples: list of dictionary containing the information about individual tasks
+        :return: the response for each frame in list. if there is no response, then null is saved
+        """
         answers = list()
         for frame in self.frame_info:
             ending = False
-            for d in frame.description:
-                if 'ending' in d:
-                    task_idx = int(re.search(r'\d+', d).group())
-                    answers.append(examples[task_idx]['answers'][0])
+            for d in frame.description:  # see frame_info init
+                if 'ending' in d:  # if the frame is the end of any individual task
+                    task_idx = int(re.search(r'\d+', d).group())  # get which task is ending
+                    answers.append(examples[task_idx]['answers'][0])  # add the task answer
                     ending = True
             if not ending:
                 answers.append('null')
         return answers
 
-    def get_examples(self):
+    def get_examples(self) -> Tuple[List, Dict, Dict]:
         """
-        get task examples
-        :return: tuple of list of dictionaries containing information about the requested tasks
+        get information about the individual tasks, and the composite task, including memory trace information
+        :return: tuple of list of dictionaries containing information about the composed tasks
         and compo task
         """
         # TODO: stimuli relevant attribute and relevant tasks
-        examples = list()
-        for i, task in enumerate(self.tasks):
-            examples.append({
+        task_info_dict = list()
+        for i, task in enumerate(self.tasks):  # iterate over individual tasks
+            task_info_dict.append({
                 'family': str(task.__class__.__name__),
-                # saving an epoch explicitly is needed because
-                # there might be no objects in the last epoch.
+                # saving an epoch explicitly is needed because there might be no objects in the last epoch.
                 'epochs': int(task.n_frames),
                 'question': str(task),
                 'objects': [o.dump() for o in self.task_objset[i]],
@@ -198,22 +180,20 @@ class TaskInfoCompo(object):
             'epochs': int(len(self.frame_info)),
             'objects': [o.dump() for o in self.frame_info.objset],
             'instruction': comp_instruction,
-            'answers': self.get_target_value(examples)
+            'answers': self.get_target_value(task_info_dict)
         }
-        return examples, compo, memory_trace_info
+        return task_info_dict, compo, memory_trace_info
 
     @property
     def n_epochs(self):
         return len(self.frame_info)
 
-    def get_changed_task_objset(self, changed_task):
+    def get_changed_task_objset(self, changed_task: tg.TemporalTask) -> sg.ObjectSet:
         """
-
-        :param changed_task:
-        :return:
+        reinitialize the ObjSet of the new ask after changing the task structure
+        :param changed_task: the modified temporal task
+        :return: new ObjSet according to the modified task graph
         """
-
-        assert isinstance(changed_task, tg.TemporalTask)
         objset = changed_task.generate_objset(changed_task.n_distractors, changed_task.avg_mem)
 
         obj: sg.Object
@@ -221,11 +201,16 @@ class TaskInfoCompo(object):
             for frame in self.frame_info:
                 frame_obj: sg.Object
                 for frame_obj in frame.objs:
-                    if frame_obj.compare_attrs(obj):
+                    if frame_obj.compare_attrs(obj, ['object', 'view_angle', 'category']):
                         obj.loc = frame_obj.loc
         return objset
 
     def reuse_merge(self, new_task_info):
+        """
+        temporally combine the two tasks while reusing stimuli
+        :param new_task_info: the new task to be temporally combined with the current task
+        :return:
+        """
         new_task = new_task_info.tasks[0]
         new_task_copy: tg.TemporalTask = new_task.copy()
 
@@ -265,8 +250,9 @@ class TaskInfoCompo(object):
                 old_frame.compatible_merge(new_frame)
             self.task_objset[new_task_idx] = new_task_info.task_objset[0]
         self.tasks.append(new_task)
+        return
 
-    def merge(self, new_task_info, reuse=1):
+    def merge(self, new_task_info, reuse: float = 1.0):
         """
         combine new task to the existing composite task
         :param reuse: probability of reusing visual stimuli from previous composite task
@@ -274,11 +260,11 @@ class TaskInfoCompo(object):
         """
         assert isinstance(new_task_info, TaskInfoCompo)
         if len(new_task_info.tasks) > 1:
-            raise NotImplementedError('Currently cannot support adding new composite tasks')
+            raise NotImplementedError('Currently cannot support adding lists of composite tasks')
 
         if reuse is None:
             reuse = 0.5
-        elif reuse == 1:
+        elif reuse == 1.0:
             return self.reuse_merge(new_task_info)
 
         new_task = new_task_info.tasks[0]
@@ -317,7 +303,7 @@ class TaskInfoCompo(object):
         assert isinstance(task_info2, TaskInfoCompo)
 
         if any(task.is_bool_output() for task in [self.tasks[-1], task_info1.tasks[-1], task_info2.tasks[-1]]):
-            raise ValueError('Temporal switch tasks must have boolean outputs')
+            raise ValueError('Switch tasks must have boolean outputs')
 
         self.tempo_dict['self'] = self.get_examples()[1]
         self.tempo_dict['task1'] = task_info1.get_examples()[1]
@@ -335,33 +321,36 @@ class TaskInfoCompo(object):
         self.merge(task_info)
         return
 
+    def __len__(self):
+        # return number of tasks involved
+        return len(self.frame_info)
+
 
 class FrameInfo(object):
     def __init__(self, task, objset):
         """
+        contains information about individual task's frames
         used for combining multiple temporal tasks, initialize with 1 task,
         stores each frame object in frame_list
-        :param task: stim_generator.Task object
+        :param task: task_generator.TemporalTask object
         :param objset: objset related to the task
         """
         assert isinstance(objset, sg.ObjectSet)
         assert isinstance(task, tg.TemporalTask)
-
         if task.n_frames != objset.n_epoch:
             raise ValueError('Task epoch does not equal objset epoch')
 
         n_epochs = task.n_frames
+        self.objset = objset
+        self.frame_list = list()  # List of Frame objects
+        self.n_epochs = n_epochs
+        self.first_shareable = task.first_shareable
         # TODO: decide if task_question needs to be kept
         task_question = str(task)
         task_answers = [const.get_target_value(t) for t in task.get_target(objset)]
-        first_shareable = task.first_shareable
-
-        relative_tasks = {0}
-        self.objset = objset
-        self.frame_list = list()
-        self.n_epochs = n_epochs
 
         for i in range(n_epochs):
+            # keep track of which frames are the ending and starting of which tasks
             description = list()
             if i == self.n_epochs - 1:
                 description.append("ending of task %d" % 0)
@@ -370,31 +359,21 @@ class FrameInfo(object):
                     description.append("start of task %d" % 0)
             self.frame_list.append(self.Frame(fi=self,
                                               idx=i,
-                                              relative_tasks=relative_tasks,
+                                              relative_tasks={0},
                                               description=description))
-
         if objset:
             # iterate all objects in objset and add to each frame
             for obj in objset:
+                # iterate over all frames that the objset belongs to
                 for epoch in range(obj.epoch[0], obj.epoch[1]):
                     self.frame_list[epoch].objs.append(obj.copy())
 
-        self.first_shareable = first_shareable
-
         self.last_task = 0
-        self.last_task_end = len(self.frame_list) - 1
         self.last_task_start = 0
+        self.last_task_end = len(self.frame_list) - 1
 
-    def __len__(self):
-        return len(self.frame_list)
-
-    def __iter__(self):
-        return self.frame_list.__iter__()
-
-    def __getitem__(self, item):
-        return self.frame_list.__getitem__(item)
-
-    def dump(self):
+    def dump(self) -> Dict[int, Dict]:
+        # get information about the frame_info
         info = {i: dict() for i, frame in enumerate(self.frame_list)}
         for i, frame in enumerate(self.frame_list):
             info[i]['description'] = frame.description
@@ -404,7 +383,7 @@ class FrameInfo(object):
 
     def add_new_frames(self, i, relative_tasks):
         """
-        add new empty frames and update objset and p
+        add new empty frames and update objset and p during composition
         :param i: number of new frames
         :param relative_tasks: the tasks associated with the new frames
         :return: True if epoch increased
@@ -421,7 +400,7 @@ class FrameInfo(object):
 
     @staticmethod
     def update_relative_tasks(new_frame_info, relative_tasks):
-        # update the relative_task info for each frame in the new task (from 0 to new task idx)
+        # update the relative_task info for each frame in the new task (from 0 to new task idx) after composition
         next_task_idx = list(relative_tasks)[0]
         for frame in new_frame_info:
             frame.relative_tasks = relative_tasks
@@ -433,7 +412,7 @@ class FrameInfo(object):
                 if 'ending' in description:
                     frame.description[i] = f'ending of task {next_task_idx}'
 
-    def get_start_frame(self, new_task_info, relative_tasks):
+    def get_start_frame(self, new_task_info: TaskInfoCompo, relative_tasks: Set[int]):
         """
         randomly sample a starting frame to start merging
         add new frames if needed
@@ -442,9 +421,8 @@ class FrameInfo(object):
         then start later, otherwise, new task can end earlier than existing task
         overall, task order is predetermined such that new task appears or finishes after the existing task
         avoid overlapping response frames
-        :param relative_tasks: set of task indices used by the new task, relative to the
-        TaskInfoCompo
         :param new_task_info: TaskInfoCompo object of the new task
+        :param relative_tasks: set of task indices used by the new task, relative to the TaskInfoCompo
         :return: index of frame from existing frame_info
         """
         assert isinstance(new_task_info, TaskInfoCompo)
@@ -507,12 +485,27 @@ class FrameInfo(object):
             self.first_shareable = new_first_shareable + first_shareable
             return first_shareable
 
-    class Frame(object):
-        """ frame object within frame_info list"""
+    def __len__(self):
+        return len(self.frame_list)
 
-        def __init__(self, fi, idx, relative_tasks, description=None, objs=None):
+    def __iter__(self):
+        return self.frame_list.__iter__()
+
+    def __getitem__(self, item):
+        return self.frame_list.__getitem__(item)
+
+    class Frame(object):
+        # frame object within frame_info list, used to merge frames from different tasks
+        def __init__(self, fi, idx: int, relative_tasks: Set[int], description: List[str] = None,
+                     objs: List[sg.Object] = None):
+            """
+            :param fi: the frame info object this frame belongs to
+            :param idx: the index of the frame
+            :param relative_tasks: which tasks this frame belongs to
+            :param description: information about the frame
+            :param objs: the list of objects in this frame
+            """
             assert isinstance(fi, FrameInfo)
-            assert isinstance(relative_tasks, set)
 
             self.fi = fi
             self.idx = idx
@@ -543,8 +536,8 @@ class FrameInfo(object):
 
         def __str__(self):
             return 'frame: ' + str(self.idx) + ', relative tasks: ' + \
-                   ','.join([str(i) for i in self.relative_tasks]) \
-                   + ' objects: ' + ','.join([str(o) for o in self.objs])
+                ','.join([str(i) for i in self.relative_tasks]) \
+                + ' objects: ' + ','.join([str(o) for o in self.objs])
 
 
 def add(match, x):

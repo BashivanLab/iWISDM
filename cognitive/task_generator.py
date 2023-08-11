@@ -581,6 +581,8 @@ class Select(Operator):
 
         # if isinstance(loc, Operator) or loc.has_value:
         #     assert space_type is not None
+        # TODO: add mapping from loc to space_type, which can cause issues with self.space_type in get_expected_input
+        #  but there maybe some issues with our environment since we don't have only 4 spaces
 
         self.loc, self.category, self.object, self.view_angle = loc, category, object, view_angle
         self.set_child([loc, category, object, view_angle])
@@ -651,7 +653,7 @@ class Select(Operator):
     def get_expected_input(self, should_be, objset, epoch_now):
         """Guess objset for Select operator.
 
-        Optionally modify the objset based on the target output, should_be,
+        Optionally modify the objset based on the target output (should_be),
         and pass down the supposed input attributes
 
         There are two sets of attributes to compute:
@@ -757,26 +759,24 @@ class Select(Operator):
                     else:
                         setattr(obj, attr_type, a)
 
-            # If an attribute of select is an operator, then the expected input is
-            # the value of obj
+            # If an attribute of select is an operator, then the expected input is the value of obj
             # attr_new_object is the output for the subsequent root children
             attr_expected_in = list()
             for attr_type in ['loc', 'category', 'object', 'view_angle']:
                 a = getattr(self, attr_type)
                 if isinstance(a, Operator):
                     # Only operators need expected_in
-                    if attr_type == 'loc':
-                        space = obj.loc.get_opposite_space_to(self.space_type)
-                        attr = space.sample()
-                    else:
-                        attr = getattr(obj, attr_type)
+                    # removed checking for loc, since we're not flipping attributes
+                    attr = getattr(obj, attr_type)
                     attr_expected_in.append(attr)
                 else:
                     attr_expected_in.append(Skip())
 
-        # no target output given, only happens when parent root is Exist
-        # and the expected input of exist is does not exist.
-        # Basically making sure an object with this attribute does not exist
+        # no target output given, only happens when parent root is Exist, and Exist has no expected output
+        # Basically if the target output is an empty set, then we place a different object.
+        # We choose to place a different object here in order to prevent the network from solving some
+        # tasks by simply counting the number of object. The object we
+        # place differs from the object to be selected by only one attribute
         if not should_be:
             # First determine the attributes to flip later
             attr_type_to_flip = list()
@@ -808,6 +808,10 @@ class Select(Operator):
             attr_type = random.choice(attr_type_to_flip)
             i = attr_type_to_flip.index(attr_type)
             if attr_type == 'loc':
+                # if the location of the object is determined by the loc another object
+                # e.g. Exist->Select->GetLoc->Select:
+                # check if exist object with location of a specified category/object/view_angle
+
                 # If flip location, place it in the opposite direction
                 loc = attr_new_object[i]
                 attr_new_object[i] = loc.get_opposite_space_to(self.space_type)
@@ -1363,7 +1367,7 @@ def convert_operators(
     :param G: the task graph, nx.Graph
     :param root: the node number of the root operator
     :param operators: dictionary for converting node number to operator name
-    :param operator_families:
+    :param operator_families: dict of class names and their classes
     :param whens: each select is associated with 1 when
     :return:
     """

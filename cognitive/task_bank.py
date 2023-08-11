@@ -185,6 +185,7 @@ class CompareObjectTemporal(TemporalTask):
 
 class CompareFixedObjectTemporal(TemporalTask):
     """Compare between two objects."""
+
     ###### todo: not sure about this task????
 
     def __init__(self, whens=None, first_shareable=None):
