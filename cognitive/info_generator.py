@@ -5,6 +5,9 @@ Classes for building composite tasks
 import re
 from functools import partial
 from collections import defaultdict
+import os, shutil
+import json
+from PIL import Image
 
 import cognitive.constants as const
 import cognitive.stim_generator as sg
@@ -30,176 +33,15 @@ class TaskInfoCompo(object):
         self.tasks = [task]  # list of tasks in composition
         self.changed = list()
         if frame_info is None:
-            if task.n_distractors is None or task.avg_mem is None:
+            if task.avg_mem is None:
                 objset = task.generate_objset()
             else:
-                objset = task.generate_objset(task.n_distractors, task.avg_mem)
+                objset = task.generate_objset(task.avg_mem)
             frame_info = FrameInfo(task, objset)
 
         self.task_objset[0] = frame_info.objset.copy()
         self.frame_info = frame_info
         self.tempo_dict = dict()
-
-    def get_instruction_obj_info(self) -> Tuple[str, Dict[int, List]]:
-        """ recompiles task instructions based on the composition.
-        e.g. observe object1, delay, task1 instruction, delay, observe object2, task2 instruction.
-        adds delay instructions during empty frames
-        :return: changed task instruction and obj_info dictionary
-        """
-        obj_info = defaultdict(list)  # key: epoch, value: list of dictionary of object info
-        count = 0
-        cur = 0
-        for epoch, objs in sorted(self.frame_info.objset.dict.items()):
-            for i, obj in enumerate(objs):
-                count += 1
-                info = dict()
-                info['count'] = count
-                info['obj'] = obj
-                info['tasks'] = set()  # tasks that involve the stim
-                info['attended_attr'] = defaultdict(set)  # key: task, value: attribute of the stim that are relevant
-                obj_info[epoch].append(info)
-
-        compo_instruction = ''
-        if self.tempo_dict:
-            compo_instruction += 'compo task 1: '
-        # for each frame, find the tasks that use the stimuli. For each of these tasks,
-        # compare the object in task_objset with obj, and rename lastk with ith object
-        was_delay = False
-        for epoch, frame in enumerate(self.frame_info):
-            add_delay = True
-            if obj_info[epoch]:  # if the frame contains stim/objects
-                for info_dict in obj_info[epoch]:  # for each object info dict,
-                    compo_instruction += f'observe object {info_dict["count"]}, '
-                    # info_dict['tasks'] = {task: False for task in frame.relative_tasks}
-                add_delay, was_delay = False, False
-
-            for d in frame.description:
-                if 'ending' in d:  # align object count with lastk for each task
-                    task_idx = int(re.search(r'\d+', d).group())
-                    task_q = str(self.tasks[task_idx])
-
-                    # find epoch relative to ending task
-                    lastks = [m for m in re.finditer('last\d+', task_q)]  # modify this for multiple stim per frame
-                    for lastk in lastks:
-                        k = int(re.search(r'\d+', lastk.group()).group())
-                        i = epoch - k
-                        relative_i = frame.relative_task_epoch_idx[task_idx] - k
-                        match = self.compare_objs(obj_info[i], self.task_objset[task_idx].dict[relative_i])
-                        if match:
-                            task_q = re.sub(f'last{k}.*?object', f'object {match["count"]}', task_q)
-                            match['tasks'].add(task_idx)
-                            match['attended_attr'][task_idx] = match['attended_attr'][task_idx].union(
-                                self.tasks[task_idx].get_relevant_attribute(f'last{k}'))
-                            cur += 1
-                        else:
-                            raise RuntimeError('No match')
-                    compo_instruction += task_q
-                    add_delay, was_delay = False, False
-
-                    if self.tempo_dict:
-                        # in temporal switch, if at the end of the original task,
-                        # then add the conditional texts in the instruction
-                        if epoch == len(self.tempo_dict['self']['answers']) - 1:
-                            compo_instruction += ' if end of compo task 1 is true, then do compo task 2: '
-                            compo_instruction += object_add(self.tempo_dict['task1']['instruction'], cur)
-                            compo_instruction += 'otherwise, do compo task 3: '
-                            compo_instruction += object_add(self.tempo_dict['task2']['instruction'], cur)
-                            return compo_instruction, obj_info
-            if add_delay and not was_delay:
-                compo_instruction += 'delay, '
-                was_delay = True
-        return compo_instruction, obj_info
-
-    @staticmethod
-    def compare_objs(info_dicts, l2):
-        for info_dict in info_dicts:
-            obj1 = info_dict['obj']
-            for obj2 in l2:
-                if obj1.compare_attrs(obj2):
-                    return info_dict
-        return None
-
-    def get_target_value(self, examples: List[Dict]) -> List[str]:
-        """
-        get the correct response for each frame
-        :param examples: list of dictionary containing the information about individual tasks
-        :return: the response for each frame in list. if there is no response, then null is saved
-        """
-        answers = list()
-        for frame in self.frame_info:
-            ending = False
-            for d in frame.description:  # see frame_info init
-                if 'ending' in d:  # if the frame is the end of any individual task
-                    task_idx = int(re.search(r'\d+', d).group())  # get which task is ending
-                    answers.append(examples[task_idx]['answers'][0])  # add the task answer
-                    ending = True
-            if not ending:
-                answers.append('null')
-        return answers
-
-    def get_examples(self) -> Tuple[List, Dict, Dict]:
-        """
-        get information about the individual tasks, and the composite task, including memory trace information
-        :return: tuple of list of dictionaries containing information about the composed tasks
-        and compo task
-        """
-        # TODO: stimuli relevant attribute and relevant tasks
-        task_info_dict = list()
-        for i, task in enumerate(self.tasks):  # iterate over individual tasks
-            task_info_dict.append({
-                'family': str(task.__class__.__name__),
-                # saving an epoch explicitly is needed because there might be no objects in the last epoch.
-                'epochs': int(task.n_frames),
-                'question': str(task),
-                'objects': [o.dump() for o in self.task_objset[i]],
-                'answers': [str(const.get_target_value(t)) for t in task.get_target(self.task_objset[i])],
-                'first_shareable': int(task.first_shareable),
-            })
-
-        comp_instruction, obj_info = self.get_instruction_obj_info()
-        obj_info_json = obj_info.copy()
-
-        for epoch, info_dict in obj_info_json.items():
-            for d in info_dict:
-                d['obj'] = d['obj'].dump()
-                for k, v in d.items():
-                    if isinstance(v, set):
-                        d[k] = list(v)
-                for task, attrs in d['attended_attr'].items():
-                    d['attended_attr'][task] = list(attrs)
-        memory_trace_info = dict()
-        memory_trace_info['obj_info'] = obj_info_json
-        memory_trace_info['task_info'] = {i: frame.description for i, frame in enumerate(self.frame_info) if
-                                          frame.description}
-
-        compo = {
-            'epochs': int(len(self.frame_info)),
-            'objects': [o.dump() for o in self.frame_info.objset],
-            'instruction': comp_instruction,
-            'answers': self.get_target_value(task_info_dict)
-        }
-        return task_info_dict, compo, memory_trace_info
-
-    @property
-    def n_epochs(self):
-        return len(self.frame_info)
-
-    def get_changed_task_objset(self, changed_task: tg.TemporalTask) -> sg.ObjectSet:
-        """
-        reinitialize the ObjSet of the new ask after changing the task structure
-        :param changed_task: the modified temporal task
-        :return: new ObjSet according to the modified task graph
-        """
-        objset = changed_task.generate_objset(changed_task.n_distractors, changed_task.avg_mem)
-
-        obj: sg.Object
-        for obj in objset:
-            for frame in self.frame_info:
-                frame_obj: sg.Object
-                for frame_obj in frame.objs:
-                    if frame_obj.compare_attrs(obj, ['object', 'view_angle', 'category']):
-                        obj.loc = frame_obj.loc
-        return objset
 
     def merge(self, new_task_info):
         """
@@ -274,9 +116,203 @@ class TaskInfoCompo(object):
         self.merge(task_info)
         return
 
+    def get_instruction_obj_info(self) -> Tuple[str, Dict[int, List]]:
+        """ recompiles task instructions based on the composition.
+        e.g. observe object1, delay, task1 instruction, delay, observe object2, task2 instruction.
+        adds delay instructions during empty frames
+        :return: changed task instruction and obj_info dictionary
+        """
+        obj_info = defaultdict(list)  # key: epoch, value: list of dictionary of object info
+        count = 0
+        cur = 0
+        for epoch, objs in sorted(self.frame_info.objset.dict.items()):
+            for i, obj in enumerate(objs):
+                count += 1
+                info = dict()
+                info['count'] = count
+                info['obj'] = obj
+                info['tasks'] = set()  # tasks that involve the stim
+                info['attended_attr'] = defaultdict(set)  # key: task, value: attribute of the stim that are relevant
+                obj_info[epoch].append(info)
+
+        compo_instruction = ''
+        if self.tempo_dict:
+            compo_instruction += 'compo task 1: '
+        # for each frame, find the tasks that use the stimuli. For each of these tasks,
+        # compare the object in task_objset with obj, and rename lastk with ith object
+        was_delay = False
+        for epoch, frame in enumerate(self.frame_info):
+            add_delay = True
+            if obj_info[epoch]:  # if the frame contains stim/objects
+                for info_dict in obj_info[epoch]:  # for each object info dict,
+                    compo_instruction += f'observe object {info_dict["count"]}, '
+                    # info_dict['tasks'] = {task: False for task in frame.relative_tasks}
+                add_delay, was_delay = False, False
+
+            for d in frame.description:
+                if 'ending' in d:  # align object count with lastk for each task
+                    task_idx = int(re.search(r'\d+', d).group())
+                    task_q = str(self.tasks[task_idx])
+
+                    # find epoch relative to ending task
+                    lastks = [m for m in re.finditer('last\d+', task_q)]  # modify this for multiple stim per frame
+                    for lastk in lastks:
+                        k = int(re.search(r'\d+', lastk.group()).group())
+                        i = epoch - k
+                        relative_i = frame.relative_task_epoch_idx[task_idx] - k
+                        match = self.compare_objs(obj_info[i], self.task_objset[task_idx].dict[relative_i])
+                        if match:
+                            task_q = re.sub(f'last{k}.*?object', f'object {match["count"]}', task_q)
+                            match['tasks'].add(task_idx)
+                            match['attended_attr'][task_idx] = match['attended_attr'][task_idx].union(
+                                self.tasks[task_idx].get_relevant_attribute(f'last{k}'))
+                            cur += 1
+                        else:
+                            raise RuntimeError('No match')
+                    compo_instruction += task_q
+                    add_delay, was_delay = False, False
+
+                    if self.tempo_dict:
+                        # in temporal switch, if at the end of the original task,
+                        # then add the conditional texts in the instruction
+                        if epoch == len(self.tempo_dict['self']['answers']) - 1:
+                            compo_instruction += ' if end of compo task 1 is true, then do compo task 2: '
+                            compo_instruction += object_add(self.tempo_dict['task1']['instruction'], cur)
+                            compo_instruction += 'otherwise, do compo task 3: '
+                            compo_instruction += object_add(self.tempo_dict['task2']['instruction'], cur)
+                            return compo_instruction, obj_info
+            if add_delay and not was_delay:
+                compo_instruction += 'delay, '
+                was_delay = True
+        return compo_instruction, obj_info
+
+    def get_target_value(self, examples: List[Dict]) -> List[str]:
+        """
+        get the correct response for each frame
+        :param examples: list of dictionary containing the information about individual tasks
+        :return: the response for each frame in list. if there is no response, then null is saved
+        """
+        answers = list()
+        for frame in self.frame_info:
+            ending = False
+            for d in frame.description:  # see frame_info init
+                if 'ending' in d:  # if the frame is the end of any individual task
+                    task_idx = int(re.search(r'\d+', d).group())  # get which task is ending
+                    answers.append(examples[task_idx]['answers'][0])  # add the task answer
+                    ending = True
+            if not ending:
+                answers.append('null')
+        return answers
+
+    def get_examples(self) -> Tuple[List, Dict, Dict]:
+        """
+        get information about the individual tasks, and the composite task, including memory trace information
+        :return: tuple of list of dictionaries containing information about the composed tasks
+        and compo task
+        """
+        # TODO: stimuli relevant attribute and relevant tasks
+        task_info_dict = list()
+        for i, task in enumerate(self.tasks):  # iterate over individual tasks
+            task_info_dict.append({
+                'family': str(task.__class__.__name__),
+                # saving an epoch explicitly is needed because there might be no objects in the last epoch.
+                'epochs': int(task.n_frames),
+                'question': str(task),
+                'objects': [o.dump() for o in self.task_objset[i]],
+                'answers': [str(const.get_target_value(t)) for t in task.get_target(self.task_objset[i])],
+                'first_shareable': int(task.first_shareable),
+            })
+
+        comp_instruction, obj_info = self.get_instruction_obj_info()
+        obj_info_json = obj_info.copy()
+
+        for epoch, info_dict in obj_info_json.items():
+            for d in info_dict:
+                d['obj'] = d['obj'].dump()
+                for k, v in d.items():
+                    if isinstance(v, set):
+                        d[k] = list(v)
+                for task, attrs in d['attended_attr'].items():
+                    d['attended_attr'][task] = list(attrs)
+        memory_trace_info = dict()
+        memory_trace_info['obj_info'] = obj_info_json
+        memory_trace_info['task_info'] = {i: frame.description for i, frame in enumerate(self.frame_info) if
+                                          frame.description}
+
+        compo = {
+            'epochs': int(len(self.frame_info)),
+            'objects': [o.dump() for o in self.frame_info.objset],
+            'instruction': comp_instruction,
+            'answers': self.get_target_value(task_info_dict)
+        }
+        return task_info_dict, compo, memory_trace_info
+
+    def write_trial_instance(self, write_fp: str, img_size=224, fixation_cue=True) -> None:
+        frames_fp = os.path.join(write_fp, 'frames')
+        if os.path.exists(frames_fp):
+            shutil.rmtree(frames_fp)
+        os.makedirs(frames_fp)
+
+        objset = self.frame_info.objset
+        for i, (epoch, frame) in enumerate(zip(sg.render(objset, img_size), task_info.frame_info)):
+            if fixation_cue:
+                if not any('ending' in description for description in frame.description):
+                    sg.add_fixation_cue(epoch)
+            img = Image.fromarray(epoch, 'RGB')
+            filename = os.path.join(frames_fp, f'epoch{i}.png')
+            img.save(filename)
+
+        examples, compo_example, memory_info = self.get_examples()
+        for i, task_example in enumerate(examples):
+            filename = os.path.join(frames_fp, f'task{i} example')
+            with open(filename, 'w') as f:
+                json.dump(task_example, f, indent=4)
+
+        filename = os.path.join(frames_fp, 'compo_task_example')
+        with open(filename, 'w') as f:
+            json.dump(compo_example, f, indent=4)
+
+        filename = os.path.join(frames_fp, 'memory_trace_info')
+        with open(filename, 'w') as f:
+            json.dump(memory_info, f, indent=4)
+
+        filename = os.path.join(frames_fp, 'frame_info')
+        with open(filename, 'w') as f:
+            json.dump(self.frame_info.dump(), f, indent=4)
+
+    def get_changed_task_objset(self, changed_task: tg.TemporalTask) -> sg.ObjectSet:
+        """
+        reinitialize the ObjSet of the new ask after changing the task structure
+        :param changed_task: the modified temporal task
+        :return: new ObjSet according to the modified task graph
+        """
+        objset = changed_task.generate_objset(changed_task.avg_mem)
+
+        obj: sg.Object
+        for obj in objset:
+            for frame in self.frame_info:
+                frame_obj: sg.Object
+                for frame_obj in frame.objs:
+                    if frame_obj.compare_attrs(obj, ['object', 'view_angle', 'category']):
+                        obj.loc = frame_obj.loc
+        return objset
+
     def __len__(self):
         # return number of tasks involved
         return len(self.frame_info)
+
+    @property
+    def n_epochs(self):
+        return len(self.frame_info)
+
+    @staticmethod
+    def compare_objs(info_dicts, l2):
+        for info_dict in info_dicts:
+            obj1 = info_dict['obj']
+            for obj2 in l2:
+                if obj1.compare_attrs(obj2):
+                    return info_dict
+        return None
 
 
 class FrameInfo(object):

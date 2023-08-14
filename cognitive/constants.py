@@ -22,6 +22,7 @@ from __future__ import print_function
 
 import glob
 import os
+from typing import Tuple
 
 import numpy as np
 import pandas as pd
@@ -69,7 +70,8 @@ class Data:
         max_memory: maximum frames an object can be used to solve a task
         grid_size: configuration of the canvas
     """
-    def __init__(self, dir_path=None, max_memory=5, grid_size=[2, 2]):
+
+    def __init__(self, dir_path=None, max_memory: int = 5, grid_size: Tuple[int, int] = (2, 2)):
         if dir_path is None:
             dir_path = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))),
                                     './data/min_shapenet_easy_angle')
@@ -222,8 +224,8 @@ def get_grid(grid_size):
     # return (grid_size,grid_size) array of sg.space.values
     # convert from grid to space
     # todo: difference between space and grid?
-    grid_size[0], grid_size[1] = grid_size[0] + 1, grid_size[1] + 1
-    x_coords, y_coords = np.linspace(0, 1, grid_size[0]), np.linspace(0, 1, grid_size[1])
+    x_space, y_space = grid_size[0] + 1, grid_size[1] + 1
+    x_coords, y_coords = np.linspace(0, 1, x_space), np.linspace(0, 1, y_space)
     xx, yy = np.meshgrid(x_coords, y_coords, sparse=True)
     xx, yy = xx.flatten(), yy.flatten()
     grid_spaces = {(i, j): [(x_i, x_k), (y_i, y_k)] for i, (x_i, x_k) in enumerate(zip(xx[0::], xx[1::])) for

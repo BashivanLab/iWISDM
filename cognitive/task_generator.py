@@ -1081,44 +1081,6 @@ class Task(object):
         """Return the total number of possible instantiated tasks."""
         raise NotImplementedError('instance_size is not defined for this task.')
 
-    def generate_objset(self, n_epoch, n_distractor=0, average_memory_span=2):
-        """Guess objset for all n_epoch.
-
-        Mathematically, the average_memory_span is n_max_backtrack/3
-
-        Args:
-          n_epoch: int, total number of epochs, 1 epcoh is 1 frame
-          n_distractor: int, number of distractors to add
-          average_memory_span: int, the average number of epochs by which an object
-            need to be held in working memory, if needed at all
-
-        Returns:
-          objset: full objset for all n_epoch
-        """
-        n_max_backtrack = int(average_memory_span * 3)  ### why do this convertion? waste of time?
-        objset = sg.ObjectSet(n_epoch=n_epoch, n_max_backtrack=n_max_backtrack)
-
-        # Guess objects
-        # Importantly, we generate objset backward in time
-        ## xlei: only update the last epoch
-
-        epoch_now = n_epoch - 1
-        for _ in range(n_distractor):
-            objset.add_distractor(epoch_now)  # distractor
-        objset = self.guess_objset(objset, epoch_now)
-
-        # epoch_now = n_epoch - 1
-        # while epoch_now >= 0:
-        #   if n_distractor == 0:
-        #     break
-        #   else:
-        #     for _ in range(n_distractor):
-        #       objset.add_distractor(epoch_now)  # distractor
-        #     objset = self.guess_objset(objset, epoch_now)
-        #     epoch_now -= 1
-
-        return objset
-
     def get_target(self, objset):
 
         # return [self(objset, epoch_now) for epoch_now in range(0,objset.n_epoch)]
@@ -1136,7 +1098,6 @@ class TemporalTask(Task):
         super(TemporalTask, self).__init__(operator)
         self.n_frames = n_frames
         self._first_shareable = first_shareable
-        self.n_distractors = None
         self.avg_mem = None
         self.whens = whens
 
@@ -1145,7 +1106,6 @@ class TemporalTask(Task):
         new_task = TemporalTask()
         new_task.n_frames = self.n_frames
         new_task._first_shareable = self.first_shareable
-        new_task.n_distractors = self.n_distractors
         new_task.avg_mem = self.avg_mem
         nodes = self.topological_sort()
         # TODO: multiple get pointing to same instance of select
@@ -1169,7 +1129,8 @@ class TemporalTask(Task):
 
     @property
     def instance_size(self):
-        # todo: what is the point of instance size?
+        # depending on the number of stimuli to sample from,
+        # instance size determines the number of variations of the task
         pass
 
     @staticmethod
@@ -1234,20 +1195,18 @@ class TemporalTask(Task):
                 select_copy.hard_update(obj)
         return filter_objs
 
-    def generate_objset(self, n_distractor=0, average_memory_span=3, *args, **kwargs):
+    def generate_objset(self, average_memory_span=3, *args, **kwargs):
         """Guess objset for all n_epoch.
 
         Mathematically, the average_memory_span is n_max_backtrack/3
 
         Args:
-          n_distractor: int, number of distractors to add
           average_memory_span: int, the average number of epochs by which an object
             need to be held in working memory, if needed at all
 
         Returns:
           objset: full objset for all n_epoch
         """
-        self.n_distractors = n_distractor
         self.avg_mem = average_memory_span
         n_epoch = self.n_frames
         n_max_backtrack = int(average_memory_span * 3)  # why do this conversion? waste of time?
@@ -1258,27 +1217,13 @@ class TemporalTask(Task):
         ## xlei: only update the last epoch
 
         epoch_now = n_epoch - 1
-        for _ in range(n_distractor):
-            objset.add_distractor(epoch_now)  # distractor
         objset = self.guess_objset(objset, epoch_now, *args, **kwargs)
-
-        # epoch_now = n_epoch - 1
-        # while epoch_now >= 0:
-        #   if n_distractor == 0:
-        #     break
-        #   else:
-        #     for _ in range(n_distractor):
-        #       objset.add_distractor(epoch_now)  # distractor
-        #     objset = self.guess_objset(objset, epoch_now)
-        #     epoch_now -= 1
-
         return objset
 
     def to_json(self, fp):
         info = dict()
         info['n_frames'] = self.n_frames
         info['first_shareable'] = self.first_shareable
-        info['n_distractors'] = self.n_distractors
         info['avg_mem'] = self.avg_mem
         info['whens'] = self.whens
         info['operator'] = self._operator.to_json()

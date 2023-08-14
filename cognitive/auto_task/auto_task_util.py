@@ -328,34 +328,6 @@ def write_task_instance(G_tuple: GRAPH_TUPLE, task: TASK, write_fp: str):
     return None
 
 
-def write_trial_instance(task: tg.TemporalTask, write_fp: str, img_size=224, fixation_cue=True) -> None:
-    # save the actual generated frames into another folder
-    frames_fp = os.path.join(write_fp, 'frames')
-    if os.path.exists(frames_fp):
-        shutil.rmtree(frames_fp)
-    os.makedirs(frames_fp)
-
-    # initialize objset which generates the frames, and also initialize the objects
-    frame_info = ig.FrameInfo(task, task.generate_objset())
-    compo_info = ig.TaskInfoCompo(task, frame_info)  # compo_info saves task information, and is used for
-
-    objset = compo_info.frame_info.objset
-    for i, (epoch, frame) in enumerate(zip(sg.render(objset, img_size), compo_info.frame_info)):
-        # add cross in the center of the image
-        if fixation_cue:
-            if not any('ending' in description for description in frame.description):
-                sg.add_fixation_cue(epoch)
-        img = Image.fromarray(epoch, 'RGB')
-        filename = os.path.join(frames_fp, f'epoch{i}.png')
-        # this is slow!
-        img.save(filename)
-    _, compo_example, _ = compo_info.get_examples()
-    filename = os.path.join(frames_fp, 'compo_task_example')
-    with open(filename, 'w') as f:
-        json.dump(compo_example, f, indent=4)
-    return
-
-
 if __name__ == '__main__':
     args = get_args()
     print(args)
@@ -395,6 +367,11 @@ if __name__ == '__main__':
                     if os.path.exists(instance_fp):
                         shutil.rmtree(instance_fp)
                     os.makedirs(instance_fp)
+                    frame_info = ig.FrameInfo(temporal_task, temporal_task.generate_objset())
+                    compo_info = ig.TaskInfoCompo(temporal_task,
+                                                  frame_info)
+                    # compo_info saves task information, and is used for task composition using merge
+                    compo_info.write_trial_instance(instance_fp, args.img_size, args.fixation_cue)
                     # TODO: some guess objset error where ValueError occurs
                     write_trial_instance(temporal_task, instance_fp, args.img_size, args.fixation_cue)
             except Exception as e:
