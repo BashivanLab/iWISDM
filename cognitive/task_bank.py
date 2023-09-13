@@ -211,7 +211,7 @@ class SequentialCategoryMatch(TemporalTask):
     # nback category
     def __init__(self, whens=None, first_shareable=None, n_frames=1):
         super(SequentialCategoryMatch, self).__init__(whens=whens, first_shareable=first_shareable)
-        total_frames = n_frames * 2 + random.randint(0, const.MAX_MEMORY - (n_frames * 2) + 1)
+        total_frames = n_frames * 2 + random.randint(0, const.DATA.MAX_MEMORY - (n_frames * 2) + 1)
 
         sample_objs = [tg.Select(when=f'last{total_frames - i - 1}') for i in range(n_frames)]
         response_objs = [tg.Select(when=f'last{i}') for i in range(n_frames)]

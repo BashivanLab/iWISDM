@@ -3,7 +3,7 @@ import argparse
 
 def get_args():
     parser = argparse.ArgumentParser(description='dataset')
-    parser.add_argument('--max_memory', type=int, default=12)
+    parser.add_argument('--max_memory', type=int, default=4)
     parser.add_argument('--max_distractors', type=int, default=0)
     parser.add_argument('--trials_per_family', type=int, default=1)
     parser.add_argument('--output_dir', default='./data')
