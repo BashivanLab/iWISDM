@@ -1,25 +1,15 @@
-aiohttp
-babel
-backports.functools-lru-cache
-brotlipy
-cached-property
-docopt
-flask-markdown
-frozen-flask
-gevent
-humanize
-jaxlib
-jupyter
-keras-preprocessing
-opencv-python
-pandas
-pooch
-pyjwt
-pyopenssl
-pysocks
-pyu2f
-scikit-learn
 tensorflow
+jupyter
+jupyterlab
+pillow
+networkx
+scikit-learn
+torch
 torchvision
 transformers
-typeguard
+tqdm
+
+cd $SLURM_TMPDIR
+git clone -b dev_lucasg https://github.com/RainyFields/COG_v3_shapenet.git
+cd ./COG_v3_shapenet
+
