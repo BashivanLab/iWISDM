@@ -1,7 +1,10 @@
+tensorflow
+jupyter
 jupyterlab
 pillow
-pip-chill
+networkx
 scikit-learn
-tensorflow
 torch
+torchvision
 transformers
+tqdm
