@@ -478,7 +478,6 @@ class Object(object):
             attrs = const.ATTRS
         for attr in attrs:
             if getattr(self, attr) != getattr(other, attr):
-                # print(getattr(self, attr).space, getattr(other, attr).space)
                 return False
         return True
 
