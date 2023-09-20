@@ -181,7 +181,11 @@ def generate_dataset(
                 validation_examples -= 1
                 fname = os.path.join(validation_fname, f'{i}')
 
-            info.write_trial_instance(fname, img_size, fixation_cue)
+            # xlei: pass train/val parameter to write trial_instances
+            if i < int(total_examples * train):
+                info.write_trial_instance(fname, img_size, fixation_cue, train = True)
+            else:
+                info.write_trial_instance(fname, img_size, fixation_cue, train=False)
             i += 1
     else:
         i = 0
