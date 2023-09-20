@@ -840,7 +840,7 @@ def render_static_obj(canvas, obj, img_size, train=True):
     canvas[x_offset:x_end, y_offset:y_end] = shape_net_obj
 
 
-def render_obj(canvas, obj, img_size):
+def render_obj(canvas, obj, img_size, train=True):
     """Render a single object.
 
     Args:
@@ -850,9 +850,9 @@ def render_obj(canvas, obj, img_size):
       img_size: int, image size.
     """
     if isinstance(obj, StaticObject):
-        render_static_obj(canvas, obj, img_size)
+        render_static_obj(canvas, obj, img_size, train=train)
     else:
-        render_static_obj(canvas, obj.to_static()[0], img_size)
+        render_static_obj(canvas, obj.to_static()[0], img_size, train=train)
 
 
 def render_static(objlists, img_size=224, save_name=None):
@@ -910,7 +910,7 @@ def render_static(objlists, img_size=224, save_name=None):
     return movie
 
 
-def render(objsets, img_size=224, save_name=None):
+def render(objsets, img_size=224, save_name=None, train=True):
     """Render a movie by epoch.
 
     Args:
@@ -938,7 +938,7 @@ def render(objsets, img_size=224, save_name=None):
 
             subset = objset.select_now(epoch_now)
             for obj in subset:
-                render_obj(canvas, obj, img_size)
+                render_obj(canvas, obj, img_size, train=train)
             i_frame += 1
 
     if save_name is not None:

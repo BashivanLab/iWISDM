@@ -327,7 +327,7 @@ def write_task_instance(G_tuple: GRAPH_TUPLE, task: TASK, write_fp: str):
     return None
 
 
-def write_trial_instance(task: tg.TemporalTask, write_fp: str, img_size=224, fixation_cue=True) -> None:
+def write_trial_instance(task: tg.TemporalTask, write_fp: str, img_size=224, fixation_cue=True, train=True) -> None:
     # TODO: drawing the frames is slow!
     # save the actual generated frames into another folder
     if os.path.exists(write_fp):
@@ -336,7 +336,7 @@ def write_trial_instance(task: tg.TemporalTask, write_fp: str, img_size=224, fix
     frame_info = ig.FrameInfo(task, task.generate_objset())
     compo_info = ig.TaskInfoCompo(task, frame_info)
     objset = compo_info.frame_info.objset
-    for i, (epoch, frame) in enumerate(zip(sg.render(objset, img_size), compo_info.frame_info)):
+    for i, (epoch, frame) in enumerate(zip(sg.render(objset, img_size, train=train), compo_info.frame_info)):
         # add cross in the center of the image
         if fixation_cue:
             if not any('ending' in description for description in frame.description):
