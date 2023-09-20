@@ -247,14 +247,14 @@ class TaskInfoCompo(object):
         }
         return task_info_dict, compo, memory_trace_info
 
-    def write_trial_instance(self, write_fp: str, img_size=224, fixation_cue=True) -> None:
+    def write_trial_instance(self, write_fp: str, img_size=224, fixation_cue=True, train = True) -> None:
         frames_fp = os.path.join(write_fp, 'frames')
         if os.path.exists(frames_fp):
             shutil.rmtree(frames_fp)
         os.makedirs(frames_fp)
 
         objset = self.frame_info.objset
-        for i, (epoch, frame) in enumerate(zip(sg.render(objset, img_size), task_info.frame_info)):
+        for i, (epoch, frame) in enumerate(zip(sg.render(objset, img_size, train = train), self.frame_info)):
             if fixation_cue:
                 if not any('ending' in description for description in frame.description):
                     sg.add_fixation_cue(epoch)
