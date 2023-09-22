@@ -1,0 +1,11 @@
+datasets/
+data/
+tutorials/offline_models/all-mpnet-base-v2/*
+tutorials/offline_models/vit_b_16/*
+
+# OS generated files #
+######################
+.DS_Store
+.DS_Store?
+.__pycache__
+.vscode
