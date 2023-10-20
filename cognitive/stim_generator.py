@@ -945,6 +945,9 @@ def random_object(category):
 
 
 def another_object(snObject):
+    """
+    select another object when there are constraints on the feature attributes
+    """
     try:
         category = random_category()
         if category == snObject.category:
