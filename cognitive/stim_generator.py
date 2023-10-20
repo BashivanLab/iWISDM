@@ -106,10 +106,6 @@ class Attribute(object):
         info.update(self.self_json())
         return info
 
-    # def __hash__(self):
-    #     """Override the default hash behavior."""
-    #     return hash(tuple(sorted(self.__dict__.items())))
-
     def resample(self):
         raise NotImplementedError('Abstract method.')
 
@@ -185,8 +181,7 @@ class Space(Attribute):
         else:
             avoid = avoid + [mid_point]
         # avoid the mid-point for fixation cue
-
-        # TODO: sample from 16 points
+        
         n_max_try = 100
         avoid_radius2 = 0.04  # avoid radius squared
         dx = 0.125
@@ -735,17 +730,9 @@ class ObjectSet(object):
             epoch_now -= const.DATA.LASTMAP[when]
         else:
             epoch_now = merge_idx
-        # if n_backtrack is None:
-        #   n_backtrack = self.n_max_backtrack   ### xlei: n_backtrack is deleted because of lastest does not exist anymore
-
+            
         return self.select_now(epoch_now, space, category, object, view_angle, delete_if_can)
-        # while epoch_now >= epoch_stop:
-        #   subset = self.select_now(epoch_now, space, color, shape, delete_if_can)
-        #   if subset:
-        #     return subset
-        #   epoch_now -= 1
-        # return []
-
+        
     def select_now(self,
                    epoch_now,
                    space=None,
@@ -1097,7 +1084,6 @@ def random_when():
 
 
 def sample_when(n=1):
-    # TODO: sample
     """
 
     :param n:
