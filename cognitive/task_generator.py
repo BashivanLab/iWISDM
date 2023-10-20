@@ -66,9 +66,6 @@ def obj_str(loc=None, obj=None, category=None, view_angle=None,
         sentence += ['with', str(loc)]
     if isinstance(obj, Operator):
         sentence += ['with', str(category)]
-
-    # if isinstance(loc, Operator):
-    #     sentence += ['on', space_type, 'of', str(loc)]
     return ' '.join(sentence)
 
 
@@ -106,7 +103,6 @@ class Operator(object):
             for c in child:
                 self.set_child(c)
 
-    # def get_partial_expected_input(self, should_be=None, ):
     def get_expected_input(self, should_be=None):
         """Guess and update the objset at this epoch.
 
@@ -167,12 +163,7 @@ class Select(Operator):
         category = category or sg.SNCategory(None)
         object = object or sg.SNObject(category, None)
         view_angle = view_angle or sg.SNViewAngle(object, None)
-
-        # if isinstance(loc, Operator) or loc.has_value:
-        #     assert space_type is not None
-        # TODO: add mapping from loc to space_type, which can cause issues with self.space_type in get_expected_input
-        #  but there maybe some issues with our environment since we don't have only 4 spaces
-
+                             
         self.loc, self.category, self.object, self.view_angle = loc, category, object, view_angle
         self.set_child([loc, category, object, view_angle])
 
@@ -194,11 +185,6 @@ class Select(Operator):
             return const.DATA.INVALID
 
         space = None
-        # if self.space_type is not None:
-        #     space = loc.get_space_to(self.space_type)
-        # else:
-        #     space = sg.Space(None)
-
         subset = objset.select(
             epoch_now,
             space=space,
@@ -213,14 +199,7 @@ class Select(Operator):
     def copy(self):
         return Select(loc=self.loc, category=self.category, object=self.object, view_angle=self.view_angle,
                       when=self.when, space_type=self.space_type)
-        # new_loc = self.loc.copy()
-        # new_cat = self.category.copy()
-        # new_obj = self.object.copy()
-        # new_view = self.view_angle.copy()
-        # new_st = self.space_type.copy() if self.space_type is not None else self.space_type
-        # return Select(loc=new_loc, category=new_cat, object=new_obj,
-        #               view_angle=new_view, when=self.when, space_type=new_st)
-
+        
     def hard_update(self, obj: sg.Object):
         """
         change the attributes based on the attributes of the provided obj
@@ -500,7 +479,7 @@ class Get(Operator):
 class Go(Get):
     """Go to location of object."""
 
-    ## todo: is this redundant?
+    
     def __init__(self, objs):
         super(Go, self).__init__('loc', objs)
 
@@ -531,7 +510,7 @@ class GetLoc(Get):
 
 
 class GetFixedObject(Get):
-    #### todo: this is not used elsewhere except for task bank CompareFixedObjectTemporal task
+    # this is not used elsewhere except for task bank CompareFixedObjectTemporal task
     def __init__(self, objs):
         super(GetFixedObject, self).__init__('fixed_object', objs)
 
@@ -543,7 +522,7 @@ class GetFixedObject(Get):
 
 
 class GetTime(Operator):
-    ## todo: redundant?
+            
     """Get time of an object.
 
     This operator is not tested and not finished.
@@ -591,7 +570,7 @@ class GetTime(Operator):
             # Ambiguous or non-existent
             return const.DATA.INVALID
         else:
-            # TODO(gryang): this only works when object is shown for a single epoch
+            
             return objs[0].epoch[0]
 
     def copy(self):
@@ -636,10 +615,6 @@ class Exist(Operator):
         return GetTime(new_objs)
 
     def get_expected_input(self, should_be):
-        #   if self.objs.when != 'last0':
-        #       raise ValueError("""
-        # Guess objset is not supported for the Exist class
-        # for when other than now""")
 
         if should_be is None:
             should_be = random.random() > 0.5
@@ -682,7 +657,7 @@ class Switch(Operator):
         self.both_options_avail = both_options_avail
 
     def __str__(self):
-        # assert not self.parent
+        
         words = [
             'if',
             str(self.statement), ',', 'then',
@@ -753,11 +728,7 @@ class Switch(Operator):
         """
         if should_be is None:
             should_be = random.random() > 0.5
-        # if not self.both_options_avail:
-        #     if random.random() > 0.5:
-        #         return should_be, True, False
-        #     else:
-        #         return should_be, False, True
+        
         return should_be, None, None
 
 
@@ -909,7 +880,7 @@ class Task(object):
         return self._operator(objset, epoch_now)
 
     def __str__(self):
-        # TODO: is_active flag for operators, drop out nodes when one branch is not part of instruction
+        
         return str(self._operator)
 
     def _add_all_nodes(self, op: Union[Operator, sg.Attribute], visited: dict, G: nx.DiGraph, count: int):
@@ -1032,8 +1003,6 @@ class Task(object):
                 outputs = inputs
 
             if isinstance(node, Switch):
-                # based on pouya's request
-                # for temporal switch, randomly select 1 branch to instantiate
                 if temporal_switch:
                     children = node.child
                     if random.random() > 0.5:
@@ -1082,8 +1051,6 @@ class Task(object):
         raise NotImplementedError('instance_size is not defined for this task.')
 
     def get_target(self, objset):
-
-        # return [self(objset, epoch_now) for epoch_now in range(0,objset.n_epoch)]
         return [self(objset, objset.n_epoch - 1)]
 
     def is_bool_output(self):
@@ -1107,11 +1074,7 @@ class TemporalTask(Task):
         new_task.n_frames = self.n_frames
         new_task._first_shareable = self.first_shareable
         new_task.avg_mem = self.avg_mem
-        nodes = self.topological_sort()
-        # TODO: multiple get pointing to same instance of select
-        # for n in nodes:
-        #     if isinstance(n, Select):
-        #         self.
+        nodes = self.topological_sort()    
         new_task._operator = self._operator.copy()
         return new_task
 
@@ -1149,7 +1112,7 @@ class TemporalTask(Task):
         # return the attribute of the object that is not randomly selected on lastk frame
         # for merging check purpose
         attrs = set()
-        # TODO: recurse to the root of the tree for switch?
+        
         for lastk_select in self.filter_selects(lastk):
             for parent_op in lastk_select.parent:
                 if isinstance(parent_op, Get):
@@ -1293,22 +1256,6 @@ def get_leafs(G: nx.DiGraph):
     return leafs
 
 
-# def subgraphs_from_switch(G: nx.DiGraph, root):
-#     preds = list(G.predecessors(root))
-#     left, right = preds[0], preds[1]
-#
-#     cut_G = G.copy()
-#     cut_G.remove_edge(left, root)
-#     cut_G.remove_edge(right, root)
-#
-#     subgraphs = (cut_G.subgraph(c) for c in nx.connected_components(cut_G.to_undirected()))
-#     left_subgraph, right_subgraph = None, None
-#     for graph in subgraphs:
-#         if left in graph:
-#             left_subgraph = graph
-#         elif right in graph:
-#             right_subgraph = graph
-#     return left_subgraph, right_subgraph
 
 def convert_operators(
         G: nx.DiGraph,
@@ -1437,8 +1384,8 @@ def load_operator_json(
             init['category'] = load_operator_json(op_dict['category'], operator_families, attr_families)
         elif 'sn_object' in op_dict:
             init['sn_object'] = load_operator_json(op_dict['sn_object'], operator_families, attr_families)
-        # elif 'space' in op_dict:
-        #     init['space'] = load_operator_json(op_dict['space'], operator_families, attr_families)
+       
+       
         return attr_families[name](value=op_dict['value'], **init)
 
 
