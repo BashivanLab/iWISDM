@@ -25,7 +25,7 @@ from typing import Tuple, Union, List
 GRAPH_TUPLE = Tuple[nx.DiGraph, int, int]
 TASK = Tuple[Union[tg.Operator, sg.Attribute], tg.TemporalTask]
 
-# TODO: add select attributes, combine helper with task_generator.task_generation
+
 # root_ops are the operators to begin a task
 root_ops = ["GetCategory", "GetLoc", "GetViewAngle", "GetObject", "Exist", "IsSame", "And"]
 boolean_ops = ["Exist", "IsSame", "And"]
@@ -343,15 +343,6 @@ if __name__ == '__main__':
         task_folders = [f.path for f in os.scandir(task_dir) if f.is_dir()]
         for f in task_folders:  # iterate each task folder
             try:
-                # uncomment to reconstruct the graph
-                # labels, adj = os.path.join(f, 'node_labels'), os.path.join(f, 'adj_dict')
-                # with open(labels, 'rb') as h:
-                #     labels = json.load(h)
-                # with open(adj, 'rb') as h:
-                #     adj = json.load(h)
-                # g = nx.from_dict_of_dicts(adj, create_using=nx.DiGraph)
-                # g = nx.relabel_nodes(g, labels)
-                # print(sorted(g))
                 task_json_fp = os.path.join(f, 'temporal_task.json')
                 with open(task_json_fp, 'rb') as h:
                     task_dict = json.load(h)
@@ -380,7 +371,6 @@ if __name__ == '__main__':
         print('Time taken to generate trials: ', stop - start)
     else:  # generate args.n_tasks
         start = timeit.default_timer()
-        # TODO: check for duplicated tasks by comparing task graphs
         for i in range(args.n_tasks):
             # make directory for saving task information
             fp = os.path.join(args.output_dir, str(i))
