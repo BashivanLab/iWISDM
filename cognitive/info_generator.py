@@ -146,7 +146,6 @@ class TaskInfoCompo(object):
             if obj_info[epoch]:  # if the frame contains stim/objects
                 for info_dict in obj_info[epoch]:  # for each object info dict,
                     compo_instruction += f'observe object {info_dict["count"]}, '
-                    # info_dict['tasks'] = {task: False for task in frame.relative_tasks}
                 add_delay, was_delay = False, False
 
             for d in frame.description:
@@ -210,7 +209,6 @@ class TaskInfoCompo(object):
         :return: tuple of list of dictionaries containing information about the composed tasks
         and compo task
         """
-        # TODO: stimuli relevant attribute and relevant tasks
         task_info_dict = list()
         for i, task in enumerate(self.tasks):  # iterate over individual tasks
             task_info_dict.append({
