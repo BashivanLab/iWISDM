@@ -246,6 +246,7 @@ class TaskInfoCompo(object):
         return task_info_dict, compo, memory_trace_info
 
     def write_trial_instance(self, write_fp: str, img_size=224, fixation_cue=True) -> None:
+        # generate trial information and save it locally
         frames_fp = os.path.join(write_fp, 'frames')
         if os.path.exists(frames_fp):
             shutil.rmtree(frames_fp)
