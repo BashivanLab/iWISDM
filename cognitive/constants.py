@@ -109,7 +109,7 @@ class Data:
         self.INVALID = 'invalid'
 
         # Allowed vocabulary, the first word is invalid
-        # TODO: add ShapeNet vocab
+        
         self.INPUTVOCABULARY = [
                                    'invalid',
                                    '.', ',', '?',
@@ -166,7 +166,7 @@ class Data:
         if len(obj_cat) <= 0:
             raise ValueError(obj.category, obj.object, obj.view_angle)
 
-        # obj_ref = int(obj_cat.sample(1)['ref'])
+        
         obj_ref = int(obj_cat.iloc[0]['ref'])
         obj_path = os.path.join(image_path, f'{obj_ref}/image.png')
         img = Image.open(obj_path).convert('RGB').resize(obj_size)
@@ -184,7 +184,7 @@ class Data:
 
     @property
     def ALLWHENS(self):
-        # todo: is this redundant to LASTMAP? there are places refering to both but I don't see the difference between the two
+        
         return [f'last{k}' for k in range(self.MAX_MEMORY + 1)]
 
     @property
@@ -223,7 +223,7 @@ def get_prefs(grid_size):
 def get_grid(grid_size):
     # return (grid_size,grid_size) array of sg.space.values
     # convert from grid to space
-    # todo: difference between space and grid?
+    
     x_space, y_space = grid_size[0] + 1, grid_size[1] + 1
     x_coords, y_coords = np.linspace(0, 1, x_space), np.linspace(0, 1, y_space)
     xx, yy = np.meshgrid(x_coords, y_coords, sparse=True)
