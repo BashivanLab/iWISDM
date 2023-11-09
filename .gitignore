@@ -2,6 +2,8 @@ datasets/
 data/
 tutorials/offline_models/*
 tutorials/offline_models/*/*
+graphs
+test
 
 # OS generated files #
 ######################
@@ -10,3 +12,9 @@ tutorials/offline_models/*/*
 .__pycache__
 .vscode
 .zip
+
+*.DS_Store
+*.DS_Store?
+*.__pycache__
+*.vscode
+*.zip

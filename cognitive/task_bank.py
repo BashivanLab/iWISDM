@@ -231,6 +231,31 @@ class SequentialCategoryMatch(TemporalTask):
     def instance_size(self):
         ## todo: same comment as before
         return sg.n_sample_shape(2) * (sg.n_random_when()) ** 2
+    
+class SequentialLocationMatch(TemporalTask):
+    # nback location
+    def __init__(self, whens=None, first_shareable=None, n_frames=1):
+        super(SequentialLocationMatch, self).__init__(whens=whens, first_shareable=first_shareable)
+        total_frames = n_frames * 2 + random.randint(0, const.DATA.MAX_MEMORY - (n_frames * 2) + 1)
+
+        sample_objs = [tg.Select(when=f'last{total_frames - i - 1}') for i in range(n_frames)]
+        response_objs = [tg.Select(when=f'last{i}') for i in range(n_frames)]
+        sample_cats = [tg.GetLoc(obj) for obj in sample_objs]
+        response_cats = [tg.GetLoc(obj) for obj in response_objs]
+        is_sames = [tg.IsSame(sample, response) for sample, response in zip(sample_cats, response_cats)]
+        if n_frames == 1:
+            self._operator = is_sames[0]
+        else:
+            ands = tg.And(is_sames[0], is_sames[1])
+            for is_same1, is_same2 in zip(is_sames[2::2], is_sames[3::2]):
+                ands = tg.And(tg.And(is_same1, is_same2), ands)
+            self._operator = ands
+        self.n_frames = total_frames
+
+    @property
+    def instance_size(self):
+        ## todo: same comment as before
+        return sg.n_sample_shape(2) * (sg.n_random_when()) ** 2
 
 
 class DelayedCDM(TemporalTask):
