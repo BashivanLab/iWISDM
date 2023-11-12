@@ -39,15 +39,15 @@ parser.add_argument('--task_max_len', type=int, default=3)
 # Transformer Args
 parser.add_argument('--nhead', type=int, default=16)
 parser.add_argument('--tffl_size', type=int, default=2048)
-parser.add_argument('--blocks', type=int, default=2)
+parser.add_argument('--blocks', type=int, default=1)
 
 # General Pipeline Args
 parser.add_argument('--model_name', type=str, default='RNN')
-parser.add_argument('--hidden_size', type=int, default=256)
+parser.add_argument('--hidden_size', type=int, default=512)
 parser.add_argument('--lr', type=float, default=3e-5)
 parser.add_argument('--epochs', type=int, default=100)
 parser.add_argument('--niters', type=int, required=False)
-parser.add_argument('--batch_size', type=int, default=128)
+parser.add_argument('--batch_size', type=int, default=256)
 parser.add_argument('--imgm_path', type=str, default='./tutorials/offline_models/resnet/resnet')
 parser.add_argument('--insm_path', type=str, default='./tutorials/offline_models/all-mpnet-base-v2')
 
