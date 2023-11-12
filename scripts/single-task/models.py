@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import numpy as np
 import math
 
-class EncoderTF(nn.Module):
+class TFEncoder(nn.Module):
     def __init__(self, hidden_size, img_encoder, device, dim_transformer_ffl=2048, nhead = 16, blocks=2, output_size = 3, max_frames=6):
         super().__init__()
 
@@ -46,7 +46,7 @@ class EncoderTF(nn.Module):
         self.seq_len = frames.shape[1]
 
         causal_mask = self.generate_causal_mask(self.seq_len)
-        padding_mask = self.generate_pad_mask(frames)
+        padding_mask = None # self.generate_pad_mask(frames)
         
         x = torch.swapaxes(frames, 0, 1).float() # (seq_len, batchsize, nc, w, h)
 
@@ -60,7 +60,7 @@ class EncoderTF(nn.Module):
         x_acts = x_acts.reshape(x_acts.shape[0], self.batch_size, -1) # flatten nc,w,h into one dim
          
         hidden_x = self.layer_norm_in(self.pos_emb(self.in2hidden(x_acts.float())))
-        encoder_output = self.encoder(hidden_x, mask=causal_mask, key_padding_mask=padding_mask)
+        encoder_output = self.encoder(hidden_x, mask=causal_mask, src_key_padding_mask=padding_mask)
         out = self.hidden2output(encoder_output)
         
         return out

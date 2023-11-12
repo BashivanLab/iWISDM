@@ -8,3 +8,4 @@ torch
 torchvision
 transformers
 tqdm
+pandas

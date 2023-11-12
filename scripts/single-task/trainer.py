@@ -1,9 +1,11 @@
 import torch
 from torch.utils.data import DataLoader
 from dsets import DynamicTaskDataset
+from datetime import datetime
+import json
 
 class Trainer(object):
-    def __init__(self, train_data, val_data, device, static=True):
+    def __init__(self, train_data, val_data, device, out_dir, args, static=True):
         assert type(train_data) == DataLoader or type(train_data) == DynamicTaskDataset, "train_data should be a torch DataLoader or class DynamicTaskDataset"
         assert type(val_data) == DataLoader or type(val_data) == DynamicTaskDataset, "val_data should be a torch DataLoader or class DynamicTaskDataset"
 
@@ -16,22 +18,25 @@ class Trainer(object):
         self.all_loss = {'train_null_loss':[],'train_non_null_loss':[], 'val_null_loss':[], 'val_non_null_loss':[]}
         self.all_acc = {'train_null_acc':[], 'train_non_null_acc':[], 'val_null_acc':[], 'val_non_null_acc':[]}
 
+        self.out_dir = out_dir
+        self.args = args
+
     
     def train(self, model, ins_encoder, criterion, optimizer, scheduler=None, epochs=100, iterations=None, batch_size=256):
         if self.static:
-            self.train_static(model, ins_encoder, criterion, optimizer, scheduler=None, epochs=100, batch_size=256)
+            self.train_static(model, ins_encoder, criterion, optimizer, scheduler=scheduler, epochs=epochs, batch_size=batch_size)
         else:
-            self.train_dynamic(model, ins_encoder, criterion, optimizer, scheduler=None, epochs=100, iterations=100000, batch_size=256)
+            self.train_dynamic(model, ins_encoder, criterion, optimizer, scheduler=scheduler, epochs=epochs, iterations=iterations, batch_size=batch_size)
 
-    def validate(self, model, ins_encoder, iterations=None, batch_size=256):
+    def validate(self, model, criterion, ins_encoder, iterations=None, batch_size=256):
         if self.static:
-            self.val_static(model, ins_encoder, batch_size)
+            self.val_static(model, criterion, ins_encoder, batch_size)
         else:
-            self.val_dynamic(model, ins_encoder,  iterations, batch_size)
+            self.val_dynamic(model, criterion, ins_encoder,  iterations, batch_size)
 
     def train_static(self, model, ins_encoder, criterion, optimizer, scheduler=None, epochs=100, batch_size=256):
         for epoch in range(epochs):
-            print('epoch: ', epoch)        
+            print('epoch: ', epoch)
             i = 0
 
             null_accs = []
@@ -50,8 +55,9 @@ class Trainer(object):
                 null_losses.append(null_loss.item())
                 non_null_losses.append(non_null_loss.item())
 
-                if i%(epochs//3) != 0:
+                if i%(epochs//2) != 0:
                     null_loss = 0
+                null_loss = 0
                 train_loss = null_loss + non_null_loss # *scale *(1/(scale**(epoch/2)))
                 train_loss.backward()
                 optimizer.step()
@@ -60,8 +66,8 @@ class Trainer(object):
                 predicted = predicted.permute(1,0).reshape(-1)
 
                 null_acc, non_null_acc = self.correct(predicted, actions.reshape(-1).to(self.device))
-                null_accs.append(null_acc.cpu())
-                non_null_accs.append(non_null_acc.cpu())
+                null_accs.append(null_acc.item())
+                non_null_accs.append(non_null_acc.item())
                 
                 if scheduler is not None:
                     scheduler.step(epoch + i / len(self.train_set))
@@ -69,7 +75,9 @@ class Trainer(object):
                 i += 1
             self.stat_track('train', null_accs, non_null_accs, null_losses, non_null_losses)
             self.print_acc('train', null_accs, non_null_accs)
-            self.validate(model, ins_encoder, epochs, batch_size)
+            self.validate(model, criterion, ins_encoder, epochs, batch_size)
+            if epoch%((epochs+1)//4) == 0:
+                self.write_stats()
 
     def train_dynamic(self, model, ins_encoder, criterion, optimizer, scheduler=None, epochs=100, iterations=100000, batch_size=256):
         for epoch in range(epochs):
@@ -91,7 +99,7 @@ class Trainer(object):
                 null_losses.append(null_loss.item())
                 non_null_losses.append(non_null_loss.item())
 
-                if i%(epochs//3) != 0:
+                if i%(epochs//2) != 0:
                     null_loss = 0
                 train_loss = null_loss + non_null_loss # *scale *(1/(scale**(epoch/2)))
                 train_loss.backward()
@@ -101,17 +109,20 @@ class Trainer(object):
                 predicted = predicted.permute(1,0).reshape(-1)
 
                 null_acc, non_null_acc = self.correct(predicted, actions.reshape(-1).to(self.device))
-                null_accs.append(null_acc.cpu())
-                non_null_accs.append(non_null_acc.cpu())
+                null_accs.append(null_acc.item())
+                non_null_accs.append(non_null_acc.item())
                 
                 if scheduler is not None:
                     scheduler.step(epoch + i / iterations//batch_size)
 
+            print('epoch: ', epoch)
             self.stat_track('train', null_accs, non_null_accs, null_losses, non_null_losses)
             self.print_acc('train', null_accs, non_null_accs)
-            self.validate(model, ins_encoder, epochs, batch_size)
+            self.validate(model, criterion, ins_encoder, epochs, batch_size)
+            if epoch%((epochs+1)//4) == 0:
+                self.write_stats()
 
-    def validate_static(self, model, ins_encoder, batch_size):
+    def val_static(self, model, criterion, ins_encoder, batch_size):
         null_accs = []
         non_null_accs = []
         null_losses = []
@@ -121,7 +132,7 @@ class Trainer(object):
             model.eval()
             output = model(images.to(self.device), instructions)
 
-            null_loss, non_null_loss, scale = self.loss(output.permute(1,0,2).reshape(-1,3), actions.type(torch.LongTensor).reshape(-1).to(self.device))
+            null_loss, non_null_loss, scale = self.loss(criterion, output.permute(1,0,2).reshape(-1,3), actions.type(torch.LongTensor).reshape(-1).to(self.device))
             null_losses.append(null_loss.item())
             non_null_losses.append(non_null_loss.item())
             
@@ -129,13 +140,13 @@ class Trainer(object):
             predicted = predicted.permute(1,0).reshape(-1)
 
             null_acc, non_null_acc = self.correct(predicted, actions.reshape(-1).to(self.device))
-            null_accs.append(null_acc.cpu())
-            non_null_accs.append(non_null_acc.cpu())
+            null_accs.append(null_acc.item())
+            non_null_accs.append(non_null_acc.item())
 
         self.stat_track('val', null_accs, non_null_accs, null_losses, non_null_losses)
         self.print_acc('val', null_accs, non_null_accs)
 
-    def validate_dynamic(self, model, ins_encoder, iterations, batch_size):
+    def val_dynamic(self, model, criterion, ins_encoder, iterations, batch_size):
         null_accs = []
         non_null_accs = []
         null_losses = []
@@ -149,7 +160,7 @@ class Trainer(object):
 
             output = model(images.to(self.device), instructions)
 
-            null_loss, non_null_loss, scale = self.loss(output.permute(1,0,2).reshape(-1,3), actions.type(torch.LongTensor).reshape(-1).to(self.device))
+            null_loss, non_null_loss, scale = self.loss(criterion, output.permute(1,0,2).reshape(-1,3), actions.type(torch.LongTensor).reshape(-1).to(self.device))
             null_losses.append(null_loss.item())
             non_null_losses.append(non_null_loss.item())
             
@@ -157,8 +168,8 @@ class Trainer(object):
             predicted = predicted.permute(1,0).reshape(-1)
 
             null_acc, non_null_acc = self.correct(predicted, actions.reshape(-1).to(self.device))
-            null_accs.append(null_acc.cpu())
-            non_null_accs.append(non_null_acc.cpu())
+            null_accs.append(null_acc.item())
+            non_null_accs.append(non_null_acc.item())
 
         self.stat_track('val', null_accs, non_null_accs, null_losses, non_null_losses)
         self.print_acc('val', null_accs, non_null_accs)
@@ -198,15 +209,23 @@ class Trainer(object):
 
     def stat_track(self, mode, null_accs, non_null_accs, null_losses, non_null_losses):
         assert mode in ['train', 'val'], 'mode must be either \"train\" or \"val\"'
-        self.all_loss[mode + '_null_loss'].append(sum(null_losses)/len(null_losses))
-        self.all_loss[mode + '_non_null_loss'].append(sum(non_null_losses)/len(non_null_losses))
-        self.all_acc[mode + '_null_acc'].append(sum(null_accs)/len(null_accs))
-        self.all_acc[mode + '_non_null_acc'].append(sum(non_null_accs)/len(non_null_accs))
+        self.all_loss[mode + '_null_loss'].append((sum(null_losses)/len(null_losses)))
+        self.all_loss[mode + '_non_null_loss'].append((sum(non_null_losses)/len(non_null_losses)))
+        self.all_acc[mode + '_null_acc'].append((sum(null_accs)/len(null_accs)))
+        self.all_acc[mode + '_non_null_acc'].append((sum(non_null_accs)/len(non_null_accs)))
 
     def print_acc(self, mode, null_accs, non_null_accs):
         assert mode in ['train', 'val'], 'mode must be either \"train\" or \"val\"'
-        print(mode + ' null acc: ', round(sum(null_accs)/len(null_accs),4))
-        print(mode + ' non-null acc: ', round(sum(non_null_accs)/len(non_null_accs), 4))
+        print(mode + ' null acc: ', (sum(null_accs)/len(null_accs)))
+        print(mode + ' non-null acc: ', (sum(non_null_accs)/len(non_null_accs)))
+
+    def write_stats(self):
+        now = datetime.now().strftime("%H:%M:%S")
+        with open(self.out_dir  + 'log_' + now + '.json', 'w') as outfile: 
+            log = self.args.copy()
+            log.update(self.all_acc)
+            log.update(self.all_loss)
+            json.dump(log, outfile)
 
     def get_stats(self):
         return self.all_loss, self.all_acc

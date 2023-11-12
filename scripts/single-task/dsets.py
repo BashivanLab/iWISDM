@@ -5,6 +5,7 @@ import numpy as np
 import os
 import json
 from PIL import Image
+import matplotlib.pyplot as plt
 from natsort import natsorted
 
 from cognitive import info_generator as ig
@@ -16,7 +17,7 @@ class StaticTaskDataset(Dataset):
         # preprocessing steps for pretrained ResNet models
         self.transform = transforms.Compose([
                             transforms.Resize(224),
-                            transforms.CenterCrop(224), # todo: to delete for shapenet task; why?
+                            # transforms.CenterCrop(224), # todo: to delete for shapenet task; why?
                             transforms.ToTensor(),
                             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
                         ])
@@ -54,7 +55,7 @@ class StaticTaskDataset(Dataset):
                 
                 instructions = info['instruction']
         
-        images = np.stack(images)
+        images = torch.stack(images)
 
         return images, instructions, torch.tensor(actions), 
     
