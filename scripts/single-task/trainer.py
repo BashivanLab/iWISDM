@@ -222,6 +222,7 @@ class Trainer(object):
     def write_stats(self):
         now = datetime.now().strftime("%H:%M:%S")
         with open(self.out_dir  + 'log_' + now + '.json', 'w') as outfile: 
+            print(outfile)
             log = self.args.copy()
             log.update(self.all_acc)
             log.update(self.all_loss)
