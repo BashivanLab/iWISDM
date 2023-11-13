@@ -1,7 +1,9 @@
 import sys
-# sys.path.append('../../')
+sys.path.append('../../')
 
-# import os
+
+import os
+print(os.getcwd())
 # os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
 import argparse
