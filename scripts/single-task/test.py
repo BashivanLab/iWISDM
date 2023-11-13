@@ -1,5 +1,5 @@
 import sys
-sys.path.insert(0, '../../')
+sys.path.append('../../')
 print(sys.path)
 
 import cognitive
