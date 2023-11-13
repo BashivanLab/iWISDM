@@ -2,9 +2,7 @@ datasets/
 data/
 tutorials/offline_models/*
 tutorials/offline_models/*/*
-scripts/output/*
-scripts/output/
-scripts/outputs/single-task/
+scripts/outputs/single-task/*
 graphs
 test
 
