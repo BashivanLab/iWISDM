@@ -1,6 +1,6 @@
 import sys
-sys.path.append('$SLURM_TMPDIR/mlti-dl')
-# python $SLURM_TMPDIR/mlti-dl/scripts/single-task/main.py --model_name 'TFEncoder' --lr 0.00001 --epochs 5 --train_path $SLURM_TMPDIR/mlti-dl/datasets/test_mini --val_path $SLURM_TMPDIR/mlti-dl/datasets/test_mini
+sys.path.append(sys.path[0] + '/../../')
+
 
 import os
 print('BLAH')
