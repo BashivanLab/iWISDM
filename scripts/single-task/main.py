@@ -103,7 +103,7 @@ if __name__ == '__main__':
         val_set = DynamicTaskDataset(task, img_size=args.img_size, fixation_cue=True, train=False)
 
     print(vars(args))
-    trainer = Trainer(train_set, val_set, device, static=args.static, out_dir='./outputs/single-task/', args=vars(args))
+    trainer = Trainer(train_set, val_set, device, static=args.static, out_dir='./scripts/outputs/single-task/', args=vars(args))
 
     trainer.train(model, ins_encoder, criterion, optimizer, scheduler=scheduler, epochs=args.epochs, iterations=args.niters, batch_size=args.batch_size)
     all_loss, all_acc = trainer.get_stats()
@@ -111,8 +111,8 @@ if __name__ == '__main__':
 
     now = datetime.now().strftime("%H:%M:%S")
 
-    plot_dict(all_loss, fname='./outputs/single-task/' + args.model_name + '_loss_graph_' + now + '.png')
-    plot_dict(all_acc, fname='./outputs/single-task/' + args.model_name + '_acc_graph_' + now + '.png')
+    plot_dict(all_loss, fname='./scripts/outputs/single-task/' + args.model_name + '_loss_graph_' + now + '.png')
+    plot_dict(all_acc, fname='./scripts/outputs/single-task/' + args.model_name + '_acc_graph_' + now + '.png')
 
 
 
