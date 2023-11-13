@@ -31,19 +31,21 @@ parser = argparse.ArgumentParser()# Add an argument
 parser.add_argument('--static', type=bool, default=True)# Parse the argument
 parser.add_argument('--train_path', type=str, default='./datasets/train_big')# Parse the argument # test_mini train_big
 parser.add_argument('--val_path', type=str, default='./datasets/val_big')# Parse the argument  # test_mini val_big
+parser.add_argument('--out_path', type=str, default='./scripts/outputs/single-task/')
 parser.add_argument('--task_name', type=str, default='CompareCategoryTemporal')
 parser.add_argument('--task_path', type=str, required=False)
 parser.add_argument('--img_size', type=int, default=224)
 parser.add_argument('--task_max_len', type=int, default=3)
 
+
 # Transformer Args
 parser.add_argument('--nhead', type=int, default=16)
 parser.add_argument('--tffl_size', type=int, default=2048)
-parser.add_argument('--blocks', type=int, default=1)
+parser.add_argument('--blocks', type=int, default=2)
 
 # General Pipeline Args
 parser.add_argument('--model_name', type=str, default='RNN')
-parser.add_argument('--hidden_size', type=int, default=512)
+parser.add_argument('--hidden_size', type=int, default=256)
 parser.add_argument('--lr', type=float, default=3e-5)
 parser.add_argument('--epochs', type=int, default=100)
 parser.add_argument('--niters', type=int, required=False)
@@ -103,7 +105,7 @@ if __name__ == '__main__':
         val_set = DynamicTaskDataset(task, img_size=args.img_size, fixation_cue=True, train=False)
 
     print(vars(args))
-    trainer = Trainer(train_set, val_set, device, static=args.static, out_dir='./scripts/outputs/single-task/', args=vars(args))
+    trainer = Trainer(train_set, val_set, device, static=args.static, out_dir=args.out_path, args=vars(args))
 
     trainer.train(model, ins_encoder, criterion, optimizer, scheduler=scheduler, epochs=args.epochs, iterations=args.niters, batch_size=args.batch_size)
     all_loss, all_acc = trainer.get_stats()
@@ -111,8 +113,8 @@ if __name__ == '__main__':
 
     now = datetime.now().strftime("%H:%M:%S")
 
-    plot_dict(all_loss, fname='./scripts/outputs/single-task/' + args.model_name + '_loss_graph_' + now + '.png')
-    plot_dict(all_acc, fname='./scripts/outputs/single-task/' + args.model_name + '_acc_graph_' + now + '.png')
+    plot_dict(all_loss, fname=args.out_path + args.model_name + '_loss_graph_' + now + '.png')
+    plot_dict(all_acc, fname=args.out_path + args.model_name + '_acc_graph_' + now + '.png')
 
 
 

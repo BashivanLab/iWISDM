@@ -42,6 +42,7 @@ class StaticTaskDataset(Dataset):
             fp = os.path.join(trial_path, fp)
 
             if fp[-4:] == '.png':
+                print(fp)
                 img = Image.open(fp)
                 img = self.transform(img)
                 images.append(img)
