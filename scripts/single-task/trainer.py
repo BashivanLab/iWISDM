@@ -18,6 +18,9 @@ class Trainer(object):
         self.all_loss = {'train_null_loss':[],'train_non_null_loss':[], 'val_null_loss':[], 'val_non_null_loss':[]}
         self.all_acc = {'train_null_acc':[], 'train_non_null_acc':[], 'val_null_acc':[], 'val_non_null_acc':[]}
 
+
+        if !os.path.exists(outpuout_dirt_dir):
+            os.makedirs(out_dir)
         self.out_dir = out_dir
         self.args = args
 
