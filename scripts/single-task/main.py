@@ -1,9 +1,10 @@
 import sys
 sys.path.append('$SLURM_TMPDIR/mlti-dl')
-
+# python $SLURM_TMPDIR/mlti-dl/scripts/single-task/main.py --model_name 'TFEncoder' --lr 0.00001 --epochs 5 --train_path $SLURM_TMPDIR/mlti-dl/datasets/test_mini --val_path $SLURM_TMPDIR/mlti-dl/datasets/test_mini
 
 import os
-print(os.getcwd())
+print('BLAH')
+print(os.listdir())
 # os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
 import argparse
