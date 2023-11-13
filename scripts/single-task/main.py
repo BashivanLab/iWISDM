@@ -1,5 +1,5 @@
 import sys
-sys.path.append('../../')
+sys.path.append('$SLURM_TMPDIR/mlti-dl')
 
 
 import os
