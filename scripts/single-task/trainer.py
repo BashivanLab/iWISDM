@@ -20,7 +20,7 @@ class Trainer(object):
         self.all_acc = {'train_null_acc':[], 'train_non_null_acc':[], 'val_null_acc':[], 'val_non_null_acc':[]}
 
 
-        if not os.path.exists(outpuout_dirt_dir):
+        if not os.path.exists(out_dir):
             os.makedirs(out_dir)
         self.out_dir = out_dir
         self.args = args
