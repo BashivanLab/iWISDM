@@ -1,6 +1,5 @@
 import sys
 # sys.path.append('../../')
-sys.path.append('/home/lucasg/mlti-dl')
 
 # import os
 # os.environ['KMP_DUPLICATE_LIB_OK']='True'
