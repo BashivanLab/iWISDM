@@ -1,3 +1,4 @@
 import sys
-# sys.path.append('$SLURM_TMPDIR/mlti-dl')
-print(sys.path)
+sys.path.insert(0, '../../')
+
+import cognitive
