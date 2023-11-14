@@ -90,7 +90,7 @@ if __name__ == '__main__':
 
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.AdamW(model.parameters(), lr = args.lr)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, 7, T_mult=1 )
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, 5, T_mult=1 )
 
     if args.static:
         train_set = DataLoader(StaticTaskDataset(args.train_path), batch_size=args.batch_size, shuffle=True)
