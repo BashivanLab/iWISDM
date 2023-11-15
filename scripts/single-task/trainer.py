@@ -79,8 +79,8 @@ class Trainer(object):
                 i += 1
             self.stat_track('train', null_accs, non_null_accs, null_losses, non_null_losses)
             self.print_acc('train', null_accs, non_null_accs)
-            self.validate(model, criterion, ins_encoder, epochs, batch_size)
             if epoch%((epochs+1)//4) == 0:
+                self.validate(model, criterion, ins_encoder, epochs, batch_size)
                 self.write_stats()
 
     def train_dynamic(self, model, ins_encoder, criterion, optimizer, scheduler=None, epochs=100, iterations=100000, batch_size=256):
