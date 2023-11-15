@@ -2,10 +2,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 def plot_dict(dict_arrays, fname, use_xlabel='Epochs', use_ylabel='Value', use_title=None):
-    plt.figure().clear()
-    plt.close()
-    plt.cla()
-    plt.clf()
     # Font size select custom or adjusted on `magnify` value.
     font_size = np.interp(0.1, [0.1,1], [10.5,50])
 
@@ -88,5 +84,10 @@ def plot_dict(dict_arrays, fname, use_xlabel='Epochs', use_ylabel='Value', use_t
     fig.set_size_inches(figsize)
 
     plt.savefig(fname)
+
+    plt.figure().clear()
+    plt.close()
+    plt.cla()
+    plt.clf()
 
     return 
