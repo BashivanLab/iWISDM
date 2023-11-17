@@ -50,8 +50,8 @@ parser.add_argument('--lr', type=float, default=3e-5)
 parser.add_argument('--epochs', type=int, default=100)
 parser.add_argument('--niters', type=int, required=False)
 parser.add_argument('--batch_size', type=int, default=256)
-parser.add_argument('--imgm_path', type=str, default='./tutorials/offline_models/resnet/resnet')
-parser.add_argument('--insm_path', type=str, default='./tutorials/offline_models/all-mpnet-base-v2')
+parser.add_argument('--imgm_path', type=str, default='$SLURM_TMPDIR/mlti-dl/tutorials/offline_models/resnet/resnet')
+parser.add_argument('--insm_path', type=str, default='$SLURM_TMPDIR/mlti-dl/tutorials/offline_models/all-mpnet-base-v2')
 
 
 
