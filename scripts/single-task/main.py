@@ -3,9 +3,9 @@ sys.path.append(sys.path[0] + '/../../')
 
 
 import os
-tmp_dir = os.environ['SLURM_TMPDIR'] + '/'
-job_id = os.environ['SLURM_JOB_ID'] + '/'
-home_dir = os.environ['HOME'] + '/'
+tmp_dir = './' # os.environ['SLURM_TMPDIR'] + '/'
+job_id = 'test_job' # os.environ['SLURM_JOB_ID'] + '/'
+home_dir = './' # os.environ['HOME'] + '/'
 print(tmp_dir)
 print(home_dir)
 print(job_id)
