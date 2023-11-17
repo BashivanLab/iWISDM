@@ -4,7 +4,7 @@ sys.path.append(sys.path[0] + '/../../')
 
 import os
 tmp_dir = os.environ['SLURM_TMPDIR'] + '/'
-job_id = os.environ['SLURM_JOB_ID']
+job_id = os.environ['SLURM_JOB_ID'] + '/'
 home_dir = os.environ['HOME'] + '/'
 print(tmp_dir)
 print(home_dir)
@@ -37,7 +37,7 @@ parser = argparse.ArgumentParser()# Add an argument
 parser.add_argument('--static', type=bool, default=True)# Parse the argument
 parser.add_argument('--train_path', type=str, default='./datasets/train_big')# Parse the argument # test_mini train_big
 parser.add_argument('--val_path', type=str, default='./datasets/val_big')# Parse the argument  # test_mini val_big
-parser.add_argument('--out_path', type=str, default= home_dir + 'outputs/' + job_id)
+parser.add_argument('--out_path', type=str, default= home_dir + 'outputs/' + job_id )
 parser.add_argument('--task_name', type=str, default='CompareCategoryTemporal')
 parser.add_argument('--task_path', type=str, required=False)
 parser.add_argument('--img_size', type=int, default=224)
