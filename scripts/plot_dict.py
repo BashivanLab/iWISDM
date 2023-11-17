@@ -85,4 +85,9 @@ def plot_dict(dict_arrays, fname, use_xlabel='Epochs', use_ylabel='Value', use_t
 
     plt.savefig(fname)
 
+    plt.figure().clear()
+    plt.close()
+    plt.cla()
+    plt.clf()
+
     return 

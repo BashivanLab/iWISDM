@@ -3,7 +3,13 @@ sys.path.append(sys.path[0] + '/../../')
 
 
 import os
-os.environ['KMP_DUPLICATE_LIB_OK']='True'
+tmp_dir = os.environ['SLURM_TMPDIR'] + '/'
+job_id = os.environ['SLURM_JOB_ID'] + '/'
+home_dir = os.environ['HOME'] + '/'
+print(tmp_dir)
+print(home_dir)
+print(job_id)
+# os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
 import argparse
 import json 
@@ -27,11 +33,11 @@ from scripts.plot_dict import plot_dict
 parser = argparse.ArgumentParser()# Add an argument
 
 # Task and Data Arg
-parser.add_argument('--static', type=bool, default=False)# Parse the argument
-parser.add_argument('--train_path', type=str, default='./datasets/test_mini')# Parse the argument # test_mini train_big
-parser.add_argument('--val_path', type=str, default='./datasets/test_mini')# Parse the argument  # test_mini val_big
-parser.add_argument('--out_path', type=str, default='./scripts/outputs/single-task/')
-parser.add_argument('--task_name', type=str, default='CompareCategory')
+parser.add_argument('--static', type=bool, default=True)# Parse the argument
+parser.add_argument('--train_path', type=str, default='./datasets/train_big')# Parse the argument # test_mini train_big
+parser.add_argument('--val_path', type=str, default='./datasets/val_big')# Parse the argument  # test_mini val_big
+parser.add_argument('--out_path', type=str, default= home_dir + 'outputs/' + job_id )
+parser.add_argument('--task_name', type=str, default='CompareCategoryTemporal')
 parser.add_argument('--task_path', type=str, required=False)
 parser.add_argument('--train_stim_path', type=str, required=False)
 parser.add_argument('--val_stim_path', type=str, required=False)
@@ -51,8 +57,8 @@ parser.add_argument('--lr', type=float, default=3e-5)
 parser.add_argument('--epochs', type=int, default=100)
 parser.add_argument('--niters', type=int, default=100000)
 parser.add_argument('--batch_size', type=int, default=256)
-parser.add_argument('--imgm_path', type=str, default='./tutorials/offline_models/resnet/resnet')
-parser.add_argument('--insm_path', type=str, default='./tutorials/offline_models/all-mpnet-base-v2')
+parser.add_argument('--imgm_path', type=str, default='/mlti-dl/tutorials/offline_models/resnet/resnet')
+parser.add_argument('--insm_path', type=str, default='/mlti-dl/tutorials/offline_models/all-mpnet-base-v2')
 
 
 
@@ -78,15 +84,15 @@ if __name__ == '__main__':
 
     device = get_device()
 
-    img_encoder = torch.load(args.imgm_path, map_location=device)
+    img_encoder = torch.load(tmp_dir + args.imgm_path, map_location=device)
     model_dict = OrderedDict([
     ('RNN', RNN(hidden_size=args.hidden_size, img_encoder=img_encoder, device=device, max_frames=args.task_max_len)),
     ('TFEncoder', TFEncoder(hidden_size=args.hidden_size, img_encoder=img_encoder, device=device, dim_transformer_ffl=args.tffl_size, nhead=args.nhead, blocks=args.blocks, max_frames=args.task_max_len)),
     ])
     model = model_dict[args.model_name].to(device)
 
-    ins_model = AutoModel.from_pretrained(args.insm_path).to(device).eval()
-    tokenizer = AutoTokenizer.from_pretrained(args.insm_path)
+    ins_model = AutoModel.from_pretrained(tmp_dir + args.insm_path).to(device).eval()
+    tokenizer = AutoTokenizer.from_pretrained(tmp_dir + args.insm_path)
 
     ins_encoder = InsEncoder(ins_model, tokenizer, device)
 
@@ -95,8 +101,8 @@ if __name__ == '__main__':
     scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, 5, T_mult=1 )
 
     if args.static:
-        train_set = DataLoader(StaticTaskDataset(args.train_path), batch_size=args.batch_size, shuffle=True)
-        val_set = DataLoader(StaticTaskDataset(args.val_path), batch_size=args.batch_size, shuffle=False)
+        train_set = DataLoader(StaticTaskDataset(tmp_dir + args.train_path), batch_size=args.batch_size, shuffle=True)
+        val_set = DataLoader(StaticTaskDataset(tmp_dir + args.val_path), batch_size=args.batch_size, shuffle=False)
     else: 
         train_set =  DataLoader(DynamicTaskDataset(task_name=args.task_name, stim_dir=args.train_stim_path, max_len=args.task_max_len, set_len=50000 ,img_size=args.img_size, fixation_cue=True, train=True, task_path=args.task_path), batch_size=args.batch_size)
         val_set =  DataLoader(DynamicTaskDataset(task_name=args.task_name, stim_dir=args.val_stim_path, max_len=args.task_max_len, set_len=50000, img_size=args.img_size, fixation_cue=True, train=False, task_path=args.task_path), batch_size=args.batch_size)
@@ -109,8 +115,8 @@ if __name__ == '__main__':
 
     now = datetime.now().strftime("%H:%M:%S")
 
-    plot_dict(all_loss, fname=args.out_path + args.model_name + '_loss_graph_' + now + '.png')
-    plot_dict(all_acc, fname=args.out_path + args.model_name + '_acc_graph_' + now + '.png')
+    plot_dict(all_loss, fname= args.out_path + args.model_name + '_loss_graph_' + now + '.png')
+    plot_dict(all_acc, fname= args.out_path + args.model_name + '_acc_graph_' + now + '.png')
 
 
 

@@ -143,7 +143,7 @@ class RNN(nn.Module):
         self.rnn = nn.RNN(
             input_size = self.hidden_size, 
             hidden_size = self.hidden_size,
-            nonlinearity = "relu", 
+            # nonlinearity = "relu",  #  DIFFERENCE
             )
 
         self.layer_norm_rnn = nn.LayerNorm(self.hidden_size)
