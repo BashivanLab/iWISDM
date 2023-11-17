@@ -4,6 +4,7 @@ sys.path.append(sys.path[0] + '/../../')
 
 import os
 tmp_dir = os.environ['SLURM_TMPDIR'] + '/'
+job_id = os.environ['SLURM_JOB_ID']
 home_dir = os.environ['HOME'] + '/'
 print(tmp_dir)
 print(home_dir)
@@ -35,7 +36,7 @@ parser = argparse.ArgumentParser()# Add an argument
 parser.add_argument('--static', type=bool, default=True)# Parse the argument
 parser.add_argument('--train_path', type=str, default='./datasets/train_big')# Parse the argument # test_mini train_big
 parser.add_argument('--val_path', type=str, default='./datasets/val_big')# Parse the argument  # test_mini val_big
-parser.add_argument('--out_path', type=str, default='./scripts/outputs/single-task/')
+parser.add_argument('--out_path', type=str, default= home_dir + 'outputs/' + job_id)
 parser.add_argument('--task_name', type=str, default='CompareCategoryTemporal')
 parser.add_argument('--task_path', type=str, required=False)
 parser.add_argument('--img_size', type=int, default=224)
@@ -109,7 +110,7 @@ if __name__ == '__main__':
         val_set = DynamicTaskDataset(task, img_size=args.img_size, fixation_cue=True, train=False)
 
     print(vars(args))
-    trainer = Trainer(train_set, val_set, device, static=args.static, out_dir=home_dir + args.out_path, args=vars(args))
+    trainer = Trainer(train_set, val_set, device, static=args.static, out_dir=args.out_path, args=vars(args))
 
     trainer.train(model, ins_encoder, criterion, optimizer, scheduler=scheduler, epochs=args.epochs, iterations=args.niters, batch_size=args.batch_size)
     all_loss, all_acc = trainer.get_stats()
@@ -117,8 +118,8 @@ if __name__ == '__main__':
 
     now = datetime.now().strftime("%H:%M:%S")
 
-    plot_dict(all_loss, fname= home_dir + args.out_path + args.model_name + '_loss_graph_' + now + '.png')
-    plot_dict(all_acc, fname= home_dir + args.out_path + args.model_name + '_acc_graph_' + now + '.png')
+    plot_dict(all_loss, fname= args.out_path + args.model_name + '_loss_graph_' + now + '.png')
+    plot_dict(all_acc, fname= args.out_path + args.model_name + '_acc_graph_' + now + '.png')
 
 
 
