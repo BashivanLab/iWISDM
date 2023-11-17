@@ -47,7 +47,6 @@ class Trainer(object):
             non_null_accs = []
             null_losses = []
             non_null_losses = []
-
             for images, instructions, actions in self.train_set:
                 model.train()
                 optimizer.zero_grad()
@@ -90,7 +89,9 @@ class Trainer(object):
             non_null_accs = []
             null_losses = []
             non_null_losses = []
+            print(iterations)
             for i in range(iterations):
+                print(i)
                 model.train()
                 optimizer.zero_grad()
 

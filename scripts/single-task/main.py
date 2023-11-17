@@ -3,10 +3,9 @@ sys.path.append(sys.path[0] + '/../../')
 
 
 import os
-# os.environ['KMP_DUPLICATE_LIB_OK']='True'
+os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
 import argparse
-from cognitive import task_bank as tb
 import json 
 from datetime import datetime
 
@@ -28,12 +27,14 @@ from scripts.plot_dict import plot_dict
 parser = argparse.ArgumentParser()# Add an argument
 
 # Task and Data Arg
-parser.add_argument('--static', type=bool, default=True)# Parse the argument
-parser.add_argument('--train_path', type=str, default='./datasets/train_big')# Parse the argument # test_mini train_big
-parser.add_argument('--val_path', type=str, default='./datasets/val_big')# Parse the argument  # test_mini val_big
+parser.add_argument('--static', type=bool, default=False)# Parse the argument
+parser.add_argument('--train_path', type=str, default='./datasets/test_mini')# Parse the argument # test_mini train_big
+parser.add_argument('--val_path', type=str, default='./datasets/test_mini')# Parse the argument  # test_mini val_big
 parser.add_argument('--out_path', type=str, default='./scripts/outputs/single-task/')
-parser.add_argument('--task_name', type=str, default='CompareCategoryTemporal')
+parser.add_argument('--task_name', type=str, default='CompareCategory')
 parser.add_argument('--task_path', type=str, required=False)
+parser.add_argument('--train_stim_path', type=str, required=False)
+parser.add_argument('--val_stim_path', type=str, required=False)
 parser.add_argument('--img_size', type=int, default=224)
 parser.add_argument('--task_max_len', type=int, default=3)
 
@@ -48,7 +49,7 @@ parser.add_argument('--model_name', type=str, default='RNN')
 parser.add_argument('--hidden_size', type=int, default=256)
 parser.add_argument('--lr', type=float, default=3e-5)
 parser.add_argument('--epochs', type=int, default=100)
-parser.add_argument('--niters', type=int, required=False)
+parser.add_argument('--niters', type=int, default=100000)
 parser.add_argument('--batch_size', type=int, default=256)
 parser.add_argument('--imgm_path', type=str, default='./tutorials/offline_models/resnet/resnet')
 parser.add_argument('--insm_path', type=str, default='./tutorials/offline_models/all-mpnet-base-v2')
@@ -63,7 +64,7 @@ def get_device():
         print(f"Using GPU: {torch.cuda.get_device_name(device)}")
     else:
         # If no GPU is available, fall back to CPU
-        device = torch.device("cpu")
+        device = torch.device("mps")
         print("No GPU available, using CPU.")
     
     return device
@@ -73,6 +74,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     assert not (args.task_name == None and args.task_path == None), 'task_name or task_path is required'
+    assert (args.static or (args.train_stim_path != None and args.val_stim_path != None)), 'stim_path required for dynamic dataset'
 
     device = get_device()
 
@@ -90,22 +92,16 @@ if __name__ == '__main__':
 
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.AdamW(model.parameters(), lr = args.lr)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, 7, T_mult=1 )
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, 5, T_mult=1 )
 
     if args.static:
         train_set = DataLoader(StaticTaskDataset(args.train_path), batch_size=args.batch_size, shuffle=True)
         val_set = DataLoader(StaticTaskDataset(args.val_path), batch_size=args.batch_size, shuffle=False)
     else: 
-        if args.task_path is None:
-            task = tb.task_family_dict[args.task_name](whens=['last' + str(args.task_max_len), 'last0'])
-        else:
-            # CODE TO READ IN TASK from JSON
-            print('not implemented whoops')
-        train_set = DynamicTaskDataset(task, img_size=args.img_size, fixation_cue=True, train=True)
-        val_set = DynamicTaskDataset(task, img_size=args.img_size, fixation_cue=True, train=False)
+        train_set =  DataLoader(DynamicTaskDataset(task_name=args.task_name, stim_dir=args.train_stim_path, max_len=args.task_max_len, set_len=50000 ,img_size=args.img_size, fixation_cue=True, train=True, task_path=args.task_path), batch_size=args.batch_size)
+        val_set =  DataLoader(DynamicTaskDataset(task_name=args.task_name, stim_dir=args.val_stim_path, max_len=args.task_max_len, set_len=50000, img_size=args.img_size, fixation_cue=True, train=False, task_path=args.task_path), batch_size=args.batch_size)
 
-    print(vars(args))
-    trainer = Trainer(train_set, val_set, device, static=args.static, out_dir=args.out_path, args=vars(args))
+    trainer = Trainer(train_set, val_set, device, static=True, out_dir=args.out_path, args=vars(args))
 
     trainer.train(model, ins_encoder, criterion, optimizer, scheduler=scheduler, epochs=args.epochs, iterations=args.niters, batch_size=args.batch_size)
     all_loss, all_acc = trainer.get_stats()

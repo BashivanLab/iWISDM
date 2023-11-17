@@ -78,7 +78,7 @@ class Data:
         if not os.path.exists(self.dir_path):
             print('Data folder does not exist.')
         pkls = sorted([fname for fname in glob.glob(f'{dir_path}/**/*.pkl', recursive=True)])
-        print('Stimuli Directory: ', dir_path)
+        # print('Stimuli Directory: ', dir_path)
 
         assert len(pkls) > 0
         self.pkl = pkls[0]
@@ -130,7 +130,7 @@ class Data:
         self.valid_image_path = None
 
         self.grid = get_grid(grid_size)
-        print(self.grid)
+        # print(self.grid)
 
     def get_shapenet_object(self, obj, obj_size, training_path=None, validation_path=None, train=True):
         # sample stimuli that satisfies the properties specified by obj dictionary
