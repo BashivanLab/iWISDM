@@ -8,6 +8,7 @@ job_id = os.environ['SLURM_JOB_ID']
 home_dir = os.environ['HOME'] + '/'
 print(tmp_dir)
 print(home_dir)
+print(job_id)
 # os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
 import argparse
