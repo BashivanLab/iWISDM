@@ -80,7 +80,7 @@ class StaticTaskDataset(Dataset):
 
 
 class DynamicTaskDataset(Dataset):
-    def __init__(self, task stim_dir, set_len, img_size=224, fixation_cue=True, train=True):
+    def __init__(self, task, stim_dir, set_len, img_size=224, fixation_cue=True, train=True):
         self.stim_dir = stim_dir
         const.DATA = const.Data(dir_path=self.stim_dir)
 

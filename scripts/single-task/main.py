@@ -111,7 +111,7 @@ if __name__ == '__main__':
         val_set = DynamicTaskDataset(task, set_len=self.niters, img_size=args.img_size, fixation_cue=True, train=False)
 
     print(vars(args))
-    trainer = Trainer(train_set, val_set, device, static=True, out_dir=args.out_path, args=vars(args))
+    trainer = Trainer(train_set, val_set, device, out_dir=args.out_path, args=vars(args))
 
     trainer.train(model, ins_encoder, criterion, optimizer, scheduler=scheduler, epochs=args.epochs, batch_size=args.batch_size)
     all_loss, all_acc = trainer.get_stats()

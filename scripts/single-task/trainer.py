@@ -6,7 +6,7 @@ from datetime import datetime
 import json
 
 class Trainer(object):
-    def __init__(self, train_data, val_data, device, out_dir, args, static=True):
+    def __init__(self, train_data, val_data, device, out_dir, args):
         assert type(train_data) == DataLoader or type(train_data) == DynamicTaskDataset, "train_data should be a torch DataLoader or class DynamicTaskDataset"
         assert type(val_data) == DataLoader or type(val_data) == DynamicTaskDataset, "val_data should be a torch DataLoader or class DynamicTaskDataset"
 
@@ -14,7 +14,6 @@ class Trainer(object):
 
         self.train_set = train_data
         self.val_set = val_data
-        self.static = static
 
         self.all_loss = {'train_null_loss':[],'train_non_null_loss':[], 'val_null_loss':[], 'val_non_null_loss':[]}
         self.all_acc = {'train_null_acc':[], 'train_non_null_acc':[], 'val_null_acc':[], 'val_non_null_acc':[]}
