@@ -108,7 +108,7 @@ if __name__ == '__main__':
             # CODE TO READ IN TASK from JSON
             print('not implemented whoops')
         train_set = DynamicTaskDataset(task, set_len=self.niters, img_size=args.img_size, fixation_cue=True, train=True)
-        val_set = DynamicTaskDataset(task, img_size=args.img_size, fixation_cue=True, train=False)
+        val_set = DynamicTaskDataset(task, set_len=self.niters, img_size=args.img_size, fixation_cue=True, train=False)
 
     print(vars(args))
     trainer = Trainer(train_set, val_set, device, static=True, out_dir=args.out_path, args=vars(args))
