@@ -135,14 +135,15 @@ class DynamicTaskDataset(Dataset):
                 updated_actions.append(1)
         return updated_actions
 
-dset = DynamicTaskDataset('CompareCategory', './data/new_shapenet_train', 3, 200, img_size=224, fixation_cue=True, train=True, task_path=None)
-dl = DataLoader(dset, batch_size=2)
 
-i = 0
-for batch in dl:
-    if i % 100:
-        print('test')
-    i += 1
+
+# Test
+
+# dset = DynamicTaskDataset('CompareCategory', './data/new_shapenet_train', 3, 20, img_size=224, fixation_cue=True, train=True, task_path=None)
+# dl = DataLoader(dset, batch_size=2)
+
+# for batch in dl:
+#     print(batch)
 
 
 
