@@ -149,11 +149,11 @@ class DynamicTaskDataset(Dataset):
 
 # Test
 
-dset = DynamicTaskDataset('CompareCategory', './data/new_shapenet_train', 3, 20, img_size=224, fixation_cue=True, train=True, task_path=None)
-dl = DataLoader(dset, batch_size=2)
+# dset = DynamicTaskDataset('CompareCategory', './data/new_shapenet_train', 3, 20, img_size=224, fixation_cue=True, train=True, task_path=None)
+# dl = DataLoader(dset, batch_size=2)
 
-for batch in dl:
-    print(batch)
+# for batch in dl:
+#     print(batch)
 
 
 
