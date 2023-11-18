@@ -26,19 +26,19 @@ class Trainer(object):
         self.args = args
 
     
-    def train(self, model, ins_encoder, criterion, optimizer, scheduler=None, epochs=100, iterations=None, batch_size=256):
-        if self.static:
-            self.train_static(model, ins_encoder, criterion, optimizer, scheduler=scheduler, epochs=epochs, batch_size=batch_size)
-        else:
-            self.train_dynamic(model, ins_encoder, criterion, optimizer, scheduler=scheduler, epochs=epochs, iterations=iterations, batch_size=batch_size)
+    # def train(self, model, ins_encoder, criterion, optimizer, scheduler=None, epochs=100, iterations=None, batch_size=256):
+    #     if self.static:
+    #         self.train_static(model, ins_encoder, criterion, optimizer, scheduler=scheduler, epochs=epochs, batch_size=batch_size)
+    #     else:
+    #         self.train_dynamic(model, ins_encoder, criterion, optimizer, scheduler=scheduler, epochs=epochs, iterations=iterations, batch_size=batch_size)
 
-    def validate(self, model, criterion, ins_encoder, iterations=None, batch_size=256):
-        if self.static:
-            self.val_static(model, criterion, ins_encoder, batch_size)
-        else:
-            self.val_dynamic(model, criterion, ins_encoder,  iterations, batch_size)
+    # def validate(self, model, criterion, ins_encoder, iterations=None, batch_size=256):
+    #     if self.static:
+    #         self.val_static(model, criterion, ins_encoder, batch_size)
+    #     else:
+    #         self.val_dynamic(model, criterion, ins_encoder,  iterations, batch_size)
 
-    def train_static(self, model, ins_encoder, criterion, optimizer, scheduler=None, epochs=100, batch_size=256):
+    def train(self, model, ins_encoder, criterion, optimizer, scheduler=None, epochs=100, batch_size=256):
         for epoch in range(epochs):
             print('epoch: ', epoch)
             i = 0
@@ -82,52 +82,7 @@ class Trainer(object):
                 self.validate(model, criterion, ins_encoder, epochs, batch_size)
                 self.write_stats()
 
-    def train_dynamic(self, model, ins_encoder, criterion, optimizer, scheduler=None, epochs=100, iterations=100000, batch_size=256):
-        for epoch in range(epochs):
-            print('epoch: ', epoch)
-            null_accs = []
-            non_null_accs = []
-            null_losses = []
-            non_null_losses = []
-            print(iterations)
-            for i in range(iterations):
-                print(i)
-                model.train()
-                optimizer.zero_grad()
-
-                images, instructions, actions = self.train_set.get_sample()
-                instructions = ins_encoder(instructions)
-
-                output = model(images.to(self.device), instructions) # (seq_len, batch, n_classes)
-
-                null_loss, non_null_loss, scale = self.loss(criterion, output.permute(1,0,2).reshape(-1,3), actions.type(torch.LongTensor).reshape(-1).to(self.device))
-                null_losses.append(null_loss.item())
-                non_null_losses.append(non_null_loss.item())
-
-                if i%(epochs//2) != 0:
-                    null_loss = 0
-                train_loss = null_loss + non_null_loss # *scale *(1/(scale**(epoch/2)))
-                train_loss.backward()
-                optimizer.step()
-
-                _, predicted = torch.max(output.data, 2)
-                predicted = predicted.permute(1,0).reshape(-1)
-
-                null_acc, non_null_acc = self.correct(predicted, actions.reshape(-1).to(self.device))
-                null_accs.append(null_acc.item())
-                non_null_accs.append(non_null_acc.item())
-                
-                if scheduler is not None:
-                    scheduler.step(epoch + i / iterations//batch_size)
-
-            print('epoch: ', epoch)
-            self.stat_track('train', null_accs, non_null_accs, null_losses, non_null_losses)
-            self.print_acc('train', null_accs, non_null_accs) 
-            if epoch%((epochs+1)//4) == 0:
-                self.validate(model, criterion, ins_encoder, epochs, batch_size)
-                self.write_stats()
-
-    def val_static(self, model, criterion, ins_encoder, batch_size):
+    def val(self, model, criterion, ins_encoder, batch_size):
         null_accs = []
         non_null_accs = []
         null_losses = []
@@ -135,34 +90,6 @@ class Trainer(object):
 
         for images, instructions, actions in self.val_set:
             model.eval()
-            output = model(images.to(self.device), instructions)
-
-            null_loss, non_null_loss, scale = self.loss(criterion, output.permute(1,0,2).reshape(-1,3), actions.type(torch.LongTensor).reshape(-1).to(self.device))
-            null_losses.append(null_loss.item())
-            non_null_losses.append(non_null_loss.item())
-            
-            _, predicted = torch.max(output.data, 2)
-            predicted = predicted.permute(1,0).reshape(-1)
-
-            null_acc, non_null_acc = self.correct(predicted, actions.reshape(-1).to(self.device))
-            null_accs.append(null_acc.item())
-            non_null_accs.append(non_null_acc.item())
-
-        self.stat_track('val', null_accs, non_null_accs, null_losses, non_null_losses)
-        self.print_acc('val', null_accs, non_null_accs)
-
-    def val_dynamic(self, model, criterion, ins_encoder, iterations, batch_size):
-        null_accs = []
-        non_null_accs = []
-        null_losses = []
-        non_null_losses = []
-
-        for i in range(iterations):
-            model.eval()
-
-            images, instructions, actions = self.val_set.get_sample()
-            instructions = ins_encoder(instructions)
-
             output = model(images.to(self.device), instructions)
 
             null_loss, non_null_loss, scale = self.loss(criterion, output.permute(1,0,2).reshape(-1,3), actions.type(torch.LongTensor).reshape(-1).to(self.device))

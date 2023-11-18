@@ -107,13 +107,13 @@ if __name__ == '__main__':
         else:
             # CODE TO READ IN TASK from JSON
             print('not implemented whoops')
-        train_set = DynamicTaskDataset(task, img_size=args.img_size, fixation_cue=True, train=True)
+        train_set = DynamicTaskDataset(task, set_len=self.niters, img_size=args.img_size, fixation_cue=True, train=True)
         val_set = DynamicTaskDataset(task, img_size=args.img_size, fixation_cue=True, train=False)
 
     print(vars(args))
-    trainer = Trainer(train_set, val_set, device, static=args.static, out_dir=args.out_path, args=vars(args))
+    trainer = Trainer(train_set, val_set, device, static=True, out_dir=args.out_path, args=vars(args))
 
-    trainer.train(model, ins_encoder, criterion, optimizer, scheduler=scheduler, epochs=args.epochs, iterations=args.niters, batch_size=args.batch_size)
+    trainer.train(model, ins_encoder, criterion, optimizer, scheduler=scheduler, epochs=args.epochs, batch_size=args.batch_size)
     all_loss, all_acc = trainer.get_stats()
     trainer.write_stats()
 
