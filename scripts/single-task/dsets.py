@@ -98,9 +98,12 @@ class DynamicTaskDataset(Dataset):
 
         self.train = train
 
+        self.frame_info = ig.FrameInfo(self.task, self.task.generate_objset())
+        self.compo_info = ig.TaskInfoCompo(self.task, self.frame_info)
+
         self.transform = transforms.Compose([
                     transforms.Resize(224),
-                    transforms.CenterCrop(224), # todo: to delete for shapenet task; why?
+                    # transforms.CenterCrop(224), # todo: to delete for shapenet task; why?
                     transforms.ToTensor(),
                     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
                 ])
@@ -111,28 +114,15 @@ class DynamicTaskDataset(Dataset):
         return self.set_len
 
     def __getitem__(self, idx):
-        const.DATA = const.Data(self.stim_dir)
+        const.DATA = const.Data(dir_path=self.stim_dir)
 
-        frame_info = ig.FrameInfo(self.task, self.task.generate_objset())
-        compo_info = ig.TaskInfoCompo(self.task, frame_info)
-        objset = compo_info.frame_info.objset
+        imgs, instructions, action = self.compo_info.generate_trial(train=self.train)
+        for i, img in enumerate(imgs):
+            imgs[i] = self.transform(img)
+        actions = self._action_map(action)
+        imgs = torch.stack(imgs)
 
-        images = []
-        print('PATH', self.stim_dir)
-        print('MODE: ', self.train)
-        for epoch, frame in zip(sg.render(objset, self.img_size, train=self.train), compo_info.frame_info):
-            if self.fixation_cue:
-                if not any('ending' in description for description in frame.description):
-                    sg.add_fixation_cue(epoch)
-            img = Image.fromarray(epoch, 'RGB')
-            images.append(img)
-        images = np.stack(images)
-
-        _, data, _ = compo_info.get_examples()
-        instruction = data['instruction']
-        actions = self._action_map(data['answers'])
-
-        return images, instruction, torch.tensor(actions)
+        return imgs, instructions, torch.tensor(actions)
     
     def _action_map(self, actions):
         updated_actions = []
@@ -145,15 +135,14 @@ class DynamicTaskDataset(Dataset):
                 updated_actions.append(1)
         return updated_actions
 
-
-
-# Test
-
-dset = DynamicTaskDataset('CompareCategory', './data/new_shapenet_train', 3, 20, img_size=224, fixation_cue=True, train=True, task_path=None)
+dset = DynamicTaskDataset('CompareCategory', './data/new_shapenet_train', 3, 200, img_size=224, fixation_cue=True, train=True, task_path=None)
 dl = DataLoader(dset, batch_size=2)
 
+i = 0
 for batch in dl:
-    print(batch)
+    if i % 100:
+        print('test')
+    i += 1
 
 
 

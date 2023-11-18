@@ -829,14 +829,28 @@ def render_static_obj(canvas, obj, img_size, train=True):
     # most bottom-right position is (0.9,0.9)
     # changing scaling requires changing space.sample)
     radius = int(0.125 * img_size)
+    # print('img_size: ', img_size)
+    # print('radius: ', radius)
 
     # Note that OpenCV color is (Blue, Green, Red)
     center = (int(obj.loc[0] * img_size), int(obj.loc[1] * img_size))
+    # print('center: ', center)
 
     x_offset, x_end = center[0] - radius, center[0] + radius
     y_offset, y_end = center[1] - radius, center[1] + radius
+
+    # print('x_offset: ', x_offset)
+    # print('x_end: ', x_end)
+    # print('y_offset: ', y_offset)
+    # print('y_end: ', y_end)
+
     shape_net_obj = const.DATA.get_shapenet_object(obj, [radius * 2, radius * 2], train=train)
+    # print('obj size: ', shape_net_obj.size)
     assert shape_net_obj.size == (x_end - x_offset, y_end - y_offset)
+
+    # print(canvas.shape)
+    # print(canvas[x_offset:x_end, y_offset:y_end].shape)
+    # print(shape_net_obj.size)
     canvas[x_offset:x_end, y_offset:y_end] = shape_net_obj
 
 
