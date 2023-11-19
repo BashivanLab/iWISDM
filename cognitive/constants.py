@@ -71,16 +71,16 @@ class Data:
         grid_size: configuration of the canvas
     """
 
-    def __init__(self, dir_path=None, max_memory: int = 5, grid_size: Tuple[int, int] = (2, 2)):
+    def __init__(self, dir_path=None, max_memory: int = 5, grid_size: Tuple[int, int] = (2, 2), phase: str = "train"):
         if dir_path is None:
             dir_path = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))),
                                     './data/min_shapenet_easy_angle')
         self.dir_path = dir_path
-
+        self.phase = phase
         if not os.path.exists(self.dir_path):
             print('Data folder does not exist.')
         pkls = sorted([fname for fname in glob.glob(f'{dir_path}/**/*.pkl', recursive=True)])
-        print('Stimuli Directory: ', dir_path)
+        
 
         assert len(pkls) > 0
         self.pkl = pkls[0]
@@ -132,13 +132,16 @@ class Data:
         self.valid_image_path = None
 
         self.grid = get_grid(grid_size)
-        print(self.grid)
+        # print(self.grid)
 
     def get_shapenet_object(self, obj, obj_size, training_path=None, validation_path=None, train=True):
         # sample stimuli that satisfies the properties specified by obj dictionary
+        if self.phase == "train": train = True
+        else: train = False
         if not train:
             if validation_path is None:
                 if self.valid_image_path is None:
+                    
                     valids = [fname for fname in glob.glob(f'{self.dir_path}/**/validation', recursive=True)]
                     if valids:
                         if os.path.isdir(valids[0]):
@@ -148,6 +151,7 @@ class Data:
             else:
                 self.valid_image_path = validation_path
             image_path = self.valid_image_path
+            
         else:
             if training_path is None:
                 if self.train_image_path is None:

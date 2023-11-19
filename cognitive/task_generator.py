@@ -1112,7 +1112,7 @@ class TemporalTask(Task):
         # return the attribute of the object that is not randomly selected on lastk frame
         # for merging check purpose
         attrs = set()
-        
+        # print("lxx what is lastk:", lastk)
         for lastk_select in self.filter_selects(lastk):
             for parent_op in lastk_select.parent:
                 if isinstance(parent_op, Get):

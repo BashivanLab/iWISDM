@@ -3,6 +3,7 @@ Classes for building composite tasks
 """
 
 import re
+import numpy as np
 from functools import partial
 from collections import defaultdict
 import os, shutil
@@ -160,9 +161,12 @@ class TaskInfoCompo(object):
                         i = epoch - k
                         relative_i = frame.relative_task_epoch_idx[task_idx] - k
                         match = self.compare_objs(obj_info[i], self.task_objset[task_idx].dict[relative_i])
+                        # print("lxx first appearance of match:", match)
                         if match:
                             task_q = re.sub(f'last{k}.*?object', f'object {match["count"]}', task_q)
                             match['tasks'].add(task_idx)
+                            # print("lxx what is the task_idx:", task_idx)
+                            # print("lxx what is match:", match)
                             match['attended_attr'][task_idx] = match['attended_attr'][task_idx].union(
                                 self.tasks[task_idx].get_relevant_attribute(f'last{k}'))
                             cur += 1
@@ -221,29 +225,49 @@ class TaskInfoCompo(object):
                 'first_shareable': int(task.first_shareable),
             })
 
-        comp_instruction, obj_info = self.get_instruction_obj_info()
-        obj_info_json = obj_info.copy()
+        # comp_instruction, obj_info = self.get_instruction_obj_info()
+        # obj_info_json = obj_info.copy()
 
-        for epoch, info_dict in obj_info_json.items():
-            for d in info_dict:
-                d['obj'] = d['obj'].dump()
-                for k, v in d.items():
-                    if isinstance(v, set):
-                        d[k] = list(v)
-                for task, attrs in d['attended_attr'].items():
-                    d['attended_attr'][task] = list(attrs)
-        memory_trace_info = dict()
-        memory_trace_info['obj_info'] = obj_info_json
-        memory_trace_info['task_info'] = {i: frame.description for i, frame in enumerate(self.frame_info) if
-                                          frame.description}
+        # for epoch, info_dict in obj_info_json.items():
+        #     for d in info_dict:
+        #         d['obj'] = d['obj'].dump()
+        #         for k, v in d.items():
+        #             if isinstance(v, set):
+        #                 d[k] = list(v)
+        #         for task, attrs in d['attended_attr'].items():
+        #             d['attended_attr'][task] = list(attrs)
+        # memory_trace_info = dict()
+        # memory_trace_info['obj_info'] = obj_info_json
+        # memory_trace_info['task_info'] = {i: frame.description for i, frame in enumerate(self.frame_info) if
+        #                                   frame.description}
 
         compo = {
             'epochs': int(len(self.frame_info)),
             'objects': [o.dump() for o in self.frame_info.objset],
-            'instruction': comp_instruction,
+            # 'instruction': comp_instruction,
             'answers': self.get_target_value(task_info_dict)
         }
-        return task_info_dict, compo, memory_trace_info
+        return task_info_dict, compo, # memory_trace_info
+
+    def generate_trial(self, img_size=224, fixation_cue=True) -> None:
+        objset = self.frame_info.objset
+        imgs = []
+        for i, (epoch, frame) in enumerate(zip(sg.render(objset, img_size), self.frame_info)):
+            # print("lxx what is i:", i)
+            if fixation_cue:
+                if not any('ending' in description for description in frame.description):
+                    sg.add_fixation_cue(epoch)
+            img = Image.fromarray(epoch, 'RGB')
+            # imgs.append(np.asarray(img))
+            imgs.append(img)
+            # print("what is the generated image:", np.asarray(img).shape)
+        # examples, compo_example, memory_info = self.get_examples()
+        examples, compo_example = self.get_examples()
+        # print("examples:", examples)
+        # print("compo_examples:", compo_example)
+        return imgs, compo_example["answers"]
+        # print("memory_info:", memory_info)
+
 
     def write_trial_instance(self, write_fp: str, img_size=224, fixation_cue=True) -> None:
         # generate trial information and save it locally
@@ -306,6 +330,8 @@ class TaskInfoCompo(object):
 
     @staticmethod
     def compare_objs(info_dicts, l2):
+        # print("lxx info_dicts:", info_dicts)
+        # print("lxx l2:", l2)
         for info_dict in info_dicts:
             obj1 = info_dict['obj']
             for obj2 in l2:
