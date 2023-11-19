@@ -66,7 +66,7 @@ class Trainer(object):
                 i += 1
             self.stat_track('train', null_accs, non_null_accs, null_losses, non_null_losses)
             self.print_acc('train', null_accs, non_null_accs)
-            if epoch%((epochs+1)//4) == 0:
+            if epoch%((epochs+1)//4) == 0 or epoch == epochs-1:
                 self.validate(model, criterion, ins_encoder, batch_size)
                 self.write_stats()
 
