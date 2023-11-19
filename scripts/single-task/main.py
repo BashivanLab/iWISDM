@@ -39,6 +39,8 @@ parser.add_argument('--train_path', type=str, default='./datasets/train_big')# P
 parser.add_argument('--val_path', type=str, default='./datasets/val_big')# Parse the argument  # test_mini val_big
 parser.add_argument('--out_path', type=str, default= home_dir + 'outputs/' + job_id )
 parser.add_argument('--task_name', type=str, default='CompareCategoryTemporal')
+parser.add_argument('--train_stim', type=str, default='data/new_shapenet_train')
+parser.add_argument('--val_stim', type=str, default='data/new_shapenet_val')
 parser.add_argument('--task_path', type=str, required=False)
 parser.add_argument('--img_size', type=int, default=224)
 parser.add_argument('--task_max_len', type=int, default=3)
@@ -103,15 +105,22 @@ if __name__ == '__main__':
         val_set = DataLoader(StaticTaskDataset(tmp_dir + args.val_path), batch_size=args.batch_size, shuffle=False)
     else: 
         if args.task_path is None:
-            task = tb.task_family_dict[args.task_name](whens=['last' + str(args.task_max_len), 'last0'])
+            train_set = DataLoader(DynamicTaskDataset(task_name=args.task_name, stim_dir=tmp_dir + args.train_stim, max_len=args.task_max_len, 
+                                                      set_len=args.niters, img_size=args.img_size, fixation_cue=True, train=True), 
+                                                      batch_size=args.batch_size, shuffle=True)
+            val_set = DataLoader(DynamicTaskDataset(task_name=args.task_name, stim_dir=tmp_dir + args.val_stim, max_len=args.task_max_len, 
+                                                    set_len=args.niters, img_size=args.img_size, fixation_cue=True, train=False), 
+                                                    batch_size=args.batch_size, shuffle=False)
         else:
-            # CODE TO READ IN TASK from JSON
-            print('not implemented whoops')
-        train_set = DynamicTaskDataset(task, set_len=self.niters, img_size=args.img_size, fixation_cue=True, train=True)
-        val_set = DynamicTaskDataset(task, set_len=self.niters, img_size=args.img_size, fixation_cue=True, train=False)
+            train_set =  DataLoader(DynamicTaskDataset(task_name=None, stim_dir=tmp_dir + args.train_stim, max_len=args.task_max_len, 
+                                                       set_len=args.niters, img_size=args.img_size, fixation_cue=True, train=True, 
+                                                       task_path=args.task_path), batch_size=args.batch_size, shuffle=True) 
+            val_set =  DataLoader(DynamicTaskDataset(task_name=None, stim_dir=tmp_dir + args.val_stim, max_len=args.task_max_len, 
+                                                     set_len=args.niters, img_size=args.img_size, fixation_cue=True, train=False, 
+                                                     task_path=args.task_path),  batch_size=args.batch_size, shuffle=False)
 
     print(vars(args))
-    trainer = Trainer(train_set, val_set, device, out_dir=args.out_path, args=vars(args))
+    trainer = Trainer(train_set, val_set, device, static=args.static, out_dir=args.out_path, args=vars(args))
 
     trainer.train(model, ins_encoder, criterion, optimizer, scheduler=scheduler, epochs=args.epochs, batch_size=args.batch_size)
     all_loss, all_acc = trainer.get_stats()
@@ -121,13 +130,3 @@ if __name__ == '__main__':
 
     plot_dict(all_loss, fname= args.out_path + args.model_name + '_loss_graph_' + now + '.png')
     plot_dict(all_acc, fname= args.out_path + args.model_name + '_acc_graph_' + now + '.png')
-
-
-
-
-
-
-
-
-
-

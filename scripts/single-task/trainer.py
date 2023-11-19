@@ -6,7 +6,7 @@ from datetime import datetime
 import json
 
 class Trainer(object):
-    def __init__(self, train_data, val_data, device, out_dir, args):
+    def __init__(self, train_data, val_data, device, out_dir, args, static=True):
         assert type(train_data) == DataLoader or type(train_data) == DynamicTaskDataset, "train_data should be a torch DataLoader or class DynamicTaskDataset"
         assert type(val_data) == DataLoader or type(val_data) == DynamicTaskDataset, "val_data should be a torch DataLoader or class DynamicTaskDataset"
 
@@ -14,6 +14,7 @@ class Trainer(object):
 
         self.train_set = train_data
         self.val_set = val_data
+        self.static = static
 
         self.all_loss = {'train_null_loss':[],'train_non_null_loss':[], 'val_null_loss':[], 'val_non_null_loss':[]}
         self.all_acc = {'train_null_acc':[], 'train_non_null_acc':[], 'val_null_acc':[], 'val_non_null_acc':[]}
@@ -23,19 +24,6 @@ class Trainer(object):
             os.makedirs(out_dir)
         self.out_dir = out_dir
         self.args = args
-
-    
-    # def train(self, model, ins_encoder, criterion, optimizer, scheduler=None, epochs=100, iterations=None, batch_size=256):
-    #     if self.static:
-    #         self.train_static(model, ins_encoder, criterion, optimizer, scheduler=scheduler, epochs=epochs, batch_size=batch_size)
-    #     else:
-    #         self.train_dynamic(model, ins_encoder, criterion, optimizer, scheduler=scheduler, epochs=epochs, iterations=iterations, batch_size=batch_size)
-
-    # def validate(self, model, criterion, ins_encoder, iterations=None, batch_size=256):
-    #     if self.static:
-    #         self.val_static(model, criterion, ins_encoder, batch_size)
-    #     else:
-    #         self.val_dynamic(model, criterion, ins_encoder,  iterations, batch_size)
 
     def train(self, model, ins_encoder, criterion, optimizer, scheduler=None, epochs=100, batch_size=256):
         for epoch in range(epochs):
@@ -51,6 +39,7 @@ class Trainer(object):
                 optimizer.zero_grad()
 
                 instructions = ins_encoder(instructions)
+
                 output = model(images.to(self.device), instructions) # (seq_len, batch, n_classes)
 
                 null_loss, non_null_loss, scale = self.loss(criterion, output.permute(1,0,2).reshape(-1,3), actions.type(torch.LongTensor).reshape(-1).to(self.device))
@@ -78,7 +67,7 @@ class Trainer(object):
             self.stat_track('train', null_accs, non_null_accs, null_losses, non_null_losses)
             self.print_acc('train', null_accs, non_null_accs)
             if epoch%((epochs+1)//4) == 0:
-                self.validate(model, criterion, ins_encoder, epochs, batch_size)
+                self.validate(model, criterion, ins_encoder, batch_size)
                 self.write_stats()
 
     def validate(self, model, criterion, ins_encoder, batch_size):
@@ -104,6 +93,7 @@ class Trainer(object):
 
         self.stat_track('val', null_accs, non_null_accs, null_losses, non_null_losses)
         self.print_acc('val', null_accs, non_null_accs)
+
 
     # Calculates the number of correct null action predictions and the number of correct non-null action predictions
     def correct(self, preds, targs):

@@ -21,6 +21,9 @@ from cognitive import constants as const
 
 class StaticTaskDataset(Dataset):
     def __init__(self, root_dir):
+
+        
+
         self.root_dir = root_dir
         # preprocessing steps for pretrained ResNet models
         self.transform = transforms.Compose([
@@ -80,12 +83,15 @@ class StaticTaskDataset(Dataset):
 
 
 class DynamicTaskDataset(Dataset):
-    def __init__(self, task, stim_dir, set_len, img_size=224, fixation_cue=True, train=True):
+    def __init__(self, task_name, stim_dir, max_len, set_len, img_size=224, fixation_cue=True, train=True, task_path=None):
         self.stim_dir = stim_dir
         const.DATA = const.Data(dir_path=self.stim_dir)
 
-        self.task = task
-
+        if task_path is None:
+            self.task = tb.task_family_dict[task_name](whens=['last' + str(max_len-1), 'last0'])
+        else:
+            # CODE TO READ IN TASK from JSON
+            raise Exception('not implemented whoops' )
         self.img_size = img_size
 
         self.fixation_cue = fixation_cue
