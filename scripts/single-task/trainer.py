@@ -81,7 +81,7 @@ class Trainer(object):
                 self.validate(model, criterion, ins_encoder, epochs, batch_size)
                 self.write_stats()
 
-    def val(self, model, criterion, ins_encoder, batch_size):
+    def validate(self, model, criterion, ins_encoder, batch_size):
         null_accs = []
         non_null_accs = []
         null_losses = []
