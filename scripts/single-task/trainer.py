@@ -141,7 +141,7 @@ class Trainer(object):
         print(mode + ' non-null acc: ', (sum(non_null_accs)/len(non_null_accs)))
 
     def write_stats(self):
-        now = datetime.now().strftime("%H:%M:%S")
+        now = datetime.now().strftime("%D:%H:%M:%S")
         with open(self.out_dir  + 'log_' + now + '.json', 'w') as outfile: 
             log = self.args.copy()
             log.update(self.all_acc)
