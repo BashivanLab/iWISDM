@@ -67,7 +67,7 @@ def get_device():
     # Check if a GPU is available
     if torch.cuda.is_available():
         # Request GPU device 0
-        device = torch.device("cuda:0")
+        device = torch.device("cuda")
         print(f"Using GPU: {torch.cuda.get_device_name(device)}")
     else:
         # If no GPU is available, fall back to CPU
@@ -89,7 +89,7 @@ if __name__ == '__main__':
     ('RNN', RNN(hidden_size=args.hidden_size, img_encoder=img_encoder, device=device, max_frames=args.task_max_len)),
     ('TFEncoder', TFEncoder(hidden_size=args.hidden_size, img_encoder=img_encoder, device=device, dim_transformer_ffl=args.tffl_size, nhead=args.nhead, blocks=args.blocks, max_frames=args.task_max_len)),
     ])
-    model = model_dict[args.model_name].to(device)
+    model = nn.DataParallel(model_dict[args.model_name]).to(device)
 
     ins_model = AutoModel.from_pretrained(tmp_dir + args.insm_path).to(device).eval()
     tokenizer = AutoTokenizer.from_pretrained(tmp_dir + args.insm_path)

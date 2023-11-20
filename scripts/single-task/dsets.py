@@ -1,9 +1,3 @@
-
-# For testing
-import sys
-from torch.utils.data import DataLoader
-sys.path.append(sys.path[0] + '/../../')
-
 import torch
 from torchvision import transforms
 from torch.utils.data import Dataset
@@ -11,7 +5,6 @@ import numpy as np
 import os
 import json
 from PIL import Image
-import matplotlib.pyplot as plt
 from natsort import natsorted
 
 from cognitive import info_generator as ig
