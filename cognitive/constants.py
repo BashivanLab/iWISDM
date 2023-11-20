@@ -164,10 +164,19 @@ class Data:
             else:
                 self.train_image_path = validation_path
             image_path = self.train_image_path
+
         obj_cat: pd.DataFrame = self.df.loc[(self.df['ctg_mod'] == obj.category) &
                                             (self.df['obj_mod'] == obj.object) &
                                             (self.df['ang_mod'] == obj.view_angle)]
         if len(obj_cat) <= 0:
+
+            df = self.df
+            for i in df.ctg_mod.unique():
+                for j in range(8):
+                    print(len(df[(df["ctg_mod"]==i) & (df["obj_mod"]==8*i+j)]))
+
+            curr_df = df[(df["ctg_mod"]==obj.category) & (df["obj_mod"]==obj.object)]
+            print(curr_df)
             raise ValueError(obj.category, obj.object, obj.view_angle)
 
         
@@ -234,7 +243,6 @@ def get_grid(grid_size):
     xx, yy = xx.flatten(), yy.flatten()
     grid_spaces = {(i, j): [(x_i, x_k), (y_i, y_k)] for i, (x_i, x_k) in enumerate(zip(xx[0::], xx[1::])) for
                    j, (y_i, y_k) in enumerate(zip(yy[0::], yy[1::]))}
-
     return OrderedDict(grid_spaces)
 
 

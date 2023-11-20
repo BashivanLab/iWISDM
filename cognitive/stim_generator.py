@@ -184,9 +184,10 @@ class Space(Attribute):
         
         n_max_try = 100
         avoid_radius2 = 0.04  # avoid radius squared
-        dx = 0.125
+        
+        dx = 0.001 # used to be 0.125 xuan => it does not matter now
         xrange = (self._value[0][0] + dx, self._value[0][1] - dx)
-        dy = 0.125
+        dy = 0.001 # used to be 0.125 xuan => it does not matter now
         yrange = (self._value[1][0] + dy, self._value[1][1] - dy)
         for i_try in range(n_max_try):
             # Round to 3 decimal places to save space in json dump
@@ -784,11 +785,18 @@ def render_static_obj(canvas, obj, img_size, train=True):
     # when sampling, the most top-left position is (0.1, 0.1),
     # most bottom-right position is (0.9,0.9)
     # changing scaling requires changing space.sample)
-    radius = int(0.125 * img_size)
+    radius = int(0.25 * img_size)
 
     # Note that OpenCV color is (Blue, Green, Red)
-    center = (int(obj.loc[0] * img_size), int(obj.loc[1] * img_size))
-
+    center = [0,0]
+    if obj.loc[0] < 112:
+        center[0] = 56
+    else: center[0] = 168
+    if obj.loc[1] < 112:
+        center[1] = 56
+    else: center[1] = 168
+    # center = (int(obj.loc[0] * img_size), int(obj.loc[1] * img_size))
+  
     x_offset, x_end = center[0] - radius, center[0] + radius
     y_offset, y_end = center[1] - radius, center[1] + radius
     shape_net_obj = const.DATA.get_shapenet_object(obj, [radius * 2, radius * 2], train=train)
@@ -1134,6 +1142,7 @@ def another_loc(loc):
 
 
 def random_grid_space():
+    
     return Space(random.choice(list(const.DATA.grid.values())))
 
 

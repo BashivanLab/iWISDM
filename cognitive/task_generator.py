@@ -450,6 +450,7 @@ class Get(Operator):
         Returns:
           attr: Attribute instance or INVALID
         """
+        
         if isinstance(self.objs, Operator):
             objs = self.objs(objset, epoch_now)
         else:

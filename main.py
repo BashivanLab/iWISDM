@@ -124,6 +124,7 @@ def generate_dataset(
 ) -> Dict[str, int]:
     if not random_families:
         assert families is not None
+        print("what is composition:", composition)
         assert composition == len(families)
     assert train + validation == 1.0
     if not os.path.exists(output_dir):
@@ -236,7 +237,7 @@ def main():
         first_shareable = 1
         generate_dataset(examples_per_family=args.trials_per_family, output_dir=args.output_dir,
                          composition=composition, img_size=args.img_size,
-                         random_families=args.non_random_families, families=args.families,
+                         random_families=args.random_families, families=args.families,
                          train=args.training, validation=args.validation, fixation_cue=args.fixation_cue,
                          max_memory=args.max_memory, whens=whens, first_shareable=first_shareable,
                          temporal_switch=args.temporal_switch)
@@ -256,9 +257,10 @@ def main():
             while int(re.search(r'\d+', last_when).group()) - 1 < args.seq_length:
                 last_when = sg.random_when()
             whens = [[last_when, 'last0'] for _ in range(args.seq_length)]
+        print("what is args.families:", args.families)
         generate_dataset(examples_per_family=args.trials_per_family, output_dir=args.output_dir,
-                         composition=args.seq_length, img_size=args.img_size,
-                         random_families=args.non_random_families, families=args.families,
+                         composition=1, img_size=args.img_size,
+                         random_families=args.random_families, families=args.families,
                          train=args.training, validation=args.validation, fixation_cue=args.fixation_cue,
                          max_memory=args.max_memory, whens=whens, first_shareable=first_shareable,
                          temporal_switch=args.temporal_switch)

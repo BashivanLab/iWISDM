@@ -28,6 +28,8 @@ class CompareCategoryTemporal(TemporalTask):
         # Get the locations of stimuli within each frame
         a1 = tg.GetCategory(objs1)
         a2 = tg.GetCategory(objs2)
+        # a1 = tg.GetLoc(objs1)
+        # a2 = tg.GetLoc(objs2)
 
         # Set operator to check if they're the same location
         self._operator = tg.IsSame(a1, a2)
@@ -47,26 +49,30 @@ class CompareCategoryTemporal(TemporalTask):
 # print(img.shape) # (224,224,4)
 
 class DMSCtg_TaskDataset(Dataset):
-    def __init__(self, stim_dir, whens = ['last0', 'last2'], phase = "train",dataset_size = 2560):
+    def __init__(self, stim_dir, whens = ['last1', 'last0', ], phase = "train", dataset_size = 2560):
         self.phase = phase
         self.stim_dir = stim_dir
         self.dataset_size = dataset_size
         const.DATA = const.Data(self.stim_dir)
         self.comp_loc_task = CompareCategoryTemporal(whens)
-        self.frame_info = ig.FrameInfo(self.comp_loc_task, self.comp_loc_task.generate_objset())
-        self.compo_info = ig.TaskInfoCompo(self.comp_loc_task,self.frame_info)
         # preprocessing steps for pretrained ResNet models
         self.transform = transforms.Compose([
                             transforms.Resize(224),
-                            # transforms.CenterCrop(224), # todo: to delete for shapenet task; why?
+                            transforms.CenterCrop(224), # todo: to delete for shapenet task; why?
                             transforms.ToTensor(),
                             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
                         ])
+        self.reset()
+    def reset(self):
+        self.frame_info = ig.FrameInfo(self.comp_loc_task, self.comp_loc_task.generate_objset())
+        self.compo_info = ig.TaskInfoCompo(self.comp_loc_task,self.frame_info)
+        
 
     def __len__(self):
         return self.dataset_size
 
     def __getitem__(self, idx):
+        self.reset()
         const.DATA = const.Data(self.stim_dir, phase = self.phase)
         imgs, action = self.compo_info.generate_trial()
         for i, img in enumerate(imgs):
@@ -87,12 +93,15 @@ class DMSCtg_TaskDataset(Dataset):
         return updated_actions
 
 
-# dts = DMSCtg_TaskDataset(stim_dir ='/home/xiaoxuan/projects/multfs_triple/Lucas_scripts/data/new_shapenet_val')
-# img, action = dts[0]
-# print(img.shape)
+dts = DMSCtg_TaskDataset(stim_dir ='/home/xiaoxuan/projects/multfs_triple/Lucas_scripts/data/new_shapenet_val', phase = "val")
+for i in range(100):
+    img, action = dts[i]
+    print(action[-1])
 
-# for i in range(len(img)):
-#     plt.figure()
-        
-#     plt.imshow(img[i])
-#     plt.savefig("/home/xiaoxuan/projects/multfs_triple/sanity_check/fig_%d.png"%(i))
+
+    # for j in range(len(img)):
+        # plt.figure()
+            
+        # plt.imshow(img[j].permute(1,2,0))
+        # plt.title(action[j])
+        # plt.savefig("/home/xiaoxuan/projects/multfs_triple/sanity_check/trial%d_fig%d.png"%(i,j))

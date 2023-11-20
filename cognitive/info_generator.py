@@ -33,15 +33,29 @@ class TaskInfoCompo(object):
         self.task_objset = dict()
         self.tasks = [task]  # list of tasks in composition
         self.changed = list()
-        if frame_info is None:
+        self.frame_info = frame_info
+        self.reset()
+        # if frame_info is None:
+        #     if task.avg_mem is None:
+        #         objset = task.generate_objset()
+        #     else:
+        #         objset = task.generate_objset(task.avg_mem)
+        #     frame_info = FrameInfo(task, objset)
+
+        # self.task_objset[0] = frame_info.objset.copy()
+        # self.frame_info = frame_info
+        # self.tempo_dict = dict()
+    
+    def reset(self):
+        if self.frame_info is None:
             if task.avg_mem is None:
                 objset = task.generate_objset()
             else:
                 objset = task.generate_objset(task.avg_mem)
-            frame_info = FrameInfo(task, objset)
+            self.frame_info = FrameInfo(task, objset)
 
-        self.task_objset[0] = frame_info.objset.copy()
-        self.frame_info = frame_info
+        self.task_objset[0] = self.frame_info.objset.copy()
+        self.frame_info = self.frame_info
         self.tempo_dict = dict()
 
     def merge(self, new_task_info):
