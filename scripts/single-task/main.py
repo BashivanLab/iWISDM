@@ -126,7 +126,7 @@ if __name__ == '__main__':
     all_loss, all_acc = trainer.get_stats()
     trainer.write_stats()
 
-    now = datetime.now().strftime("%D:%H:%M:%S")
+    now = datetime.now().strftime("%d:%H:%M:%S")
 
     plot_dict(all_loss, fname= args.out_path + args.model_name + '_loss_graph_' + now + '.png')
     plot_dict(all_acc, fname= args.out_path + args.model_name + '_acc_graph_' + now + '.png')
