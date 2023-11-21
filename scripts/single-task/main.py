@@ -88,7 +88,7 @@ if __name__ == '__main__':
     ('RNN', RNN(hidden_size=args.hidden_size, img_encoder=img_encoder, device=device, max_frames=args.task_max_len)),
     ('TFEncoder', TFEncoder(hidden_size=args.hidden_size, img_encoder=img_encoder, device=device, dim_transformer_ffl=args.tffl_size, nhead=args.nhead, blocks=args.blocks, max_frames=args.task_max_len)),
     ])
-    model = nn.DataParallel(model_dict[args.model_name]).to(device)
+    model = model_dict[args.model_name].to(device)
 
     ins_model = AutoModel.from_pretrained(tmp_dir + args.insm_path).to(device).eval()
     tokenizer = AutoTokenizer.from_pretrained(tmp_dir + args.insm_path)
