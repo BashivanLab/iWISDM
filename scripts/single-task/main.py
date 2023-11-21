@@ -34,7 +34,7 @@ from scripts.plot_dict import plot_dict
 parser = argparse.ArgumentParser()# Add an argument
 
 # Task and Data Arg
-parser.add_argument('--static', type=bool, default=True)# Parse the argument
+parser.add_argument('--static', type=int, default=1)# Parse the argument
 parser.add_argument('--train_path', type=str, default='./datasets/train_big')# Parse the argument # test_mini train_big
 parser.add_argument('--val_path', type=str, default='./datasets/val_big')# Parse the argument  # test_mini val_big
 parser.add_argument('--out_path', type=str, default= home_dir + 'outputs/' + job_id )
@@ -60,7 +60,6 @@ parser.add_argument('--niters', type=int, required=False)
 parser.add_argument('--batch_size', type=int, default=256)
 parser.add_argument('--imgm_path', type=str, default='mlti-dl/tutorials/offline_models/resnet/resnet')
 parser.add_argument('--insm_path', type=str, default='mlti-dl/tutorials/offline_models/all-mpnet-base-v2')
-
 
 
 def get_device():
