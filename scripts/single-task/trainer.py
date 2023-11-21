@@ -60,10 +60,11 @@ class Trainer(object):
                 null_accs.append(null_acc.item())
                 non_null_accs.append(non_null_acc.item())
                 
-                if scheduler is not None:
-                    scheduler.step(epoch + i / len(self.train_set))
+            if scheduler is not None:
+                scheduler.step()
+                # scheduler.step(epoch + i / len(self.train_set))
 
-                i += 1
+            # i += 1
             self.stat_track('train', null_accs, non_null_accs, null_losses, non_null_losses)
             self.print_acc('train', null_accs, non_null_accs)
             if epoch%((epochs+1)//4) == 0 or epoch == epochs-1:
