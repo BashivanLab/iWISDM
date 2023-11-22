@@ -18,7 +18,6 @@ print('before torch import')
 import torch
 print('after torch import')
 from torch import nn
-import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from transformers import AutoTokenizer, AutoModel
 
@@ -54,7 +53,7 @@ parser.add_argument('--model_name', type=str, default='RNN')
 parser.add_argument('--hidden_size', type=int, default=256)
 parser.add_argument('--lr', type=float, default=3e-5)
 parser.add_argument('--epochs', type=int, default=100)
-parser.add_argument('--niters', type=int, required=False)
+parser.add_argument('--niters', type=int, default=1)
 parser.add_argument('--batch_size', type=int, default=256)
 parser.add_argument('--imgm_path', type=str, default='mlti-dl/tutorials/offline_models/resnet/resnet')
 parser.add_argument('--insm_path', type=str, default='mlti-dl/tutorials/offline_models/all-mpnet-base-v2')
