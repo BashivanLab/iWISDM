@@ -56,7 +56,7 @@ class ExistCategoryOfTemporal(TemporalTask):
 
 
 class ExistViewAngleOfTemporal(TemporalTask):
-    # todo: the previous comment is Check if exist object with shape of a colored object.I believe that is not True
+    
     """Check if  object on given frame has the same view angle with the object on another frame."""
 
     def __init__(self, whens=None, first_shareable=None):
@@ -72,7 +72,7 @@ class ExistViewAngleOfTemporal(TemporalTask):
 
     @property
     def instance_size(self):
-        ## todo: could you remind me what is instance_size? we need to update sg.n_sample_color to sg.n_sample_view_angle if possible
+        
         return sg.n_sample_color(2) * sg.n_random_when()
 
 
@@ -93,7 +93,7 @@ class ExistObjectOfTemporal(TemporalTask):
 
     @property
     def instance_size(self):
-        ## todo: see previous comments
+        
         return sg.n_sample_color(2) * sg.n_random_when()
 
 
@@ -115,7 +115,7 @@ class CompareCategoryTemporal(TemporalTask):
 
     @property
     def instance_size(self):
-        # todo: comments the same as before
+       
         return sg.n_sample_shape(2) * (sg.n_random_when()) ** 2
 
 
@@ -137,7 +137,7 @@ class CompareViewAngleTemporal(TemporalTask):
 
     @property
     def instance_size(self):
-        ## todo: same comments as before
+        
         return sg.n_sample_color(2) * (sg.n_random_when()) ** 2
 
 
@@ -159,7 +159,7 @@ class CompareLocTemporal(TemporalTask):
 
     @property
     def instance_size(self):
-        # todo: same comments as before
+        
         return sg.n_sample_shape(2) * (sg.n_random_when()) ** 2
 
 
@@ -186,7 +186,8 @@ class CompareObjectTemporal(TemporalTask):
 
 class CompareFixedObjectTemporal(TemporalTask):
     """Compare between two objects."""
-    ###### todo: not sure about this task????
+
+    
 
     def __init__(self, whens=None, first_shareable=None):
         super(CompareFixedObjectTemporal, self).__init__(whens=whens, first_shareable=first_shareable)
@@ -203,7 +204,7 @@ class CompareFixedObjectTemporal(TemporalTask):
 
     @property
     def instance_size(self):
-        ## todo: same comments as before
+       
         return sg.n_sample_shape(2) * (sg.n_random_when()) ** 2
 
 
@@ -229,7 +230,7 @@ class SequentialCategoryMatch(TemporalTask):
 
     @property
     def instance_size(self):
-        ## todo: same comment as before
+        
         return sg.n_sample_shape(2) * (sg.n_random_when()) ** 2
     
 class SequentialLocationMatch(TemporalTask):
@@ -286,7 +287,7 @@ class SequentialLocationMatch(TemporalTask):
 
 class DelayedCDM(TemporalTask):
     # contextual decision making
-    # todo: detailed rules  of this task?
+    
     def __init__(self, whens=None, first_shareable=None, attrs=None):
         super(DelayedCDM, self).__init__(whens=whens, first_shareable=first_shareable)
         if self.whens is None:
@@ -313,7 +314,7 @@ class DelayedCDM(TemporalTask):
         self.n_frames = const.compare_when([when1, when2]) + 1
 
 
-## todo: what is the random task here? are these two subtask you wrote for testing composition function?
+
 class RandomTask1(TemporalTask):
     def __init__(self, whens=None, first_shareable=None):
         super(RandomTask1, self).__init__(whens=whens, first_shareable=first_shareable)
@@ -342,7 +343,7 @@ class RandomTask2(TemporalTask):
         self.n_frames = const.compare_when([when1, when2, when3, when4]) + 1
 
 
-# add delayedCMS without constants
+
 
 task_family_dict = OrderedDict([
     ('ExistCategoryOf', ExistCategoryOfTemporal),

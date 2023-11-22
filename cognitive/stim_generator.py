@@ -34,14 +34,37 @@ import itertools
 from bisect import bisect_left
 from collections import defaultdict
 import random
-import numpy as np
-import copy
-import string
+from typing import List
 
+import numpy as np
 import cv2 as cv2
 import tensorflow as tf
 
 from cognitive import constants as const
+
+
+def _get_space_to(x0: float, x1: float, y0: float, y1: float, space_type: str):
+    """
+    given the 2D coordinate and the , return the
+    :param x0:
+    :param x1:
+    :param y0:
+    :param y1:
+    :param space_type:
+    :return:
+    """
+    if space_type == 'right':
+        space = [(x1, 0.95), (0.05, 0.95)]
+    elif space_type == 'left':
+        space = [(0.05, x0), (0.05, 0.95)]
+    elif space_type == 'top':
+        space = [(0.05, 0.95), (0.05, y0)]
+    elif space_type == 'bottom':
+        space = [(0.05, 0.95), (y1, 0.95)]
+    else:
+        raise ValueError('Unknown space type: ' + str(space_type))
+
+    return Space(space)
 
 
 class Attribute(object):
@@ -83,31 +106,12 @@ class Attribute(object):
         info.update(self.self_json())
         return info
 
-    # def __hash__(self):
-    #     """Override the default hash behavior."""
-    #     return hash(tuple(sorted(self.__dict__.items())))
-
     def resample(self):
         raise NotImplementedError('Abstract method.')
 
     @property
     def has_value(self):
         return self.value is not None
-
-
-def _get_space_to(x0, x1, y0, y1, space_type):
-    if space_type == 'right':
-        space = [(x1, 0.95), (0.05, 0.95)]
-    elif space_type == 'left':
-        space = [(0.05, x0), (0.05, 0.95)]
-    elif space_type == 'top':
-        space = [(0.05, 0.95), (0.05, y0)]
-    elif space_type == 'bottom':
-        space = [(0.05, 0.95), (y1, 0.95)]
-    else:
-        raise ValueError('Unknown space type: ' + str(space_type))
-
-    return Space(space)
 
 
 class Loc(Attribute):
@@ -162,7 +166,6 @@ class Space(Attribute):
             self._value = value
 
     def sample(self, avoid=None):
-        # TODO: sample from grid space
         """Sample a location.
 
         This function will attempt to find a location to place the object
@@ -178,13 +181,13 @@ class Space(Attribute):
         else:
             avoid = avoid + [mid_point]
         # avoid the mid-point for fixation cue
-
-        # TODO: sample from 16 points
+        
         n_max_try = 100
         avoid_radius2 = 0.04  # avoid radius squared
-        dx = 0.125
+        
+        dx = 0.001 # used to be 0.125 xuan => it does not matter now
         xrange = (self._value[0][0] + dx, self._value[0][1] - dx)
-        dy = 0.125
+        dy = 0.001 # used to be 0.125 xuan => it does not matter now
         yrange = (self._value[1][0] + dy, self._value[1][1] - dy)
         for i_try in range(n_max_try):
             # Round to 3 decimal places to save space in json dump
@@ -206,12 +209,12 @@ class Space(Attribute):
         return ((self._value[0][0] < x < self._value[0][1]) and
                 (self._value[1][0] < y < self._value[1][1]))
 
-    def get_space_to(self, space_type):
+    def get_space_to(self, space_type: str):
         x0, x1 = self._value[0]
         y0, y1 = self._value[1]
         return _get_space_to(x0, x1, y0, y1, space_type)
 
-    def get_opposite_space_to(self, space_type):
+    def get_opposite_space_to(self, space_type: str):
         opposite_space = {'left': 'right',
                           'right': 'left',
                           'top': 'bottom',
@@ -283,7 +286,7 @@ class SNViewAngle(Attribute):
 
 
 class SNFixedObject(Attribute):
-    ## todo: same as the comment in task bank: not sure what you mean by fixedobject
+    # used for sanity check, fixed object, only changes view angle
     def __init__(self, sn_object, value):
         if value is not None:
             assert isinstance(sn_object, SNObject)
@@ -416,6 +419,7 @@ class Object(object):
         ])
 
     def check_attrs(self):
+        # sanity check
         return self.object.category == self.category and \
             self.view_angle.object == self.object
 
@@ -463,14 +467,13 @@ class Object(object):
         else:
             raise NotImplementedError()
 
-    def compare_attrs(self, other, attrs=None):
+    def compare_attrs(self, other, attrs: List[str] = None):
         assert isinstance(other, Object)
 
         if attrs is None:
             attrs = const.ATTRS
         for attr in attrs:
             if getattr(self, attr) != getattr(other, attr):
-                # print(getattr(self, attr).space, getattr(other, attr).space)
                 return False
         return True
 
@@ -506,8 +509,6 @@ class Object(object):
           bool: True if successfully merged, False otherwise
         """
         new_attr = dict()
-        # todo: is this redundant?
-        # TODO(gryang): What to do with self.when and self.loc?
         for attr_type in ['category', 'object', 'view_angle']:
             new_attr = getattr(obj, attr_type)
             self_attr = getattr(self, attr_type)
@@ -518,6 +519,9 @@ class Object(object):
         return True
 
     def copy(self):
+        """
+        :return: deep copy of the object
+        """
         new_obj = Object(attrs=[Loc(space=Space(self.loc.space.value), value=self.loc.value), Space(self.space.value),
                                 SNCategory(self.category.value), SNObject(self.category, self.object.value),
                                 SNViewAngle(self.object, self.view_angle.value)])
@@ -558,6 +562,9 @@ class ObjectSet(object):
         return len(self.set)
 
     def copy(self):
+        """
+        :return: deep copy of the Objset
+        """
         objset_copy = ObjectSet(self.n_epoch, self.n_max_backtrack)
         objset_copy.set = {obj.copy() for obj in self.set}
         objset_copy.end_epoch = self.end_epoch.copy()
@@ -568,14 +575,14 @@ class ObjectSet(object):
 
     def increase_epoch(self, new_n_epoch):
         """
-
-        increase the number of epochs of the objset
+        increase the number of epochs of the objset by initializing the new epoch indices with empty lists
         :param new_n_epoch: new number of epochs
         :return:
         """
         for i in range(self.n_epoch, new_n_epoch):
-            self.dict[i]
+            self.dict[i] = list()
         self.n_epoch = new_n_epoch
+        return
 
     def add(self,
             obj: Object,
@@ -670,14 +677,6 @@ class ObjectSet(object):
         self.last_added_obj = obj
         return self.last_added_obj
 
-    def add_distractor(self, epoch_now):
-        """Add a distractor."""
-        ## todo: I guess we don't need it as well?
-        category = random_category()
-        object = random_object(category)
-        obj1 = Object([category, object], when='last', deletable=True)
-        self.add(obj1, epoch_now, add_if_exist=True)
-
     def delete(self, obj):
         """Delete an object."""
         i = self.set.index(obj)
@@ -686,40 +685,6 @@ class ObjectSet(object):
 
         for epoch in range(obj.epoch[0], obj.epoch[1]):
             self.dict[epoch].remove(obj)
-
-    def shift(self, x):
-        """Shift every object in the set.
-
-        Args:
-          x: int, shift every object by x-epoch.
-              An object that originally stays between (a, b) now stays between
-              (max(0,a+x), b+x).
-
-        Raises:
-          ValueError: if n_epoch + x <= 0
-        """
-        ## todo: redundant?
-        self.n_epoch += x
-        if self.n_epoch < 1:
-            raise ValueError('n_epoch + x <= 0')
-
-        new_set = list()
-        new_end_epoch = list()
-        new_dict = defaultdict(list)
-
-        for obj in self.set:
-            obj.epoch[0] = max((0, obj.epoch[0] + x))
-            obj.epoch[1] += x
-            if obj.epoch[1] > 0:
-                new_set.append(obj)
-                new_end_epoch.append(obj.epoch[1])
-
-                for epoch in range(obj.epoch[0], obj.epoch[1]):
-                    new_dict[epoch].append(obj)
-
-        self.set = new_set
-        self.end_epoch = new_end_epoch
-        self.dict = new_dict
 
     def select(self,
                epoch_now,
@@ -766,17 +731,9 @@ class ObjectSet(object):
             epoch_now -= const.DATA.LASTMAP[when]
         else:
             epoch_now = merge_idx
-        # if n_backtrack is None:
-        #   n_backtrack = self.n_max_backtrack   ### xlei: n_backtrack is deleted because of lastest does not exist anymore
-
+            
         return self.select_now(epoch_now, space, category, object, view_angle, delete_if_can)
-        # while epoch_now >= epoch_stop:
-        #   subset = self.select_now(epoch_now, space, color, shape, delete_if_can)
-        #   if subset:
-        #     return subset
-        #   epoch_now -= 1
-        # return []
-
+        
     def select_now(self,
                    epoch_now,
                    space=None,
@@ -1003,6 +960,9 @@ def random_object(category):
 
 
 def another_object(snObject):
+    """
+    select another object when there are constraints on the feature attributes
+    """
     try:
         category = random_category()
         if category == snObject.category:
@@ -1089,6 +1049,7 @@ def random_attr(attr_type) -> Attribute:
         return space.sample()
     else:
         raise NotImplementedError('Unknown attr_type :' + str(attr_type))
+    # TODO: how to add new attributes from new datasets? function API?
 
 
 def another_attr(attr):
@@ -1141,7 +1102,6 @@ def random_when():
 
 
 def sample_when(n=1):
-    # TODO: sample
     """
 
     :param n:
@@ -1189,6 +1149,7 @@ def another_loc(loc):
 
 
 def random_grid_space():
+    
     return Space(random.choice(list(const.DATA.grid.values())))
 
 

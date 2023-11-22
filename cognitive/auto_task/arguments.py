@@ -17,6 +17,6 @@ def get_args():
     parser.add_argument('--switch_threshold', type=float, default=0.3)
     parser.add_argument('--img_size', type=int, default=224)
     parser.add_argument('--fixation_cue', action='store_false', default=True)
-    # TODO: add number of trials per task
+    
     args = parser.parse_args()
     return args

@@ -19,22 +19,19 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import errno
 import functools
-
 import timeit
-import cv2
-from PIL import Image
-import gzip
-import itertools
-import json
-import multiprocessing
 import os
 import re
 import random
-import shutil
 import traceback
 from collections import defaultdict
+from typing import List, Dict
+
+import cv2
+import gzip
+import itertools
+import multiprocessing
 import numpy as np
 import tensorflow.compat.v1 as tf
 
@@ -64,103 +61,15 @@ def log_exceptions(func):
     return wrapped_func
 
 
-class FileWriter(object):
-    """Writes per_file examples in a file. Then, picks a new file."""
+def generate_temporal_example(max_memory: int, task_family: List[str],
+                              whens: List[str] = None, first_shareable: int = None,
+                              *args, **kwargs):
+    """generate 1 task objset and composition info object
 
-    def __init__(self, base_name, per_file=100, start_index=0, compress=True):
-        self.per_file = per_file
-        self.base_name = base_name
-        self.compress = compress
-        self.cur_file_index = start_index - 1
-        self.cur_file = None
-        self.written = 0
-        self.file_names = []
-
-        self._new_file()
-
-    def _file_name(self):
-        return '%s_%d.json' % (self.base_name, self.cur_file_index)
-
-    def _new_file(self):
-        if self.cur_file:
-            self.close()
-
-        self.written = 0
-        self.cur_file_index += 1
-        # 'b' is needed because we want to seek from the end. Text files
-        # don't allow seeking from the end (because width of one char is
-        # not fixed)
-        self.cur_file = open(self._file_name(), 'wb')
-        self.file_names.append(self._file_name())
-
-    def write(self, data):
-        if self.written >= self.per_file:
-            self._new_file()
-        self.cur_file.write(data)
-        self.cur_file.write(b'\n')
-        self.written += 1
-
-    def close(self):
-        self.cur_file.seek(-1, os.SEEK_END)
-        # Remove last new line
-        self.cur_file.truncate()
-        self.cur_file.close()
-
-        if self.compress:
-            # Compress the file and delete the original. We can write to compressed
-            # file immediately because truncate() does not work on compressed files.
-            with open(self._file_name(), 'rb') as f_in, \
-                    gzip.open(self._file_name() + '.gz', 'wb') as f_out:
-                shutil.copyfileobj(f_in, f_out)
-
-            os.remove(self._file_name())
-
-
-# TODO: move to stim_generator
-
-
-# TODO: move to stim_generator
-def write_task_instance(fname, task_info, img_size, fixation_cue=True):
-    if not os.path.exists(fname):
-        os.makedirs(fname)
-    objset = task_info.frame_info.objset
-    for i, (epoch, frame) in enumerate(zip(sg.render(objset, img_size), task_info.frame_info)):
-        if fixation_cue:
-            if not any('ending' in description for description in frame.description):
-                sg.add_fixation_cue(epoch)
-        img = Image.fromarray(epoch, 'RGB')
-        filename = os.path.join(fname, f'epoch{i}.png')
-        img.save(filename)
-
-    examples, compo_example, memory_info = task_info.get_examples()
-    for i, task_example in enumerate(examples):
-        filename = os.path.join(fname, f'task{i} example')
-        with open(filename, 'w') as f:
-            json.dump(task_example, f, indent=4)
-
-    filename = os.path.join(fname, 'compo_task_example')
-    with open(filename, 'w') as f:
-        json.dump(compo_example, f, indent=4)
-
-    filename = os.path.join(fname, 'memory_trace_info')
-    with open(filename, 'w') as f:
-        json.dump(memory_info, f, indent=4)
-
-    filename = os.path.join(fname, 'frame_info')
-    with open(filename, 'w') as f:
-        json.dump(task_info.frame_info.dump(), f, indent=4)
-
-
-def generate_temporal_example(max_memory, max_distractors, task_family,
-                              whens=None, first_shareable=None, *args, **kwargs):
-    """
-    generate 1 task objset and composition info object
-
-    :param max_memory:
-    :param max_distractors:
-    :param task_family:
-    :param whens:
-    :param first_shareable:
+    :param max_memory: used to generate objset, determines maximum task
+    :param task_family: list of task names to choose from
+    :param whens: the last_i of the tasks, determines task length
+    :param first_shareable: determines how tasks are combined
     :return:
     """
     task = task_bank.random_task(task_family, whens, first_shareable)
@@ -169,11 +78,7 @@ def generate_temporal_example(max_memory, max_distractors, task_family,
     # To get maximum memory duration, we need to specify the following average
     # memory value
     avg_mem = round(max_memory / 3.0 + 0.01, 2)
-    if max_distractors == 0:
-        objset = task.generate_objset(average_memory_span=avg_mem, *args, **kwargs)
-    else:
-        objset = task.generate_objset(n_distractor=random.randint(1, max_distractors),
-                                      average_memory_span=avg_mem, *args, **kwargs)
+    objset = task.generate_objset(average_memory_span=avg_mem, *args, **kwargs)
     # Getting targets can remove some objects from objset.
     # Create example fields after this call.
     frame_info = ig.FrameInfo(task, objset)
@@ -181,27 +86,20 @@ def generate_temporal_example(max_memory, max_distractors, task_family,
     return compo_info
 
 
-def generate_compo_temporal_example(max_memory, max_distractors, families, n_tasks=1,
-                                    *args, **kwargs):
-    '''
-
-    :param first_shareable:
-    :param whens:
-    :param families:
-    :param max_memory:
-    :param max_distractors:
-    :param n_tasks:
-    :return: combined TaskInfo Compo
-    '''
-
-    whens = kwargs.pop('whens', [None for _ in range(n_tasks)])
-
+def generate_compo_temporal_example(max_memory: int,
+                                    families: List[str],
+                                    n_tasks: int = 1,
+                                    whens: List[List[str]] = None,
+                                    *args, **kwargs) -> ig.TaskInfoCompo:
+    if whens is None:
+        whens = [None for _ in range(n_tasks)]
     if not isinstance(whens[0], list):
-        whens = [whens for _ in range(n_tasks)]
-    if n_tasks == 1:
-        return generate_temporal_example(max_memory, max_distractors, families, whens=whens[0], *args, **kwargs)
+        whens = [whens for _ in range(n_tasks)]  # repeat the whens for each individual task
 
-    compo_tasks = [generate_temporal_example(max_memory, max_distractors, families, whens=whens[i], *args, **kwargs)
+    if n_tasks == 1:
+        return generate_temporal_example(max_memory, families, whens=whens[0], *args, **kwargs)
+
+    compo_tasks = [generate_temporal_example(max_memory, families, whens=whens[i], *args, **kwargs)
                    for i in range(n_tasks)]
     # temporal combination
     cur_task = compo_tasks[0]
@@ -212,13 +110,21 @@ def generate_compo_temporal_example(max_memory, max_distractors, families, n_tas
 
 # TODO: split training and validation after task generation
 
-def generate_dataset(examples_per_family, output_dir='./data',
-                     random_families=True, families=None,
-                     composition=1, img_size=224,
-                     train=0.7, validation=0.3, fixation_cue=True,
-                     *args, **kwargs):
+def generate_dataset(
+        examples_per_family: int = 10,
+        output_dir: str = './data',
+        random_families: bool = True,
+        families: List[str] = None,
+        composition: int = 1,
+        img_size: int = 224,
+        train: float = 0.7,
+        validation: float = 0.3,
+        fixation_cue: bool = True,
+        *args, **kwargs
+) -> Dict[str, int]:
     if not random_families:
         assert families is not None
+        print("what is composition:", composition)
         assert composition == len(families)
     assert train + validation == 1.0
     if not os.path.exists(output_dir):
@@ -263,7 +169,7 @@ def generate_dataset(examples_per_family, output_dir='./data',
 
             task_family = list()
             for j in range(composition):
-                task_family.append(families[p[i] % n_families])
+                task_family.append(families[p[i] % n_families])  # add a random task to be in composition
                 families_count[families[p[i] % n_families]] += 1
 
             info = generate_compo_temporal_example(families=task_family, n_tasks=composition, *args, **kwargs)
@@ -276,7 +182,7 @@ def generate_dataset(examples_per_family, output_dir='./data',
                 validation_examples -= 1
                 fname = os.path.join(validation_fname, f'{i}')
 
-            write_task_instance(fname, info, img_size, fixation_cue)
+            info.write_trial_instance(fname, img_size, fixation_cue)
             i += 1
     else:
         i = 0
@@ -305,11 +211,12 @@ def generate_dataset(examples_per_family, output_dir='./data',
                 validation_examples -= 1
                 fname = os.path.join(validation_fname, f'{i}')
 
-            write_task_instance(fname, info, img_size, fixation_cue)
+            info.write_trial_instance(fname, img_size, fixation_cue)
             i += 1
     return families_count
 
 
+# examples of how to generate composition task datasets
 def main():
     args = get_args()
     print(args)
@@ -317,35 +224,46 @@ def main():
     const.DATA = const.Data(args.stim_dir)
 
     start = timeit.default_timer()
+    # whens are lists of lists of strs that determine the lengths of each task
+    # also determines which frame each stimuli is placed
+    # e.g. [[last2, last0],  [last1, last0]]
+    # the way tasks are composed are determined by this, and the first_shareable arg
     if args.nback > 0:
         assert all('Compare' in family for family in args.families)
+        # the number of frames for each task is determined by n_back
+        # e.g. in 2_back tasks, individual tasks have 3 frames, we compose tasks based on the total length of the task
         whens = [f'last{args.nback}', 'last0']
-        composition = args.nback_length - args.nback + 1
+        composition = args.nback_length - args.nback + 1  # the number of compositions
+        first_shareable = 1
         generate_dataset(examples_per_family=args.trials_per_family, output_dir=args.output_dir,
                          composition=composition, img_size=args.img_size,
                          random_families=args.random_families, families=args.families,
                          train=args.training, validation=args.validation, fixation_cue=args.fixation_cue,
-                         max_memory=args.max_memory, max_distractors=args.max_distractors,
-                         whens=whens, first_shareable=1, temporal_switch=args.temporal_switch)
+                         max_memory=args.max_memory, whens=whens, first_shareable=first_shareable,
+                         temporal_switch=args.temporal_switch)
     elif args.seq_length > 0:
         first_shareable = 1
-
+        # in seq_reverse, the response frames of the new tasks appear before the old tasks
         if args.seq_reverse:
             # minimum 2 frames per DMS task
             if args.seq_length * 2 - 1 > const.MAX_MEMORY:
-                raise ValueError('Not enough max memory')
+                raise ValueError('Total composition length too long, increase const.MAX_MEMORY')
+            # e.g. [[last5, last0], [last3, last0], [last1, last0]]
+            # then, the response frames of the new tasks would be shifted forward
             whens = [[f'last{const.MAX_MEMORY - (i * 2)}', 'last0'] for i in range(args.seq_length)]
         else:
+            # this is basically interleave
             last_when = sg.random_when()
             while int(re.search(r'\d+', last_when).group()) - 1 < args.seq_length:
                 last_when = sg.random_when()
             whens = [[last_when, 'last0'] for _ in range(args.seq_length)]
+        print("what is args.families:", args.families)
         generate_dataset(examples_per_family=args.trials_per_family, output_dir=args.output_dir,
                          composition=args.seq_length, img_size=args.img_size,
                          random_families=args.random_families, families=args.families,
                          train=args.training, validation=args.validation, fixation_cue=args.fixation_cue,
-                         max_memory=args.max_memory, max_distractors=args.max_distractors,
-                         whens=whens, first_shareable=first_shareable, temporal_switch=args.temporal_switch)
+                         max_memory=args.max_memory, whens=whens, first_shareable=first_shareable,
+                         temporal_switch=args.temporal_switch)
     else:
         whens = ["last0", "last1"] # xlei: previously Mark set this as None
         if args.fix_delay:
@@ -356,7 +274,7 @@ def main():
                          random_families=args.random_families, families=args.families,
                          train=args.training, validation=args.validation, fixation_cue=args.fixation_cue,
                          max_memory=args.max_memory, max_distractors=args.max_distractors,
-                         whens=whens, first_shareable=None, temporal_switch=args.temporal_switch)
+                         whens=whens, first_shareable=args.first_shareable, temporal_switch=args.temporal_switch)
 
     # # from task_bank.task_family_dict
     # tasks = ['CompareLoc', 'CompareObject', 'CompareCategory', 'CompareViewAngle']
@@ -366,7 +284,7 @@ def main():
     # for i in range(1, 4):
     #     task_combs[i] = list(itertools.combinations_with_replacement(tasks, i))
     #
-    # for i, task_comb in task_combs.items():
+    # for i, task_comb in task_combs.items(): # for each combination of tasks
     #     for task_fam in task_comb:
     #         if i == 1:
     #             generate_dataset(max_memory, max_distractors,

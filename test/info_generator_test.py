@@ -224,7 +224,8 @@ class InfoGeneratorTest(unittest.TestCase):
 
     def testObjectAddOne(self):
         t = 'observe object 1, observe object 2, category of object 1 equal category of object 2 ?observe object 3, observe object 4, delay, object of object 3 equal object of object 4 ?'
-        print(ig.object_add(t,2))
+        print(ig.object_add(t, 2))
+
 
 if __name__ == '__main__':
     unittest.main()

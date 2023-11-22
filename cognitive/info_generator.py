@@ -33,15 +33,29 @@ class TaskInfoCompo(object):
         self.task_objset = dict()
         self.tasks = [task]  # list of tasks in composition
         self.changed = list()
-        if frame_info is None:
+        self.frame_info = frame_info
+        self.reset()
+        # if frame_info is None:
+        #     if task.avg_mem is None:
+        #         objset = task.generate_objset()
+        #     else:
+        #         objset = task.generate_objset(task.avg_mem)
+        #     frame_info = FrameInfo(task, objset)
+
+        # self.task_objset[0] = frame_info.objset.copy()
+        # self.frame_info = frame_info
+        # self.tempo_dict = dict()
+    
+    def reset(self):
+        if self.frame_info is None:
             if task.avg_mem is None:
                 objset = task.generate_objset()
             else:
                 objset = task.generate_objset(task.avg_mem)
-            frame_info = FrameInfo(task, objset)
+            self.frame_info = FrameInfo(task, objset)
 
-        self.task_objset[0] = frame_info.objset.copy()
-        self.frame_info = frame_info
+        self.task_objset[0] = self.frame_info.objset.copy()
+        self.frame_info = self.frame_info
         self.tempo_dict = dict()
 
     def merge(self, new_task_info):
@@ -207,19 +221,17 @@ class TaskInfoCompo(object):
                 answers.append('null')
         return answers
 
-    def get_examples(self):
+    def get_examples(self) -> Tuple[List, Dict, Dict]:
         """
-        get task examples
-        :return: tuple of list of dictionaries containing information about the requested tasks
+        get information about the individual tasks, and the composite task, including memory trace information
+        :return: tuple of list of dictionaries containing information about the composed tasks
         and compo task
         """
-        # TODO: stimuli relevant attribute and relevant tasks
-        examples = list()
-        for i, task in enumerate(self.tasks):
-            examples.append({
+        task_info_dict = list()
+        for i, task in enumerate(self.tasks):  # iterate over individual tasks
+            task_info_dict.append({
                 'family': str(task.__class__.__name__),
-                # saving an epoch explicitly is needed because
-                # there might be no objects in the last epoch.
+                # saving an epoch explicitly is needed because there might be no objects in the last epoch.
                 'epochs': int(task.n_frames),
                 'question': str(task),
                 'objects': [o.dump() for o in self.task_objset[i]],
@@ -227,34 +239,34 @@ class TaskInfoCompo(object):
                 'first_shareable': int(task.first_shareable),
             })
 
-        comp_instruction, obj_info = self.get_instruction_obj_info()
-        obj_info_json = obj_info.copy()
+        # comp_instruction, obj_info = self.get_instruction_obj_info()
+        # obj_info_json = obj_info.copy()
 
-        for epoch, info_dict in obj_info_json.items():
-            for d in info_dict:
-                d['obj'] = d['obj'].dump()
-                for k, v in d.items():
-                    if isinstance(v, set):
-                        d[k] = list(v)
-                for task, attrs in d['attended_attr'].items():
-                    d['attended_attr'][task] = list(attrs)
-        memory_trace_info = dict()
-        memory_trace_info['obj_info'] = obj_info_json
-        memory_trace_info['task_info'] = {i: frame.description for i, frame in enumerate(self.frame_info) if
-                                          frame.description}
+        # for epoch, info_dict in obj_info_json.items():
+        #     for d in info_dict:
+        #         d['obj'] = d['obj'].dump()
+        #         for k, v in d.items():
+        #             if isinstance(v, set):
+        #                 d[k] = list(v)
+        #         for task, attrs in d['attended_attr'].items():
+        #             d['attended_attr'][task] = list(attrs)
+        # memory_trace_info = dict()
+        # memory_trace_info['obj_info'] = obj_info_json
+        # memory_trace_info['task_info'] = {i: frame.description for i, frame in enumerate(self.frame_info) if
+        #                                   frame.description}
 
         compo = {
             'epochs': int(len(self.frame_info)),
             'objects': [o.dump() for o in self.frame_info.objset],
-            'instruction': comp_instruction,
-            'answers': self.get_target_value(examples)
+            # 'instruction': comp_instruction,
+            'answers': self.get_target_value(task_info_dict)
         }
-        return examples, compo, memory_trace_info
+        return task_info_dict, compo, # memory_trace_info
 
-    def generate_trial(self, img_size=224, fixation_cue=True, train=True) -> None:
+    def generate_trial(self, img_size=224, fixation_cue=True) -> None:
         objset = self.frame_info.objset
         imgs = []
-        for i, (epoch, frame) in enumerate(zip(sg.render(objset, img_size, train=train), self.frame_info)):
+        for i, (epoch, frame) in enumerate(zip(sg.render(objset, img_size), self.frame_info)):
             # print("lxx what is i:", i)
             if fixation_cue:
                 if not any('ending' in description for description in frame.description):
@@ -263,11 +275,11 @@ class TaskInfoCompo(object):
             # imgs.append(np.asarray(img))
             imgs.append(img)
             # print("what is the generated image:", np.asarray(img).shape)
-        examples, compo_example, memory_info = self.get_examples()
-        # examples, compo_example = self.get_examples()
+        # examples, compo_example, memory_info = self.get_examples()
+        examples, compo_example = self.get_examples()
         # print("examples:", examples)
         # print("compo_examples:", compo_example)
-        return imgs, compo_example["instruction"], compo_example["answers"], 
+        return imgs, compo_example["answers"]
         # print("memory_info:", memory_info)
 
 

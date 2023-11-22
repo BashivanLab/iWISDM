@@ -76,7 +76,7 @@ class Data:
             dir_path = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))),
                                     './data/min_shapenet_easy_angle')
         self.dir_path = dir_path
-
+        self.phase = phase
         if not os.path.exists(self.dir_path):
             print('Data folder does not exist.')
         pkls = sorted([fname for fname in glob.glob(f'{dir_path}/**/*.pkl', recursive=True)])
@@ -136,9 +136,12 @@ class Data:
 
     def get_shapenet_object(self, obj, obj_size, training_path=None, validation_path=None, train=True):
         # sample stimuli that satisfies the properties specified by obj dictionary
+        if self.phase == "train": train = True
+        else: train = False
         if not train:
             if validation_path is None:
                 if self.valid_image_path is None:
+                    
                     valids = [fname for fname in glob.glob(f'{self.dir_path}/**/validation', recursive=True)]
                     if valids:
                         if os.path.isdir(valids[0]):
@@ -148,6 +151,7 @@ class Data:
             else:
                 self.valid_image_path = validation_path
             image_path = self.valid_image_path
+            
         else:
             if training_path is None:
                 if self.train_image_path is None:
@@ -160,10 +164,19 @@ class Data:
             else:
                 self.train_image_path = validation_path
             image_path = self.train_image_path
+
         obj_cat: pd.DataFrame = self.df.loc[(self.df['ctg_mod'] == obj.category) &
                                             (self.df['obj_mod'] == obj.object) &
                                             (self.df['ang_mod'] == obj.view_angle)]
         if len(obj_cat) <= 0:
+
+            df = self.df
+            for i in df.ctg_mod.unique():
+                for j in range(8):
+                    print(len(df[(df["ctg_mod"]==i) & (df["obj_mod"]==8*i+j)]))
+
+            curr_df = df[(df["ctg_mod"]==obj.category) & (df["obj_mod"]==obj.object)]
+            print(curr_df)
             raise ValueError(obj.category, obj.object, obj.view_angle)
 
         
@@ -230,7 +243,6 @@ def get_grid(grid_size):
     xx, yy = xx.flatten(), yy.flatten()
     grid_spaces = {(i, j): [(x_i, x_k), (y_i, y_k)] for i, (x_i, x_k) in enumerate(zip(xx[0::], xx[1::])) for
                    j, (y_i, y_k) in enumerate(zip(yy[0::], yy[1::]))}
-
     return OrderedDict(grid_spaces)
 
 

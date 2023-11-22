@@ -16,7 +16,6 @@ import networkx as nx
 from tqdm import tqdm
 from PIL import Image
 import os
-import matplotlib.pyplot as plt
 from networkx.drawing.nx_pydot import graphviz_layout
 
 from typing import Tuple, Union, List
@@ -26,7 +25,7 @@ from typing import Tuple, Union, List
 GRAPH_TUPLE = Tuple[nx.DiGraph, int, int]
 TASK = Tuple[Union[tg.Operator, sg.Attribute], tg.TemporalTask]
 
-# TODO: add select attributes, combine helper with task_generator.task_generation
+
 # root_ops are the operators to begin a task
 root_ops = ["GetCategory", "GetLoc", "GetViewAngle", "GetObject", "Exist", "IsSame", "And"]
 boolean_ops = ["Exist", "IsSame", "And"]
@@ -205,18 +204,20 @@ def branch_generator(G: nx.DiGraph,
 
         depth += 1  # increment depth count
         parent = op_count
-        if all(op == 'CONST' for op in children):  # make sure we are not comparing two constants
+        if root_op == 'IsSame' and all(
+                op == 'CONST' for op in children):  # make sure we are not comparing two constants in IsSame
             downstream = op_dict['IsSame']['downstream'].copy()
             downstream.remove('CONST')
             children[0] = random.choice(downstream)  # add a Get op to compare with the constant
+
         for op in children:  # loop over sampled children and modify the graph in place
-            if op != 'None':
+            if op != 'None':  # if the operator is an operator
                 child = op_count + 1
                 # recursively generate branches based on the child operator
-                # op_count is incremented based on how many nodes were added in the child branch
+                # op_count is incremented based on how many nodes were added in the child branch call
                 op_count = branch_generator(G, op, child, max_op, depth, max_depth, select_op,
                                             select_downstream)
-                G.add_node(child, label=op)
+                G.add_node(child, label=op)  # modify
                 G.add_edge(parent, child)
         return op_count
 
@@ -290,7 +291,7 @@ def task_generator(max_switch: int, switch_threshold: float, max_op: int, max_de
 
 
 def switch_generator(conditional: GRAPH_TUPLE, do_if: GRAPH_TUPLE, do_else: GRAPH_TUPLE) -> GRAPH_TUPLE:
-    # combine the 3 subtasks into the switch task graph by using networkx compose_all
+    # combine the 3 subtasks graphs into the switch task graph by using networkx compose_all
     do_if_graph, do_if_root, do_if_node = do_if
     do_else_graph, do_else_root, do_else_node = do_else
     conditional_graph, conditional_root, conditional_node = conditional
@@ -311,7 +312,7 @@ def switch_generator(conditional: GRAPH_TUPLE, do_if: GRAPH_TUPLE, do_else: GRAP
 def write_task_instance(G_tuple: GRAPH_TUPLE, task: TASK, write_fp: str):
     G, _, _ = G_tuple
     G = G.reverse()
-    # draw the task graph for visualization, super slow
+    # uncomment to draw the task graph for visualization, super slow
     # A = nx.nx_agraph.to_agraph(G)
     # A.draw(os.path.join(fp, "operator_graph.png"), prog="dot")
 
@@ -360,26 +361,17 @@ if __name__ == '__main__':
 
     task_dir = args.task_dir
 
-    if task_dir:
+    if task_dir:  # if there is saved task information, then generate the frames
         if not os.path.isdir(task_dir):
             raise ValueError('Task Directory not found')
         start = timeit.default_timer()
         task_folders = [f.path for f in os.scandir(task_dir) if f.is_dir()]
-        for f in task_folders:
+        for f in task_folders:  # iterate each task folder
             try:
-                # uncomment to reconstruct the graph
-                # labels, adj = os.path.join(f, 'node_labels'), os.path.join(f, 'adj_dict')
-                # with open(labels, 'rb') as h:
-                #     labels = json.load(h)
-                # with open(adj, 'rb') as h:
-                #     adj = json.load(h)
-                # g = nx.from_dict_of_dicts(adj, create_using=nx.DiGraph)
-                # g = nx.relabel_nodes(g, labels)
-                # print(sorted(g))
                 task_json_fp = os.path.join(f, 'temporal_task.json')
                 with open(task_json_fp, 'rb') as h:
                     task_dict = json.load(h)
-                task_dict['operator'] = tg.load_operator_json(task_dict['operator'])
+                task_dict['operator'] = tg.load_operator_json(task_dict['operator'])  # reconstruct the task
                 temporal_task = tg.TemporalTask(
                     operator=task_dict['operator'],
                     n_frames=task_dict['n_frames'],
@@ -391,15 +383,19 @@ if __name__ == '__main__':
                     if os.path.exists(instance_fp):
                         shutil.rmtree(instance_fp)
                     os.makedirs(instance_fp)
-
+                    frame_info = ig.FrameInfo(temporal_task, temporal_task.generate_objset())
+                    compo_info = ig.TaskInfoCompo(temporal_task,
+                                                  frame_info)
+                    # compo_info saves task information, and is used for task composition using merge
+                    compo_info.write_trial_instance(instance_fp, args.img_size, args.fixation_cue)
+                    # TODO: some guess objset error where ValueError occurs
                     write_trial_instance(temporal_task, instance_fp, args.img_size, args.fixation_cue)
             except Exception as e:
                 traceback.print_exc()
         stop = timeit.default_timer()
         print('Time taken to generate trials: ', stop - start)
-    else:
+    else:  # generate args.n_tasks
         start = timeit.default_timer()
-        # TODO: check for duplicated tasks by comparing task graphs
         for i in range(args.n_tasks):
             # make directory for saving task information
             fp = os.path.join(args.output_dir, str(i))
@@ -412,8 +408,6 @@ if __name__ == '__main__':
                                               args.max_op,
                                               args.max_depth,
                                               args.select_limit)
-            # TODO: some guess objset error where ValueError occurs
-            # write_instance(subtask_graph, subtask, fp, args.img_size, args.n_trials)
             write_task_instance(task_graph, task, fp)
         stop = timeit.default_timer()
         print('Time taken to generate tasks: ', stop - start)
