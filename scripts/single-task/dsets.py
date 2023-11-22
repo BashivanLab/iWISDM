@@ -7,20 +7,20 @@ import json
 from PIL import Image
 from natsort import natsorted
 
-print('before cog import')
+
+#Debugging slow imports
+from datetime import datetime
+print('before cog import, ', datetime.now().strftime("%d:%H:%M:%S"))
 from cognitive import info_generator as ig
-print('after cog import 1')
+print('after cog import 1, ', datetime.now().strftime("%d:%H:%M:%S"))
 from cognitive import stim_generator as sg
-print('after cog import 2')
+print('after cog import 2, ', datetime.now().strftime("%d:%H:%M:%S"))
 from cognitive import task_bank as tb
-print('after cog import 3')
+print('after cog import 3, ', datetime.now().strftime("%d:%H:%M:%S"))
 from cognitive import constants as const
 
 class StaticTaskDataset(Dataset):
     def __init__(self, root_dir):
-
-        
-
         self.root_dir = root_dir
         # preprocessing steps for pretrained ResNet models
         self.transform = transforms.Compose([

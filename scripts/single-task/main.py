@@ -14,9 +14,9 @@ print(job_id)
 import argparse
 from datetime import datetime
 
-print('before torch import')
+print('before torch import, ', datetime.now().strftime("%d:%H:%M:%S"))
 import torch
-print('after torch import')
+print('after torch import, ', datetime.now().strftime("%d:%H:%M:%S"))
 from torch import nn
 from torch.utils.data import DataLoader
 from transformers import AutoTokenizer, AutoModel
