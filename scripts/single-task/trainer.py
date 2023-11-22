@@ -64,7 +64,7 @@ class Trainer(object):
                 self.print_acc('train', null_accs, non_null_accs)
                 if i%10 == 0 or i == len(self.train_set)-1:
                     self.validate(model, criterion, ins_encoder, batch_size)
-                    self.write_stats()
+                self.write_stats()
                 i += 1 
 
             if scheduler is not None:

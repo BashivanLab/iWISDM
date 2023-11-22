@@ -95,6 +95,11 @@ class DynamicTaskDataset(Dataset):
 
         self.train = train
 
+        if train:
+            self.phase = 'train'
+        else:
+            self.phase = 'val'
+
         self.frame_info = ig.FrameInfo(self.task, self.task.generate_objset())
         self.compo_info = ig.TaskInfoCompo(self.task, self.frame_info)
 
@@ -107,13 +112,19 @@ class DynamicTaskDataset(Dataset):
         
         self.set_len = set_len
 
+        self.reset()
+    def reset(self):
+        self.frame_info = ig.FrameInfo(self.task, self.task.generate_objset())
+        self.compo_info = ig.TaskInfoCompo(self.task,self.frame_info)
+
     def __len__(self):
         return self.set_len
 
     def __getitem__(self, idx):
-        const.DATA = const.Data(dir_path=self.stim_dir)
+        self.reset()
+        const.DATA = const.Data(dir_path=self.stim_dir, phase = self.phase)
 
-        imgs, instructions, action = self.compo_info.generate_trial(train=self.train)
+        imgs, instructions, action = self.compo_info.generate_trial()
         for i, img in enumerate(imgs):
             imgs[i] = self.transform(img)
         actions = self._action_map(action)

@@ -221,17 +221,19 @@ class TaskInfoCompo(object):
                 answers.append('null')
         return answers
 
-    def get_examples(self) -> Tuple[List, Dict, Dict]:
+    def get_examples(self):
         """
-        get information about the individual tasks, and the composite task, including memory trace information
-        :return: tuple of list of dictionaries containing information about the composed tasks
+        get task examples
+        :return: tuple of list of dictionaries containing information about the requested tasks
         and compo task
         """
-        task_info_dict = list()
-        for i, task in enumerate(self.tasks):  # iterate over individual tasks
-            task_info_dict.append({
+        # TODO: stimuli relevant attribute and relevant tasks
+        examples = list()
+        for i, task in enumerate(self.tasks):
+            examples.append({
                 'family': str(task.__class__.__name__),
-                # saving an epoch explicitly is needed because there might be no objects in the last epoch.
+                # saving an epoch explicitly is needed because
+                # there might be no objects in the last epoch.
                 'epochs': int(task.n_frames),
                 'question': str(task),
                 'objects': [o.dump() for o in self.task_objset[i]],
@@ -239,29 +241,29 @@ class TaskInfoCompo(object):
                 'first_shareable': int(task.first_shareable),
             })
 
-        # comp_instruction, obj_info = self.get_instruction_obj_info()
-        # obj_info_json = obj_info.copy()
+        comp_instruction, obj_info = self.get_instruction_obj_info()
+        obj_info_json = obj_info.copy()
 
-        # for epoch, info_dict in obj_info_json.items():
-        #     for d in info_dict:
-        #         d['obj'] = d['obj'].dump()
-        #         for k, v in d.items():
-        #             if isinstance(v, set):
-        #                 d[k] = list(v)
-        #         for task, attrs in d['attended_attr'].items():
-        #             d['attended_attr'][task] = list(attrs)
-        # memory_trace_info = dict()
-        # memory_trace_info['obj_info'] = obj_info_json
-        # memory_trace_info['task_info'] = {i: frame.description for i, frame in enumerate(self.frame_info) if
-        #                                   frame.description}
+        for epoch, info_dict in obj_info_json.items():
+            for d in info_dict:
+                d['obj'] = d['obj'].dump()
+                for k, v in d.items():
+                    if isinstance(v, set):
+                        d[k] = list(v)
+                for task, attrs in d['attended_attr'].items():
+                    d['attended_attr'][task] = list(attrs)
+        memory_trace_info = dict()
+        memory_trace_info['obj_info'] = obj_info_json
+        memory_trace_info['task_info'] = {i: frame.description for i, frame in enumerate(self.frame_info) if
+                                          frame.description}
 
         compo = {
             'epochs': int(len(self.frame_info)),
             'objects': [o.dump() for o in self.frame_info.objset],
-            # 'instruction': comp_instruction,
-            'answers': self.get_target_value(task_info_dict)
+            'instruction': comp_instruction,
+            'answers': self.get_target_value(examples)
         }
-        return task_info_dict, compo, # memory_trace_info
+        return examples, compo, memory_trace_info
 
     def generate_trial(self, img_size=224, fixation_cue=True) -> None:
         objset = self.frame_info.objset
@@ -275,12 +277,11 @@ class TaskInfoCompo(object):
             # imgs.append(np.asarray(img))
             imgs.append(img)
             # print("what is the generated image:", np.asarray(img).shape)
-        # examples, compo_example, memory_info = self.get_examples()
-        examples, compo_example = self.get_examples()
+        examples, compo_example, memory_info = self.get_examples()
+        # examples, compo_example = self.get_examples()
         # print("examples:", examples)
         # print("compo_examples:", compo_example)
-        return imgs, compo_example["answers"]
-        # print("memory_info:", memory_info)
+        return imgs, compo_example["instruction"], compo_example["answers"], 
 
 
     def write_trial_instance(self, write_fp: str, img_size=224, fixation_cue=True) -> None:

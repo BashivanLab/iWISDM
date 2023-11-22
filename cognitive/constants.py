@@ -71,7 +71,7 @@ class Data:
         grid_size: configuration of the canvas
     """
 
-    def __init__(self, dir_path=None, max_memory: int = 5, grid_size: Tuple[int, int] = (2, 2)):
+    def __init__(self, dir_path=None, max_memory: int = 5, grid_size: Tuple[int, int] = (2, 2), phase: str = "train"):
         if dir_path is None:
             dir_path = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))),
                                     './data/min_shapenet_easy_angle')
@@ -80,7 +80,7 @@ class Data:
         if not os.path.exists(self.dir_path):
             print('Data folder does not exist.')
         pkls = sorted([fname for fname in glob.glob(f'{dir_path}/**/*.pkl', recursive=True)])
-        # print('Stimuli Directory: ', dir_path)
+        
 
         assert len(pkls) > 0
         self.pkl = pkls[0]
@@ -164,19 +164,11 @@ class Data:
             else:
                 self.train_image_path = validation_path
             image_path = self.train_image_path
-
+        print(len(self.df))
         obj_cat: pd.DataFrame = self.df.loc[(self.df['ctg_mod'] == obj.category) &
                                             (self.df['obj_mod'] == obj.object) &
                                             (self.df['ang_mod'] == obj.view_angle)]
         if len(obj_cat) <= 0:
-
-            df = self.df
-            for i in df.ctg_mod.unique():
-                for j in range(8):
-                    print(len(df[(df["ctg_mod"]==i) & (df["obj_mod"]==8*i+j)]))
-
-            curr_df = df[(df["ctg_mod"]==obj.category) & (df["obj_mod"]==obj.object)]
-            print(curr_df)
             raise ValueError(obj.category, obj.object, obj.view_angle)
 
         

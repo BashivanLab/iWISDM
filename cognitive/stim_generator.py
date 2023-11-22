@@ -785,33 +785,26 @@ def render_static_obj(canvas, obj, img_size, train=True):
     # when sampling, the most top-left position is (0.1, 0.1),
     # most bottom-right position is (0.9,0.9)
     # changing scaling requires changing space.sample)
-    radius = int(0.125 * img_size)
-    # print('img_size: ', img_size)
-    # print('radius: ', radius)
+    radius = int(0.25 * img_size)
 
     # Note that OpenCV color is (Blue, Green, Red)
-    center = (int(obj.loc[0] * img_size), int(obj.loc[1] * img_size))
-    # print('center: ', center)
-
+    center = [0,0]
+    if obj.loc[0] < 112:
+        center[0] = 56
+    else: center[0] = 168
+    if obj.loc[1] < 112:
+        center[1] = 56
+    else: center[1] = 168
+    # center = (int(obj.loc[0] * img_size), int(obj.loc[1] * img_size))
+  
     x_offset, x_end = center[0] - radius, center[0] + radius
     y_offset, y_end = center[1] - radius, center[1] + radius
-
-    # print('x_offset: ', x_offset)
-    # print('x_end: ', x_end)
-    # print('y_offset: ', y_offset)
-    # print('y_end: ', y_end)
-
     shape_net_obj = const.DATA.get_shapenet_object(obj, [radius * 2, radius * 2], train=train)
-    # print('obj size: ', shape_net_obj.size)
     assert shape_net_obj.size == (x_end - x_offset, y_end - y_offset)
-
-    # print(canvas.shape)
-    # print(canvas[x_offset:x_end, y_offset:y_end].shape)
-    # print(shape_net_obj.size)
     canvas[x_offset:x_end, y_offset:y_end] = shape_net_obj
 
 
-def render_obj(canvas, obj, img_size, train=True):
+def render_obj(canvas, obj, img_size):
     """Render a single object.
 
     Args:
@@ -821,9 +814,9 @@ def render_obj(canvas, obj, img_size, train=True):
       img_size: int, image size.
     """
     if isinstance(obj, StaticObject):
-        render_static_obj(canvas, obj, img_size, train=train)
+        render_static_obj(canvas, obj, img_size)
     else:
-        render_static_obj(canvas, obj.to_static()[0], img_size, train=train)
+        render_static_obj(canvas, obj.to_static()[0], img_size)
 
 
 def render_static(objlists, img_size=224, save_name=None):
@@ -881,7 +874,7 @@ def render_static(objlists, img_size=224, save_name=None):
     return movie
 
 
-def render(objsets, img_size=224, save_name=None, train=True):
+def render(objsets, img_size=224, save_name=None):
     """Render a movie by epoch.
 
     Args:
@@ -909,7 +902,7 @@ def render(objsets, img_size=224, save_name=None, train=True):
 
             subset = objset.select_now(epoch_now)
             for obj in subset:
-                render_obj(canvas, obj, img_size, train=train)
+                render_obj(canvas, obj, img_size)
             i_frame += 1
 
     if save_name is not None:
