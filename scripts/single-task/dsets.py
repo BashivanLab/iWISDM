@@ -10,13 +10,9 @@ from natsort import natsorted
 
 #Debugging slow imports
 from datetime import datetime
-print('before cog import, ', datetime.now().strftime("%d:%H:%M:%S"))
 from cognitive import info_generator as ig
-print('after cog import 1, ', datetime.now().strftime("%d:%H:%M:%S"))
 from cognitive import stim_generator as sg
-print('after cog import 2, ', datetime.now().strftime("%d:%H:%M:%S"))
 from cognitive import task_bank as tb
-print('after cog import 3, ', datetime.now().strftime("%d:%H:%M:%S"))
 from cognitive import constants as const
 
 class StaticTaskDataset(Dataset):

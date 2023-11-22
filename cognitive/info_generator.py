@@ -241,21 +241,8 @@ class TaskInfoCompo(object):
                 'first_shareable': int(task.first_shareable),
             })
 
-        comp_instruction, obj_info = self.get_instruction_obj_info()
-        obj_info_json = obj_info.copy()
-
-        for epoch, info_dict in obj_info_json.items():
-            for d in info_dict:
-                d['obj'] = d['obj'].dump()
-                for k, v in d.items():
-                    if isinstance(v, set):
-                        d[k] = list(v)
-                for task, attrs in d['attended_attr'].items():
-                    d['attended_attr'][task] = list(attrs)
-        memory_trace_info = dict()
-        memory_trace_info['obj_info'] = obj_info_json
-        memory_trace_info['task_info'] = {i: frame.description for i, frame in enumerate(self.frame_info) if
-                                          frame.description}
+        # comp_instruction, _ = self.get_instruction_obj_info()
+        comp_instruction = 'LG'
 
         compo = {
             'epochs': int(len(self.frame_info)),
@@ -263,7 +250,7 @@ class TaskInfoCompo(object):
             'instruction': comp_instruction,
             'answers': self.get_target_value(examples)
         }
-        return examples, compo, memory_trace_info
+        return examples, compo
 
     def generate_trial(self, img_size=224, fixation_cue=True) -> None:
         objset = self.frame_info.objset
@@ -277,7 +264,7 @@ class TaskInfoCompo(object):
             # imgs.append(np.asarray(img))
             imgs.append(img)
             # print("what is the generated image:", np.asarray(img).shape)
-        examples, compo_example, memory_info = self.get_examples()
+        examples, compo_example = self.get_examples()
         # examples, compo_example = self.get_examples()
         # print("examples:", examples)
         # print("compo_examples:", compo_example)

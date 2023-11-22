@@ -3,9 +3,9 @@ sys.path.append(sys.path[0] + '/../../')
 
 
 import os
-tmp_dir =  './' #os.environ['SLURM_TMPDIR'] + '/'
-job_id = 'test/' #os.environ['SLURM_JOB_ID'] + '/'
-home_dir = '../../' #os.environ['HOME'] + '/'
+tmp_dir =  os.environ['SLURM_TMPDIR'] + '/'
+job_id = os.environ['SLURM_JOB_ID'] + '/'
+home_dir = os.environ['HOME'] + '/'
 print(tmp_dir)
 print(home_dir)
 print(job_id)
@@ -30,12 +30,12 @@ parser = argparse.ArgumentParser()# Add an argument
 
 # Task and Data Arg
 parser.add_argument('--static', type=int, default=0)# Parse the argument
-parser.add_argument('--train_path', type=str, default='datasets/val_big')# Parse the argument # test_mini train_big
-parser.add_argument('--val_path', type=str, default='datasets/val_big')# Parse the argument  # test_mini val_big
+parser.add_argument('--train_path', type=str, default='mlti-dl/datasets/val_big')# Parse the argument # test_mini train_big
+parser.add_argument('--val_path', type=str, default='mlti-dl/datasets/val_big')# Parse the argument  # test_mini val_big
 parser.add_argument('--out_path', type=str, default= home_dir + 'outputs/' + job_id )
 parser.add_argument('--task_name', type=str, default='CompareCategory')
-parser.add_argument('--train_stim', type=str, default='data/new_shapenet_train')
-parser.add_argument('--val_stim', type=str, default='data/new_shapenet_val')
+parser.add_argument('--train_stim', type=str, default='mlti-dl/data/new_shapenet_train')
+parser.add_argument('--val_stim', type=str, default='mlti-dl/data/new_shapenet_val')
 parser.add_argument('--task_path', type=str, required=False)
 parser.add_argument('--img_size', type=int, default=224)
 parser.add_argument('--task_max_len', type=int, default=3)
@@ -53,8 +53,8 @@ parser.add_argument('--lr', type=float, default=3e-5)
 parser.add_argument('--epochs', type=int, default=5)
 parser.add_argument('--set_size', type=int, default=10000)
 parser.add_argument('--batch_size', type=int, default=256)
-parser.add_argument('--imgm_path', type=str, default='tutorials/offline_models/resnet/resnet')
-parser.add_argument('--insm_path', type=str, default='tutorials/offline_models/all-mpnet-base-v2')
+parser.add_argument('--imgm_path', type=str, default='mlti-dl/tutorials/offline_models/resnet/resnet')
+parser.add_argument('--insm_path', type=str, default='mlti-dl/tutorials/offline_models/all-mpnet-base-v2')
 
 
 def get_device():
