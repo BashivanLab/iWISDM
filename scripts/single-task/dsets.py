@@ -7,9 +7,13 @@ import json
 from PIL import Image
 from natsort import natsorted
 
+print('before cog import')
 from cognitive import info_generator as ig
+print('after cog import 1')
 from cognitive import stim_generator as sg
+print('after cog import 2')
 from cognitive import task_bank as tb
+print('after cog import 3')
 from cognitive import constants as const
 
 class StaticTaskDataset(Dataset):

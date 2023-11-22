@@ -12,17 +12,15 @@ print(job_id)
 # os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
 import argparse
-from cognitive import task_bank as tb
-import json 
 from datetime import datetime
 
+print('before torch import')
 import torch
+print('after torch import')
 from torch import nn
 import torch.nn.functional as F
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import DataLoader
 from transformers import AutoTokenizer, AutoModel
-import torchvision
-from torchvision import transforms
 
 from collections import OrderedDict
 
