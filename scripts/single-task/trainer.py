@@ -59,7 +59,6 @@ class Trainer(object):
                 null_acc, non_null_acc = self.correct(predicted, actions.reshape(-1).to(self.device))
                 null_accs.append(null_acc.item())
                 non_null_accs.append(non_null_acc.item())
-                i += 1
                 
                 self.stat_track('train', null_accs, non_null_accs, null_losses, non_null_losses)
                 self.print_acc('train', null_accs, non_null_accs)
