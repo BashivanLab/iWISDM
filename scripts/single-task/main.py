@@ -35,8 +35,8 @@ parser = argparse.ArgumentParser()# Add an argument
 
 # Task and Data Arg
 parser.add_argument('--static', type=int, default=1)# Parse the argument
-parser.add_argument('--train_path', type=str, default='./datasets/train_big')# Parse the argument # test_mini train_big
-parser.add_argument('--val_path', type=str, default='./datasets/val_big')# Parse the argument  # test_mini val_big
+parser.add_argument('--train_path', type=str, default='mlti-dl/datasets/train_big_50k')# Parse the argument # test_mini train_big
+parser.add_argument('--val_path', type=str, default='mlti-dl/datasets/val_big_10k')# Parse the argument  # test_mini val_big
 parser.add_argument('--out_path', type=str, default= home_dir + 'outputs/' + job_id )
 parser.add_argument('--task_name', type=str, default='CompareCategory')
 parser.add_argument('--train_stim', type=str, default='mlti-dl/data/new_shapenet_train')
