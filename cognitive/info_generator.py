@@ -286,7 +286,7 @@ class TaskInfoCompo(object):
         os.makedirs(frames_fp)
 
         objset = self.frame_info.objset
-        for i, (epoch, frame) in enumerate(zip(sg.render(objset, img_size), task_info.frame_info)):
+        for i, (epoch, frame) in enumerate(zip(sg.render(objset, img_size), self.frame_info)):
             if fixation_cue:
                 if not any('ending' in description for description in frame.description):
                     sg.add_fixation_cue(epoch)
