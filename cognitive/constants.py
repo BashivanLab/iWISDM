@@ -134,7 +134,7 @@ class Data:
         self.grid = get_grid(grid_size)
         # print(self.grid)
 
-    def get_shapenet_object(self, obj, obj_size, training_path=None, validation_path=None, train=True):
+    def get_shapenet_object(self, obj, obj_size, training_path=None, validation_path=None):
         # sample stimuli that satisfies the properties specified by obj dictionary
         if self.phase == "train": train = True
         else: train = False
