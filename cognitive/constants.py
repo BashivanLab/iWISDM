@@ -164,6 +164,7 @@ class Data:
             else:
                 self.train_image_path = validation_path
             image_path = self.train_image_path
+        
         obj_cat: pd.DataFrame = self.df.loc[(self.df['ctg_mod'] == obj.category) &
                                             (self.df['obj_mod'] == obj.object) &
                                             (self.df['ang_mod'] == obj.view_angle)]
