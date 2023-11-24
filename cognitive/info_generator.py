@@ -272,7 +272,7 @@ class TaskInfoCompo(object):
         return examples, compo, memory_trace_info
 
     # todo: xlei: change fixation to False, need to change it back
-    def generate_trial(self, img_size=224, fixation_cue=False) -> None:
+    def generate_trial(self, img_size=224, fixation_cue=True) -> None:
         objset = self.frame_info.objset
         
         imgs = []
@@ -291,7 +291,7 @@ class TaskInfoCompo(object):
         # print("compo_examples:", compo_example)
         # todo: solve slow instruction generation probel
         # return imgs, compo_example["instruction"], compo_example["answers"], 
-        return imgs, compo_example["answers"]
+        return imgs, "instruction", compo_example["answers"]
 
     def write_trial_instance(self, write_fp: str, img_size=224, fixation_cue=True) -> None:
         # generate trial information and save it locally
