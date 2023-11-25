@@ -294,7 +294,7 @@ class TaskInfoCompo(object):
             filename = os.path.join(frames_fp, f'epoch{i}.png')
             img.save(filename)
 
-        examples, compo_example, memory_info = self.get_examples()
+        examples, compo_example  = self.get_examples()
         for i, task_example in enumerate(examples):
             filename = os.path.join(frames_fp, f'task{i} example')
             with open(filename, 'w') as f:
@@ -303,10 +303,6 @@ class TaskInfoCompo(object):
         filename = os.path.join(frames_fp, 'compo_task_example')
         with open(filename, 'w') as f:
             json.dump(compo_example, f, indent=4)
-
-        filename = os.path.join(frames_fp, 'memory_trace_info')
-        with open(filename, 'w') as f:
-            json.dump(memory_info, f, indent=4)
 
         filename = os.path.join(frames_fp, 'frame_info')
         with open(filename, 'w') as f:
