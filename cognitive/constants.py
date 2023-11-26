@@ -69,14 +69,15 @@ class Data:
         dir_path: file path to the dataset
         max_memory: maximum frames an object can be used to solve a task
         grid_size: configuration of the canvas
+        train: boolean for whether constant is for a train or val stim set
     """
 
-    def __init__(self, dir_path=None, max_memory: int = 5, grid_size: Tuple[int, int] = (2, 2), phase: str = "train"):
+    def __init__(self, dir_path=None, max_memory: int = 5, grid_size: Tuple[int, int] = (2, 2), train: bool = True):
         if dir_path is None:
             dir_path = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))),
                                     './data/min_shapenet_easy_angle')
         self.dir_path = dir_path
-        self.phase = phase
+        self.train = train
         if not os.path.exists(self.dir_path):
             print('Data folder does not exist.')
         pkls = sorted([fname for fname in glob.glob(f'{dir_path}/**/*.pkl', recursive=True)])
@@ -136,9 +137,7 @@ class Data:
 
     def get_shapenet_object(self, obj, obj_size, training_path=None, validation_path=None):
         # sample stimuli that satisfies the properties specified by obj dictionary
-        if self.phase == "train": train = True
-        else: train = False
-        if not train:
+        if not self.train:
             if validation_path is None:
                 if self.valid_image_path is None:
                     
