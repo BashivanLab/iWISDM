@@ -295,18 +295,23 @@ class TaskInfoCompo(object):
             img.save(filename)
 
         examples, compo_example  = self.get_examples()
-        for i, task_example in enumerate(examples):
-            filename = os.path.join(frames_fp, f'task{i} example')
-            with open(filename, 'w') as f:
-                json.dump(task_example, f, indent=4)
 
-        filename = os.path.join(frames_fp, 'compo_task_example')
+        filename = os.path.join(frames_fp, 'task_info')
         with open(filename, 'w') as f:
             json.dump(compo_example, f, indent=4)
+        
 
-        filename = os.path.join(frames_fp, 'frame_info')
-        with open(filename, 'w') as f:
-            json.dump(self.frame_info.dump(), f, indent=4)
+        """
+        Commenting these out for faster data gen - LG, Sat Nov 25
+        """
+        # for i, task_example in enumerate(examples):
+        #     filename = os.path.join(frames_fp, f'task{i} example')
+        #     with open(filename, 'w') as f:
+        #         json.dump(task_example, f, indent=4)
+
+        # filename = os.path.join(frames_fp, 'frame_info')
+        # with open(filename, 'w') as f:
+        #     json.dump(self.frame_info.dump(), f, indent=4)
 
     def get_changed_task_objset(self, changed_task: tg.TemporalTask) -> sg.ObjectSet:
         """
