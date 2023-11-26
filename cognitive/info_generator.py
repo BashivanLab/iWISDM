@@ -250,8 +250,7 @@ class TaskInfoCompo(object):
         compo = {
             'epochs': int(len(self.frame_info)),
             'objects': [o.dump() for o in self.frame_info.objset],
-            # todo: uncomment to allow instruction generation
-            # 'instruction': comp_instruction,
+            'instruction': comp_instruction,
             'answers': self.get_target_value(examples)
         }
         return examples, compo
