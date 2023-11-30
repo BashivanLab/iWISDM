@@ -117,15 +117,17 @@ def generate_dataset(
         families: List[str] = None,
         composition: int = 1,
         img_size: int = 224,
-        train: float = 0.7,
-        validation: float = 0.3,
-        fixation_cue: bool = True,
+        train: float = 1.0,
+        validation: float = 0.0,
+        fixation_cue: bool = False,
         *args, **kwargs
 ) -> Dict[str, int]:
+
+    print("what are the **kwargs:", len(**kwargs))
     if not random_families:
         assert families is not None
         print("what is composition:", composition)
-        assert composition == len(families)
+        # assert composition == len(families) # XLEI: why compostiion is the number of tasks in the families?
     assert train + validation == 1.0
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
@@ -190,9 +192,11 @@ def generate_dataset(
             if i % 10000 == 0 and i > 0:
                 print("Generated ", i, " examples")
             task_family = np.random.permutation(families)
-
+            print("XLEI: start generation of temporal example")
             compo_tasks = [generate_temporal_example(task_family=[family], *args, **kwargs)
                            for family in task_family]
+            print("end of generating temporal examples")
+            print("what are the compo tasks:", compo_tasks)
             # temporal combination
             info = compo_tasks[0]
             for task in compo_tasks[1:]:
@@ -200,7 +204,7 @@ def generate_dataset(
             # TODO: find boolean output task and apply temporal switch
             #  draw diagram for branching structure of temporal composition/switch
             #  put in info_generator?
-            info.temporal_switch()
+            # info.temporal_switch() ### XLEI: why do we need temporal switch? I don't think that is the case
 
             # Write the example randomly to training or validation folder
             split = bool(random.getrandbits(1))
@@ -221,6 +225,7 @@ def main():
     args = get_args()
     print(args)
 
+    print(args.stim_dir)
     const.DATA = const.Data(args.stim_dir)
 
     start = timeit.default_timer()
@@ -233,7 +238,8 @@ def main():
         # the number of frames for each task is determined by n_back
         # e.g. in 2_back tasks, individual tasks have 3 frames, we compose tasks based on the total length of the task
         whens = [f'last{args.nback}', 'last0']
-        composition = args.nback_length - args.nback + 1  # the number of compositions
+        print("whens:" ,whens)
+        composition = args.nback_length - args.nback  # the number of compositions
         first_shareable = 1
         generate_dataset(examples_per_family=args.trials_per_family, output_dir=args.output_dir,
                          composition=composition, img_size=args.img_size,

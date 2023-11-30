@@ -65,22 +65,33 @@ class TaskInfoCompo(object):
         :param new_task_info: the new task to be temporally combined with the current task
         :return:
         """
+
+        # print("XLEI:what is the new_task_info:", type(new_task_info.tasks[0]))
+        # print(type(new_task_info))
         new_task = new_task_info.tasks[0]
         new_task_copy: tg.TemporalTask = new_task.copy()
+        # print(type(new_task_copy))
 
         new_task_idx = len(self.tasks)
         start_frame_idx = self.frame_info.get_start_frame(new_task_info, relative_tasks={new_task_idx})
 
         # init new ObjSet
+        # print("n_epoch:", new_task_copy.n_frames)
         objset = sg.ObjectSet(n_epoch=new_task_copy.n_frames, n_max_backtrack=(int(new_task_copy.avg_mem) * 3))
+        # print("XLEI: what is the objset:", type(objset))
         changed = False
         # change the necessary selects first
         for i, (old_frame, new_frame) in enumerate(zip(self.frame_info[start_frame_idx:], new_task_info.frame_info)):
             last_k = 'last%d' % (len(new_task_info.frame_info) - i - 1)
+            # print("what is old_frame:", old_frame.objs)
+            # print("what is new_frame:", new_frame.objs)
             # if there are objects in both frames, then update the new task's selects
             if old_frame.objs and new_frame.objs:
                 # update the select such that it corresponds to the same object
                 # checks how many selects and if there are enough objects for the selects
+                # print("what is new_task_copy:", type(new_task_copy))
+                print(new_task_copy)
+                # print("what is old_frame.objs:", old_frame.objs)
                 filter_objs = new_task.reinit(new_task_copy, old_frame.objs, last_k)
                 if filter_objs:
                     changed = True
@@ -277,7 +288,7 @@ class TaskInfoCompo(object):
         # return imgs, compo_example["instruction"], compo_example["answers"], 
         return imgs, "instruction", compo_example["answers"]
 
-    def write_trial_instance(self, write_fp: str, img_size=224, fixation_cue=True) -> None:
+    def write_trial_instance(self, write_fp: str, img_size=224, fixation_cue=False) -> None:
         # generate trial information and save it locally
         frames_fp = os.path.join(write_fp, 'frames')
         if os.path.exists(frames_fp):

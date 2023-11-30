@@ -1101,12 +1101,17 @@ class TemporalTask(Task):
     def filter_selects(self, lastk=None) -> List[Select]:
         # filter for select operators that corresponds directly to an object and match lastk
         selects = list()
+        # print("what is self:", type(self))
+        # print(self)
+        
         for node in self.topological_sort():
             if isinstance(node, Select) and node.check_attrs():
+                # print("what is node.when:", node.when)
                 if lastk and node.when == lastk:
                     selects.append(node)
                 else:
-                    selects.append(node)
+                    continue # XLEI: only keep select operators that matches certain timestamp[lastk]
+                    # selects.append(node)
         return selects
 
     def get_relevant_attribute(self, lastk):
@@ -1139,13 +1144,23 @@ class TemporalTask(Task):
         :type copy: copy of the TemporalTask
         :return: None if there are no leaf selects, list of objs otherwise
         """
+        # print("what is self:", self)
+        # print(type(self))
+        # print("what is copy:", copy)
+        # print(type(copy))
+        # print("what is objs:", objs)
+        # print("what is laskk:", lastk)
         assert all([o.when == objs[0].when for o in objs])
 
-        filter_selects, copy_filter_selects = self.filter_selects(lastk), copy.filter_selects(lastk)
+
+        copy_filter_selects = copy.filter_selects(copy, lastk)
+        filter_selects = self.filter_selects(self, lastk)
 
         # uncomment if multiple stim per frame
         # assert len(filter_selects) == len(copy_filter_selects)
 
+        # print("whati s filter_selects?:", filter_selects)
+        # print("what is objs:", objs)
         filter_objs = list()
         if filter_selects:
             if len(objs) < len(filter_selects):
@@ -1153,11 +1168,13 @@ class TemporalTask(Task):
                 return None
             # match objs on that frame with the number of selects
             filter_objs = random.sample(objs, k=len(filter_selects))
+            # print("what is filter_objs:", filter_objs)
             for select in filter_selects:
                 for obj in filter_objs:
                     select.soft_update(obj)
             for select_copy in copy_filter_selects:
                 select_copy.hard_update(obj)
+        # print("after updating, what is filter_objs:", filter_objs)
         return filter_objs
 
     def generate_objset(self, average_memory_span=3, *args, **kwargs):
