@@ -427,6 +427,7 @@ class Get(Operator):
         """
         super(Get, self).__init__()
         self.attr_type = attr_type
+        # print("what is objs:", objs)
         self.objs = objs
         assert isinstance(objs, Operator)
         self.set_child(objs)
@@ -452,6 +453,7 @@ class Get(Operator):
         """
         
         if isinstance(self.objs, Operator):
+            
             objs = self.objs(objset, epoch_now)
         else:
             objs = self.objs
@@ -823,6 +825,96 @@ class IsSame(Operator):
         return attr1_assign, attr2_assign
 
 
+
+class NotSame(Operator):
+    """Check if two attributes are not the same."""
+
+    def __init__(self, attr1, attr2):
+        """Compare to attributes.
+
+        Args:
+          attr1: Instance of Attribute or Get
+          attr2: Instance of Attribute or Get
+
+        Raises:
+          ValueError: when both attr1 and attr2 are instances of Attribute
+        """
+        super(NotSame, self).__init__()
+
+        self.attr1 = attr1
+        self.attr2 = attr2
+
+        self.attr1_is_op = isinstance(self.attr1, Operator)
+        self.attr2_is_op = isinstance(self.attr2, Operator)
+
+        self.set_child([self.attr1, self.attr2])
+
+        if (not self.attr1_is_op) and (not self.attr2_is_op):
+            raise ValueError('attr1 and attr2 cannot both be Attribute instances.')
+
+        self.attr_type = self.attr1.attr_type
+        assert self.attr_type == self.attr2.attr_type
+
+    def __str__(self):
+        words = [self.attr1.__str__(), 'not equal', self.attr2.__str__()]
+        if not self.parent:
+            words += ['?']
+        return ' '.join(words)
+
+    def __call__(self, objset, epoch_now):
+        attr1 = self.attr1(objset, epoch_now)
+        attr2 = self.attr2(objset, epoch_now)
+
+        if (attr1 is const.DATA.INVALID) or (attr2 is const.DATA.INVALID):
+            return const.DATA.INVALID
+        else:
+            return attr1 != attr2
+
+    def copy(self):
+        new_attr1 = self.attr1.copy()
+        new_attr2 = self.attr2.copy()
+        return NotSame(new_attr1, new_attr2)
+
+    def get_expected_input(self, should_be, objset, epoch_now):
+        if should_be is None:
+            should_be = random.random() > 0.5
+        # Determine which attribute should be fixed and which shouldn't
+        attr1_value = self.attr1(objset, epoch_now)
+        attr2_value = self.attr2(objset, epoch_now)
+
+        attr1_fixed = attr1_value is not const.DATA.INVALID
+        attr2_fixed = attr2_value is not const.DATA.INVALID
+
+        if attr1_fixed:
+            assert attr1_value.has_value
+
+        if attr1_fixed and attr2_fixed:
+            # do nothing
+            attr1_assign, attr2_assign = Skip(), Skip()
+        elif attr1_fixed and not attr2_fixed:
+            attr1_assign = Skip()
+            attr2_assign = sg.another_attr(attr1_value) if should_be else attr1_value
+        elif not attr1_fixed and attr2_fixed:
+            attr1_assign = sg.another_attr(attr2_value) if should_be else attr2_value
+            attr2_assign = Skip()
+        else:
+            if self.attr_type == 'view_angle':
+                obj = sg.random_attr('object')
+                while len(const.DATA.ALLVIEWANGLES[obj.category.value][obj.value]) < 2:
+                    obj = sg.random_attr('object')
+                attr = sg.random_view_angle(obj)
+                attr1_assign = attr
+                attr2_assign = sg.another_attr(attr) if should_be else attr
+            elif self.attr_type == 'loc':
+                attr = sg.random_attr('loc')
+                attr1_assign = attr
+                attr2_assign = sg.another_attr(attr) if should_be else attr.space.sample()
+            else:
+                attr = sg.random_attr(self.attr_type)
+                attr1_assign = attr
+                attr2_assign = sg.another_attr(attr) if should_be else attr
+        return attr1_assign, attr2_assign
+
 class And(Operator):
     """And operator."""
 
@@ -990,7 +1082,7 @@ class Task(object):
                 inputs = node.get_expected_input(should_be, objset, epoch_now)
                 objset = inputs[0]
                 inputs = inputs[1:]
-            elif isinstance(node, IsSame) or isinstance(node, And):
+            elif isinstance(node, IsSame) or isinstance(node, And) or isinstance(node, NotSame):
                 inputs = node.get_expected_input(should_be, objset, epoch_now)
             else:
                 inputs = node.get_expected_input(should_be)
@@ -1062,9 +1154,11 @@ class Task(object):
 
 class TemporalTask(Task):
     # goal: combine multiple tasks together
+    # xlei: n_frames set to 6 todo: it does not work!
     def __init__(self, operator=None, n_frames=None, first_shareable=None, whens=None):
         super(TemporalTask, self).__init__(operator)
         self.n_frames = n_frames
+   
         self._first_shareable = first_shareable
         self.avg_mem = None
         self.whens = whens
@@ -1191,7 +1285,8 @@ class TemporalTask(Task):
         """
         self.avg_mem = average_memory_span
         n_epoch = self.n_frames
-        n_max_backtrack = int(average_memory_span * 3)  # why do this conversion? waste of time?
+        # update n_max_backtrack to average_memory space instead of times 3
+        n_max_backtrack = int(average_memory_span)  # why do this conversion? waste of time?
         objset = sg.ObjectSet(n_epoch=n_epoch, n_max_backtrack=n_max_backtrack)
 
         # Guess objects
@@ -1209,6 +1304,7 @@ class TemporalTask(Task):
         info['avg_mem'] = self.avg_mem
         info['whens'] = self.whens
         info['operator'] = self._operator.to_json()
+        
         with open(fp, 'w') as f:
             json.dump(info, f, indent=4)
         return info
@@ -1256,6 +1352,8 @@ def classify_operators(ops):
             counts['exist'].append((i, op))
         elif op == 'IsSame':
             counts['is_same'].append((i, op))
+        elif op == 'NotSame':
+            counts['not_same'].append((i, op))
         elif op == 'And' or op == 'Or' or op == 'Xor':
             counts['logic'].append((i, op))
         elif op == 'Switch':

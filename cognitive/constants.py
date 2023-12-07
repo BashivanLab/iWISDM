@@ -34,8 +34,8 @@ AVG_MEM = 3
 # TODO: if only 1 stim per frame, then number of selects is limited by max_memory
 
 # define all available operators for constructing graphs
-LOGIC_OPS = ['And', 'Or', 'Xor', 'IsSame']
-BOOLEAN_OUT_OPS = ['IsSame', 'Exist', 'And', 'Or', 'Xor', 'NotEqual']
+LOGIC_OPS = ['And', 'Or', 'Xor', 'IsSame', "NotSame"]
+BOOLEAN_OUT_OPS = ['IsSame', 'Exist', 'And', 'Or', 'Xor', 'NotSame']
 
 # attributes available for given dataset (shapenet)
 # need to be updated if other datasets are used
@@ -72,7 +72,7 @@ class Data:
         train: boolean for whether constant is for a train or val stim set
     """
 
-    def __init__(self, dir_path=None, max_memory: int = 5, grid_size: Tuple[int, int] = (2, 2), train: bool = True):
+    def __init__(self, dir_path=None, max_memory: int = 4, grid_size: Tuple[int, int] = (2, 2), train: bool = True):
         if dir_path is None:
             dir_path = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))),
                                     './data/min_shapenet_easy_angle')

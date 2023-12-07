@@ -27,13 +27,15 @@ TASK = Tuple[Union[tg.Operator, sg.Attribute], tg.TemporalTask]
 
 
 # root_ops are the operators to begin a task
-root_ops = ["GetCategory", "GetLoc", "GetViewAngle", "GetObject", "Exist", "IsSame", "And"]
+# root_ops = ["GetCategory", "GetLoc", "GetViewAngle", "GetObject", "Exist", "IsSame", "And"]
+root_ops = ["IsSame", "And", "Exist"]
 boolean_ops = ["Exist", "IsSame", "And"]
 boolean_ops.remove('Exist')
 root_ops.remove('Exist')
 # uncomment to add ops
-# root_ops += ["NotSame", "Or", "Xor"]
-# boolean_ops += ["NotSame", "Or", "Xor"]
+root_ops += ["NotSame",]
+boolean_ops += ["NotSame"]
+# todo: haven't implement OR and XOR operator
 
 # all tasks end with select
 leaf_op = ["Select"]
@@ -45,59 +47,72 @@ mid_op = ["Switch"]
 # if the operator is None, then a random constant is sampled for that attribute
 op_dict = {"Select":
                {"n_downstream": 4,
-                "downstream": ["GetCategory", "GetLoc", "GetViewAngle", "GetObject", "None"],
+                # "downstream": ["GetCategory", "GetLoc", "GetViewAngle", "GetObject", "None"],
+                "downstream": ["GetLoc"],
+                # "sample_dist": [0,1,0,0,0],
+                "sample_dist": [1],
                 "same_children_op": False
                 },
-           "GetCategory":
-               {"n_downstream": 1,
-                "downstream": ["Select"],
-                "sample_dist": [1]
-                },
+        #    "GetCategory":
+        #        {"n_downstream": 1,
+        #         "downstream": ["Select"],
+        #         "sample_dist": [1]
+        #         },
            "GetLoc":
                {"n_downstream": 1,
                 "downstream": ["Select"],
                 "sample_dist": [1]
                 },
-           "GetViewAngle":
-               {"n_downstream": 1,
-                "downstream": ["Select"],
-                "sample_dist": [1]
-                },
-           "GetObject":
-               {"n_downstream": 1,
-                "downstream": ["Select"],
-                "sample_dist": [1]
-                },
+        #    "GetViewAngle":
+        #        {"n_downstream": 1,
+        #         "downstream": ["Select"],
+        #         "sample_dist": [1]
+        #         },
+        #    "GetObject":
+        #        {"n_downstream": 1,
+        #         "downstream": ["Select"],
+        #         "sample_dist": [1]
+        #         },
            "IsSame":
                {"n_downstream": 2,
-                "downstream": ["GetCategory", "GetLoc", "GetViewAngle", "GetObject", "CONST"],
-                "sample_dist": [0, 0, 0, 0, 1],
+                # "downstream": ["GetCategory", "GetLoc", "GetViewAngle", "GetObject", "CONST"],
+                "downstream": ["GetLoc"],
+                # "sample_dist": [0, 1, 0, 0, 0],
+                "sample_dist": [1],
                 "same_children_op": True  # same downstream op
                 },
+            "NotSame":
+               {"n_downstream": 2,
+                # "downstream": ["GetCategory", "GetLoc", "GetViewAngle", "GetObject"],
+                "downstream": ["GetLoc"],
+                # "sample_dist": [1 / 4, 1 / 4, 1 / 4, 1 / 4],
+                "sample_dist": [1],
+                "same_children_op": True,
+                },
+           
            "And":
                {"n_downstream": 2,
                 "downstream": ["IsSame", "And"],
                 "sample_dist": [0.8, 0.2],
+                "same_children_op": False,
+                },
+           "Or":
+               {"n_downstream": 2,
+                # "downstream": ["Exist", "IsSame", "NotSame", "And", "Or", "Xor"],
+                "downstream": ["IsSame", "NotSame", "And", "Or", "Xor"],
+                # "sample_dist": [1 / 3, 1 / 3, 1 / 3, 0, 0, 0],
+                "sample_dist":[1/5,1/5,1/5,1/5,1/5],
                 "same_children_op": False
                 },
-           # "Or":
-           #     {"n_downstream": 2,
-           #      "downstream": ["Exist", "IsSame", "NotSame", "And", "Or", "Xor"],
-           #      "sample_dist": [1 / 3, 1 / 3, 1 / 3, 0, 0, 0],
-           #      "same_children_op": False
-           #      },
-           # "Xor":
-           #     {"n_downstream": 2,
-           #      "downstream": ["Exist", "IsSame", "NotSame", "And", "Or", "Xor"],
-           #      "sample_dist": [1 / 3, 1 / 3, 1 / 3, 0, 0, 0],
-           #      "same_children_op": False
-           #      },
-           # "NotSame":
-           #     {"n_downstream": 2,
-           #      "downstream": ["GetCategory", "GetLoc", "GetViewAngle", "GetObject"],
-           #      "sample_dist": [1 / 4, 1 / 4, 1 / 4, 1 / 4],
-           #      "same_children_op": True,
-           #      },
+           "Xor":
+               {"n_downstream": 2,
+                # "downstream": ["Exist", "IsSame", "NotSame", "And", "Or", "Xor"],
+                "downstream": ["IsSame", "NotSame", "And", "Or", "Xor"],
+                # "sample_dist": [1 / 3, 1 / 3, 1 / 3, 0, 0, 0],
+                "sample_dist":[1/5,1/5,1/5,1/5,1/5],
+                "same_children_op": False
+                },
+           
            }
 op_dict = defaultdict(dict, **op_dict)
 
@@ -137,17 +152,22 @@ def sample_children_op(op_name: str, op_count: int, max_op: int, depth: int, max
     :param select_downstream: the downstream options that can be sampled from
     :return: list of operators
     """
+   
     n_downstream = op_dict[op_name]["n_downstream"]
     # how many children need to be sampled
     if n_downstream == 1:
-        return [random.choice(op_dict[op_name]["downstream"])]
+        # xlei: should I change it to the sample helper here?
+        # return [random.choice(op_dict[op_name]["downstream"])]
+        return [sample_children_helper(op_name, op_count, max_op, depth, max_depth)]
     elif op_name == 'Select':
         ops = list()  # append children operators
 
         if select_downstream is None:
             select_downstream = op_dict['Select']['downstream']
         if select_op:  # if select at least one operator for select attribute
-            get = random.choice(["GetCategory", "GetLoc", "GetViewAngle", "GetObject"])
+            # get = random.choice(["GetCategory", "GetLoc", "GetViewAngle", "GetObject"])
+            # xlei: need to be consisted with all the operators that are relevant
+            get = random.choice(op_dict['Select']['downstream'])
             ops.append(get)
 
             if get in select_downstream:
@@ -190,6 +210,7 @@ def branch_generator(G: nx.DiGraph,
     else:
         # exist always follows a select with operator as child
         select_op = True if root_op == 'Exist' else select_op
+        
         children = sample_children_op(op_name=root_op,
                                       op_count=op_count + 1,
                                       max_op=max_op,
@@ -197,7 +218,7 @@ def branch_generator(G: nx.DiGraph,
                                       max_depth=max_depth,
                                       select_op=select_op,
                                       select_downstream=select_downstream)
-
+       
         if root_op == 'Select' and any('Get' in c for c in children):
             select_downstream = ['None'] * 4
             select_op = False
@@ -215,6 +236,7 @@ def branch_generator(G: nx.DiGraph,
                 child = op_count + 1
                 # recursively generate branches based on the child operator
                 # op_count is incremented based on how many nodes were added in the child branch call
+         
                 op_count = branch_generator(G, op, child, max_op, depth, max_depth, select_op,
                                             select_downstream)
                 G.add_node(child, label=op)  # modify
@@ -238,10 +260,12 @@ def subtask_graph_generator(count=0, max_op=20, max_depth=10, select_limit=False
     root = count
 
     op_count = count
+
     root_op = root_op if root_op else random.choice(root_ops)
     G.add_node(op_count, label=root_op)
 
     select_downstream = ['None'] * 4 if select_limit else None
+
     op_count = branch_generator(G, root_op, op_count, max_op, 1, max_depth,
                                 select_downstream=select_downstream)
     return G, root, op_count
@@ -328,7 +352,7 @@ def write_task_instance(G_tuple: GRAPH_TUPLE, task: TASK, write_fp: str):
     return None
 
 
-def write_trial_instance(task: tg.TemporalTask, write_fp: str, img_size=224, fixation_cue=True, train=True) -> None:
+def write_trial_instance(task: tg.TemporalTask, write_fp: str, img_size=224, fixation_cue=True, train=True, is_instruction = True, external_instruction = None) -> None:
     # TODO: drawing the frames is slow!
     # save the actual generated frames into another folder
     if os.path.exists(write_fp):
@@ -346,7 +370,7 @@ def write_trial_instance(task: tg.TemporalTask, write_fp: str, img_size=224, fix
         filename = os.path.join(write_fp, f'epoch{i}.png')
         # this is slow!
         img.save(filename)
-    _, compo_example, _ = compo_info.get_examples()
+    _, compo_example = compo_info.get_examples(is_instruction = is_instruction, external_instruction = external_instruction) # xlei: orginally have three outputs
     filename = os.path.join(write_fp, 'trial_info')
     with open(filename, 'w') as f:
         json.dump(compo_example, f, indent=4)

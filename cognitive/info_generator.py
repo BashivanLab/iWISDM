@@ -163,59 +163,59 @@ class TaskInfoCompo(object):
 
 
         # todo: uncomment below to allow instruction generation
-        # compo_instruction = ''
-        # if self.tempo_dict:
-        #     compo_instruction += 'compo task 1: '
-        # # for each frame, find the tasks that use the stimuli. For each of these tasks,
-        # # compare the object in task_objset with obj, and rename lastk with ith object
-        # was_delay = False
-        # for epoch, frame in enumerate(self.frame_info):
-        #     add_delay = True
-        #     if obj_info[epoch]:  # if the frame contains stim/objects
-        #         for info_dict in obj_info[epoch]:  # for each object info dict,
-        #             compo_instruction += f'observe object {info_dict["count"]}, '
-        #         add_delay, was_delay = False, False
+        compo_instruction = ''
+        if self.tempo_dict:
+            compo_instruction += 'compo task 1: '
+        # for each frame, find the tasks that use the stimuli. For each of these tasks,
+        # compare the object in task_objset with obj, and rename lastk with ith object
+        was_delay = False
+        for epoch, frame in enumerate(self.frame_info):
+            add_delay = True
+            if obj_info[epoch]:  # if the frame contains stim/objects
+                for info_dict in obj_info[epoch]:  # for each object info dict,
+                    compo_instruction += f'observe object {info_dict["count"]}, '
+                add_delay, was_delay = False, False
 
-        #     for d in frame.description:
-        #         if 'ending' in d:  # align object count with lastk for each task
-        #             task_idx = int(re.search(r'\d+', d).group())
-        #             task_q = str(self.tasks[task_idx])
+            for d in frame.description:
+                if 'ending' in d:  # align object count with lastk for each task
+                    task_idx = int(re.search(r'\d+', d).group())
+                    task_q = str(self.tasks[task_idx])
 
-        #             # find epoch relative to ending task
-        #             lastks = [m for m in re.finditer('last\d+', task_q)]  # modify this for multiple stim per frame
-        #             for lastk in lastks:
-        #                 k = int(re.search(r'\d+', lastk.group()).group())
-        #                 i = epoch - k
-        #                 relative_i = frame.relative_task_epoch_idx[task_idx] - k
-        #                 match = self.compare_objs(obj_info[i], self.task_objset[task_idx].dict[relative_i])
-        #                 # print("lxx first appearance of match:", match)
-        #                 if match:
-        #                     task_q = re.sub(f'last{k}.*?object', f'object {match["count"]}', task_q)
-        #                     match['tasks'].add(task_idx)
-        #                     # print("lxx what is the task_idx:", task_idx)
-        #                     # print("lxx what is match:", match)
-        #                     match['attended_attr'][task_idx] = match['attended_attr'][task_idx].union(
-        #                         self.tasks[task_idx].get_relevant_attribute(f'last{k}'))
-        #                     cur += 1
-        #                 else:
-        #                     raise RuntimeError('No match')
-        #             compo_instruction += task_q
-        #             add_delay, was_delay = False, False
+                    # find epoch relative to ending task
+                    lastks = [m for m in re.finditer('last\d+', task_q)]  # modify this for multiple stim per frame
+                    for lastk in lastks:
+                        k = int(re.search(r'\d+', lastk.group()).group())
+                        i = epoch - k
+                        relative_i = frame.relative_task_epoch_idx[task_idx] - k
+                        match = self.compare_objs(obj_info[i], self.task_objset[task_idx].dict[relative_i])
+                        # print("lxx first appearance of match:", match)
+                        if match:
+                            task_q = re.sub(f'last{k}.*?object', f'object {match["count"]}', task_q)
+                            match['tasks'].add(task_idx)
+                            # print("lxx what is the task_idx:", task_idx)
+                            # print("lxx what is match:", match)
+                            match['attended_attr'][task_idx] = match['attended_attr'][task_idx].union(
+                                self.tasks[task_idx].get_relevant_attribute(f'last{k}'))
+                            cur += 1
+                        else:
+                            raise RuntimeError('No match')
+                    compo_instruction += task_q
+                    add_delay, was_delay = False, False
 
-        #             if self.tempo_dict:
-        #                 # in temporal switch, if at the end of the original task,
-        #                 # then add the conditional texts in the instruction
-        #                 if epoch == len(self.tempo_dict['self']['answers']) - 1:
-        #                     compo_instruction += ' if end of compo task 1 is true, then do compo task 2: '
-        #                     compo_instruction += object_add(self.tempo_dict['task1']['instruction'], cur)
-        #                     compo_instruction += 'otherwise, do compo task 3: '
-        #                     compo_instruction += object_add(self.tempo_dict['task2']['instruction'], cur)
-        #                     return compo_instruction, obj_info
-        #     if add_delay and not was_delay:
-        #         compo_instruction += 'delay, '
-        #         was_delay = True
-        # return compo_instruction, obj_info
-        return obj_info
+                    if self.tempo_dict:
+                        # in temporal switch, if at the end of the original task,
+                        # then add the conditional texts in the instruction
+                        if epoch == len(self.tempo_dict['self']['answers']) - 1:
+                            compo_instruction += ' if end of compo task 1 is true, then do compo task 2: '
+                            compo_instruction += object_add(self.tempo_dict['task1']['instruction'], cur)
+                            compo_instruction += 'otherwise, do compo task 3: '
+                            compo_instruction += object_add(self.tempo_dict['task2']['instruction'], cur)
+                            return compo_instruction, obj_info
+            if add_delay and not was_delay:
+                compo_instruction += 'delay, '
+                was_delay = True
+        return compo_instruction, obj_info
+        # return obj_info
 
     def get_target_value(self, examples: List[Dict]) -> List[str]:
         """
@@ -235,7 +235,7 @@ class TaskInfoCompo(object):
                 answers.append('null')
         return answers
 
-    def get_examples(self):
+    def get_examples(self, is_instruction = True, external_instruction = None):
         """
         get task examples
         :return: tuple of list of dictionaries containing information about the requested tasks
@@ -255,8 +255,10 @@ class TaskInfoCompo(object):
                 'first_shareable': int(task.first_shareable),
             })
 
-        # comp_instruction, _ = self.get_instruction_obj_info()
-        comp_instruction = 'LG'
+        if is_instruction:
+            comp_instruction, _ = self.get_instruction_obj_info()
+        else: comp_instruction = external_instruction
+        # comp_instruction = 'LG'
 
         compo = {
             'epochs': int(len(self.frame_info)),
