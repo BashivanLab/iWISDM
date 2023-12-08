@@ -258,7 +258,6 @@ class TaskInfoCompo(object):
         if is_instruction:
             comp_instruction, _ = self.get_instruction_obj_info()
         else: comp_instruction = external_instruction
-        # comp_instruction = 'LG'
 
         compo = {
             'epochs': int(len(self.frame_info)),
