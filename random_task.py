@@ -24,7 +24,7 @@ import shutil
 
 class RandomTaskParallelGen(object):
     def __init__(self, n_tasks: int, max_op: int, max_depth: int, max_switch: int, 
-                 stim_dir, output_dir, select_limit=True, switch_threshold=0.3, 
+                 stim_dir, output_dir, select_limit=False, switch_threshold=0.3, 
                  boolean_ops=["Exist", "IsSame", "And", "NotSame"], img_size=224, 
                  train=True):
 
@@ -53,15 +53,24 @@ class RandomTaskParallelGen(object):
         # self.max_len= ()
 
     def count_exit_tasks(self):
+        ## todo: xlei: remove the following line
+        try:
+            shutil.rmtree(os.path.join(self.output_dir, "tasks"))
+        except:
+            pass
+        if not os.path.exists(os.path.join(self.output_dir, "tasks")):
+            # If not, create it
+            os.makedirs(os.path.join(self.output_dir, "tasks"))
         self.existing_tasks = len([f for f in os.listdir(os.path.join(self.output_dir, "tasks")) if os.path.isfile(os.path.join(self.output_dir, "tasks",f)) and f.startswith("task")])
         
 
     # Resets new set of tasks
     def reset(self):
         self.tasks = []
-        
+
         for i in range(self.existing_tasks):
             if i <= self.n_tasks:
+                
                 f = open(os.path.join(self.output_dir, "tasks", "task_%d.json" % (i)))
                 task_dict = json.load(f)
                 # first you have to load the operator objects
@@ -79,6 +88,7 @@ class RandomTaskParallelGen(object):
         
         if self.existing_tasks < self.n_tasks: # generate new tasks
             for i in range(self.n_tasks - self.existing_tasks):
+
                 task_graph, task = auto_task.task_generator(self.max_switch,
                                                             self.switch_threshold,
                                                             self.max_op,
@@ -97,31 +107,36 @@ class RandomTaskParallelGen(object):
     # iteratively generate trials to find max_len
     def iter_generate_trial(self):
         self.max_len = 0
-        self.instructions = []
+        # xlei: instruction depend on each trial
+        # self.instructions = []
         for i, task in enumerate(self.tasks):
             fp = os.path.join(output_dir, "trials", 'trial' + str(-1*i))
             auto_task.write_trial_instance(task, fp, self.img_size, True) # fixation_cue is on
             n_frames = len([f for f in os.listdir(fp) if os.path.isfile(os.path.join(fp,f)) and f.startswith("epoch")])
             if n_frames > self.max_len:
                 self.max_len = n_frames
-            self.instructions.append(json.load(open(os.path.join(fp, "trial_info")))["instruction"])
+            # self.instructions.append(json.load(open(os.path.join(fp, "trial_info")))["instruction"])
+
 
     # Generate one trial and write it to file 
     def generate_trial(self, idx):
         index = np.random.randint(len(self.tasks))
         task = self.tasks[index]
         fp = os.path.join(output_dir, "trials", 'trial' + str(idx))
-        auto_task.write_trial_instance(task, fp, self.img_size, True, is_instruction = False, external_instruction = self.instructions[index]) # fixation_cue is on
+        auto_task.write_trial_instance(task, fp, self.img_size, fixation_cue = True, is_instruction = True, external_instruction = None) # fixation_cue is on
 
        
 output_dir = '/mnt/store1/shared/RandomTasks' # the output directory
 stim_dir = '/mnt/store1/shared/XLshared_large_files/new_shapenet_train' # stimulus set
-n_tasks = 4 # number of tasks to be generated
+n_tasks = 1 # number of tasks to be generated
 max_op = 4
 max_depth = 4
 max_switch = 2
 
-dset = RandomTaskParallelGen(n_tasks = n_tasks, max_op = max_op, max_depth = max_depth, max_switch = max_switch, 
-                stim_dir = stim_dir, output_dir = output_dir, img_size=224, train=True)
+# this is what I mean by only generate one tasks
+for n_task in range(1,n_tasks+1):
+    dset = RandomTaskParallelGen(n_tasks = n_task, max_op = max_op, max_depth = max_depth, max_switch = max_switch, 
+                    stim_dir = stim_dir, output_dir = output_dir, img_size=224, train=True)
 
-dset.generate_trials(10)
+# for i in range(10):
+dset.generate_trials(5)

@@ -72,7 +72,8 @@ class Data:
         train: boolean for whether constant is for a train or val stim set
     """
 
-    def __init__(self, dir_path=None, max_memory: int = 4, grid_size: Tuple[int, int] = (2, 2), train: bool = True):
+    def __init__(self, dir_path=None, max_memory: int = 10, grid_size: Tuple[int, int] = (2, 2), train: bool = True):
+
         if dir_path is None:
             dir_path = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))),
                                     './data/min_shapenet_easy_angle')

@@ -299,6 +299,7 @@ def task_generator(max_switch: int, switch_threshold: float, max_op: int, max_de
                                                   root_op=random.choice(boolean_ops))
             conditional_task = tg.subtask_generation(conditional)
             if random.random() < 0.5:
+
                 do_if = subtask_graph
                 do_if_task = subtask
                 do_else = new_task_graph
@@ -377,61 +378,61 @@ def write_trial_instance(task: tg.TemporalTask, write_fp: str, img_size=224, fix
     return
 
 
-if __name__ == '__main__':
-    args = get_args()
-    print(args)
+# if __name__ == '__main__':
+#     args = get_args()
+#     print(args)
 
-    const.DATA = const.Data(dir_path=args.stim_dir)
+#     const.DATA = const.Data(dir_path=args.stim_dir)
 
-    task_dir = args.task_dir
+#     task_dir = args.task_dir
 
-    if task_dir:  # if there is saved task information, then generate the frames
-        if not os.path.isdir(task_dir):
-            raise ValueError('Task Directory not found')
-        start = timeit.default_timer()
-        task_folders = [f.path for f in os.scandir(task_dir) if f.is_dir()]
-        for f in task_folders:  # iterate each task folder
-            try:
-                task_json_fp = os.path.join(f, 'temporal_task.json')
-                with open(task_json_fp, 'rb') as h:
-                    task_dict = json.load(h)
-                task_dict['operator'] = tg.load_operator_json(task_dict['operator'])  # reconstruct the task
-                temporal_task = tg.TemporalTask(
-                    operator=task_dict['operator'],
-                    n_frames=task_dict['n_frames'],
-                    first_shareable=task_dict['first_shareable'],
-                    whens=task_dict['whens']
-                )
-                for i in range(args.n_trials):
-                    instance_fp = os.path.join(f, f'trial_{i}')
-                    if os.path.exists(instance_fp):
-                        shutil.rmtree(instance_fp)
-                    os.makedirs(instance_fp)
-                    frame_info = ig.FrameInfo(temporal_task, temporal_task.generate_objset())
-                    compo_info = ig.TaskInfoCompo(temporal_task,
-                                                  frame_info)
-                    # compo_info saves task information, and is used for task composition using merge
-                    compo_info.write_trial_instance(instance_fp, args.img_size, args.fixation_cue)
-                    # TODO: some guess objset error where ValueError occurs
-                    write_trial_instance(temporal_task, instance_fp, args.img_size, args.fixation_cue)
-            except Exception as e:
-                traceback.print_exc()
-        stop = timeit.default_timer()
-        print('Time taken to generate trials: ', stop - start)
-    else:  # generate args.n_tasks
-        start = timeit.default_timer()
-        for i in range(args.n_tasks):
-            # make directory for saving task information
-            fp = os.path.join(args.output_dir, str(i))
-            if os.path.exists(fp):
-                shutil.rmtree(fp)
-            os.makedirs(fp)
+#     if task_dir:  # if there is saved task information, then generate the frames
+#         if not os.path.isdir(task_dir):
+#             raise ValueError('Task Directory not found')
+#         start = timeit.default_timer()
+#         task_folders = [f.path for f in os.scandir(task_dir) if f.is_dir()]
+#         for f in task_folders:  # iterate each task folder
+#             try:
+#                 task_json_fp = os.path.join(f, 'temporal_task.json')
+#                 with open(task_json_fp, 'rb') as h:
+#                     task_dict = json.load(h)
+#                 task_dict['operator'] = tg.load_operator_json(task_dict['operator'])  # reconstruct the task
+#                 temporal_task = tg.TemporalTask(
+#                     operator=task_dict['operator'],
+#                     n_frames=task_dict['n_frames'],
+#                     first_shareable=task_dict['first_shareable'],
+#                     whens=task_dict['whens']
+#                 )
+#                 for i in range(args.n_trials):
+#                     instance_fp = os.path.join(f, f'trial_{i}')
+#                     if os.path.exists(instance_fp):
+#                         shutil.rmtree(instance_fp)
+#                     os.makedirs(instance_fp)
+#                     frame_info = ig.FrameInfo(temporal_task, temporal_task.generate_objset())
+#                     compo_info = ig.TaskInfoCompo(temporal_task,
+#                                                   frame_info)
+#                     # compo_info saves task information, and is used for task composition using merge
+#                     compo_info.write_trial_instance(instance_fp, args.img_size, args.fixation_cue)
+#                     # TODO: some guess objset error where ValueError occurs
+#                     write_trial_instance(temporal_task, instance_fp, args.img_size, args.fixation_cue)
+#             except Exception as e:
+#                 traceback.print_exc()
+#         stop = timeit.default_timer()
+#         print('Time taken to generate trials: ', stop - start)
+#     else:  # generate args.n_tasks
+#         start = timeit.default_timer()
+#         for i in range(args.n_tasks):
+#             # make directory for saving task information
+#             fp = os.path.join(args.output_dir, str(i))
+#             if os.path.exists(fp):
+#                 shutil.rmtree(fp)
+#             os.makedirs(fp)
 
-            task_graph, task = task_generator(args.max_switch,
-                                              args.switch_threshold,
-                                              args.max_op,
-                                              args.max_depth,
-                                              args.select_limit)
-            write_task_instance(task_graph, task, fp)
-        stop = timeit.default_timer()
-        print('Time taken to generate tasks: ', stop - start)
+#             task_graph, task = task_generator(args.max_switch,
+#                                               args.switch_threshold,
+#                                               args.max_op,
+#                                               args.max_depth,
+#                                               args.select_limit)
+#             write_task_instance(task_graph, task, fp)
+#         stop = timeit.default_timer()
+#         print('Time taken to generate tasks: ', stop - start)
