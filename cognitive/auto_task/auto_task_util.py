@@ -48,16 +48,16 @@ mid_op = ["Switch"]
 op_dict = {"Select":
                {"n_downstream": 4,
                 # "downstream": ["GetCategory", "GetLoc", "GetViewAngle", "GetObject", "None"],
-                "downstream": ["GetLoc"],
+                "downstream": ["GetLoc", "GetCategory"],
                 # "sample_dist": [0,1,0,0,0],
-                "sample_dist": [1],
+                "sample_dist": [0.5,0.5],
                 "same_children_op": False
                 },
-        #    "GetCategory":
-        #        {"n_downstream": 1,
-        #         "downstream": ["Select"],
-        #         "sample_dist": [1]
-        #         },
+           "GetCategory":
+               {"n_downstream": 1,
+                "downstream": ["Select"],
+                "sample_dist": [1]
+                },
            "GetLoc":
                {"n_downstream": 1,
                 "downstream": ["Select"],
@@ -76,17 +76,17 @@ op_dict = {"Select":
            "IsSame":
                {"n_downstream": 2,
                 # "downstream": ["GetCategory", "GetLoc", "GetViewAngle", "GetObject", "CONST"],
-                "downstream": ["GetLoc"],
+                "downstream": ["GetLoc", "GetCategory"],
                 # "sample_dist": [0, 1, 0, 0, 0],
-                "sample_dist": [1],
+                "sample_dist": [0.5, 0.5],
                 "same_children_op": True  # same downstream op
                 },
             "NotSame":
                {"n_downstream": 2,
                 # "downstream": ["GetCategory", "GetLoc", "GetViewAngle", "GetObject"],
-                "downstream": ["GetLoc"],
+                "downstream": ["GetLoc", "GetCategory"],
                 # "sample_dist": [1 / 4, 1 / 4, 1 / 4, 1 / 4],
-                "sample_dist": [1],
+                "sample_dist": [0.5, 0.5],
                 "same_children_op": True,
                 },
            
