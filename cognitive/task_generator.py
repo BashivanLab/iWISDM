@@ -185,6 +185,7 @@ class Select(Operator):
             return const.DATA.INVALID
 
         space = None
+        
         subset = objset.select(
             epoch_now,
             space=space,
@@ -427,7 +428,6 @@ class Get(Operator):
         """
         super(Get, self).__init__()
         self.attr_type = attr_type
-        # print("what is objs:", objs)
         self.objs = objs
         assert isinstance(objs, Operator)
         self.set_child(objs)
@@ -452,8 +452,7 @@ class Get(Operator):
           attr: Attribute instance or INVALID
         """
         
-        if isinstance(self.objs, Operator):
-            
+        if isinstance(self.objs, Operator):          
             objs = self.objs(objset, epoch_now)
         else:
             objs = self.objs
@@ -683,28 +682,28 @@ class Switch(Operator):
         else:
             return self.do_if_false(objset, epoch_now)
 
-    def __getattr__(self, key):
-        """Get attributes.
+    # def __getattr__(self, key):
+    #     """Get attributes.
 
-        The Switch operator should also have the shared attributes of do_if_true and
-        do_if_false. Because regardless of the statement truthness, the common
-        attributes will be true.
+    #     The Switch operator should also have the shared attributes of do_if_true and
+    #     do_if_false. Because regardless of the statement truthness, the common
+    #     attributes will be true.
 
-        Args:
-          key: attribute
+    #     Args:
+    #       key: attribute
 
-        Returns:
-          attr1: common attribute of do_if_true and do_if_false
+    #     Returns:
+    #       attr1: common attribute of do_if_true and do_if_false
 
-        Raises:
-          ValueError: if the attribute is not common. Temporary.
-        """
-        attr1 = getattr(self.do_if_true, key)
-        attr2 = getattr(self.do_if_false, key)
-        if attr1 == attr2:
-            return attr1
-        else:
-            raise ValueError()
+    #     Raises:
+    #       ValueError: if the attribute is not common. Temporary.
+    #     """
+    #     attr1 = getattr(self.do_if_true, key)
+    #     attr2 = getattr(self.do_if_false, key)
+    #     if attr1 == attr2:
+    #         return attr1
+    #     else:
+    #         raise ValueError()
 
     def copy(self):
         new_statement = self.statement.copy()
@@ -788,6 +787,7 @@ class IsSame(Operator):
         if should_be is None:
             should_be = random.random() > 0.5
         # Determine which attribute should be fixed and which shouldn't
+
         attr1_value = self.attr1(objset, epoch_now)
         attr2_value = self.attr2(objset, epoch_now)
 
@@ -1195,8 +1195,7 @@ class TemporalTask(Task):
     def filter_selects(self, lastk=None) -> List[Select]:
         # filter for select operators that corresponds directly to an object and match lastk
         selects = list()
-        # print("what is self:", type(self))
-        # print(self)
+
         
         for node in self.topological_sort():
             if isinstance(node, Select) and node.check_attrs():
@@ -1238,12 +1237,7 @@ class TemporalTask(Task):
         :type copy: copy of the TemporalTask
         :return: None if there are no leaf selects, list of objs otherwise
         """
-        # print("what is self:", self)
-        # print(type(self))
-        # print("what is copy:", copy)
-        # print(type(copy))
-        # print("what is objs:", objs)
-        # print("what is laskk:", lastk)
+
         assert all([o.when == objs[0].when for o in objs])
 
 
@@ -1253,8 +1247,7 @@ class TemporalTask(Task):
         # uncomment if multiple stim per frame
         # assert len(filter_selects) == len(copy_filter_selects)
 
-        # print("whati s filter_selects?:", filter_selects)
-        # print("what is objs:", objs)
+ 
         filter_objs = list()
         if filter_selects:
             if len(objs) < len(filter_selects):
@@ -1283,6 +1276,7 @@ class TemporalTask(Task):
         Returns:
           objset: full objset for all n_epoch
         """
+        
         self.avg_mem = average_memory_span
         n_epoch = self.n_frames
         # update n_max_backtrack to average_memory space instead of times 3
@@ -1294,6 +1288,7 @@ class TemporalTask(Task):
         ## xlei: only update the last epoch
 
         epoch_now = n_epoch - 1
+
         objset = self.guess_objset(objset, epoch_now, *args, **kwargs)
         return objset
 
@@ -1517,6 +1512,7 @@ def subtask_generation(subtask_graph: GRAPH_TUPLE, op_dict: dict = None) -> TASK
     const.DATA.MAX_MEMORY = len(selects) + 1
     whens = sg.check_whens(sg.sample_when(len(selects)))
     n_frames = const.compare_when(whens) + 1
+
     whens = {select: when for select, when in zip(selects, whens)}
 
     op = convert_operators(subtask_G, root, op_dict, operator_families, whens)
@@ -1530,6 +1526,7 @@ def switch_generation(conditional: TASK, do_if: TASK, do_else: TASK, **kwargs) -
     conditional_op, conditional_task = conditional
     if_op, if_task = do_if
     else_op, else_task = do_else
+ 
     op = Switch(conditional_op, if_op, else_op, **kwargs)
     n_frames = conditional_task.n_frames + if_task.n_frames + else_task.n_frames
     const.DATA.MAX_MEMORY = n_frames
