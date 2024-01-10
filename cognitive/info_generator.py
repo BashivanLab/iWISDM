@@ -207,9 +207,9 @@ class TaskInfoCompo(object):
                         # then add the conditional texts in the instruction
                         if epoch == len(self.tempo_dict['self']['answers']) - 1:
                             compo_instruction += ' if end of compo task 1 is true, then do compo task 2: '
-                            compo_instruction += object_add(self.tempo_dict['task1']['instruction'], cur)
+                            compo_instruction += self.object_add(self.tempo_dict['task1']['instruction'], cur)
                             compo_instruction += 'otherwise, do compo task 3: '
-                            compo_instruction += object_add(self.tempo_dict['task2']['instruction'], cur)
+                            compo_instruction += self.object_add(self.tempo_dict['task2']['instruction'], cur)
                             return compo_instruction, obj_info
             if add_delay and not was_delay:
                 compo_instruction += 'delay, '
@@ -305,7 +305,7 @@ class TaskInfoCompo(object):
             filename = os.path.join(frames_fp, f'epoch{i}.png')
             img.save(filename)
 
-        examples, compo_example  = self.get_examples()
+        examples, compo_example = self.get_examples()
 
         filename = os.path.join(frames_fp, 'task_info')
         with open(filename, 'w') as f:
@@ -359,6 +359,17 @@ class TaskInfoCompo(object):
                 if obj1.compare_attrs(obj2):
                     return info_dict
         return None
+
+    @staticmethod
+    def _add(match, x):
+        # helper function for composite task instruction
+        val = match.group()
+        return re.sub(r'\d+', lambda m: str(int(m.group()) + x), val)
+
+    def object_add(self, t: str, x: int):
+        # finds all "object k" substrings, and substitute them with "object k+x"
+        # see info_generator_test.testObjectAddOne() for example
+        return re.sub(r'object \d+', partial(self._add, x=x), t)
 
 
 class FrameInfo(object):
@@ -577,15 +588,3 @@ class FrameInfo(object):
             return 'frame: ' + str(self.idx) + ', relative tasks: ' + \
                 ','.join([str(i) for i in self.relative_tasks]) \
                 + ' objects: ' + ','.join([str(o) for o in self.objs])
-
-
-def add(match, x):
-    # helper function for composite task instruction
-    val = match.group()
-    return re.sub(r'\d+', lambda m: str(int(m.group()) + x), val)
-
-
-def object_add(t: str, x: int):
-    # finds all "object k" substrings, and substitute them with "object k+x"
-    # see info_generator_test.testObjectAddOne() for example
-    return re.sub(r'object \d+', partial(add, x=x), t)

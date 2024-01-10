@@ -48,9 +48,9 @@ mid_op = ["Switch"]
 op_dict = {"Select":
                {"n_downstream": 4,
                 # "downstream": ["GetCategory", "GetLoc", "GetViewAngle", "GetObject", "None"],
-                "downstream": ["GetLoc", "GetCategory"],
+                "downstream": ["GetLoc", "GetCategory", "None"],
                 # "sample_dist": [0,1,0,0,0],
-                "sample_dist": [0.5,0.5],
+                # "sample_dist": [0.5,0.5],
                 "same_children_op": False
                 },
            "GetCategory":
@@ -89,7 +89,7 @@ op_dict = {"Select":
                 "sample_dist": [0.5, 0.5],
                 "same_children_op": True,
                 },
-           
+
            "And":
                {"n_downstream": 2,
                 "downstream": ["IsSame", "And"],
@@ -112,7 +112,7 @@ op_dict = {"Select":
                 "sample_dist":[1/5,1/5,1/5,1/5,1/5],
                 "same_children_op": False
                 },
-           
+
            }
 op_dict = defaultdict(dict, **op_dict)
 
@@ -152,7 +152,7 @@ def sample_children_op(op_name: str, op_count: int, max_op: int, depth: int, max
     :param select_downstream: the downstream options that can be sampled from
     :return: list of operators
     """
-   
+
     n_downstream = op_dict[op_name]["n_downstream"]
     # how many children need to be sampled
     if n_downstream == 1:
@@ -160,31 +160,31 @@ def sample_children_op(op_name: str, op_count: int, max_op: int, depth: int, max
         # return [random.choice(op_dict[op_name]["downstream"])]
         return [sample_children_helper(op_name, op_count, max_op, depth, max_depth)]
     elif op_name == 'Select':
-        ops = list()  # append children operators
+        children = list()  # append children operators
 
         if select_downstream is None:
             select_downstream = op_dict['Select']['downstream']
-        if select_op:  # if select at least one operator for select attribute
-            # get = random.choice(["GetCategory", "GetLoc", "GetViewAngle", "GetObject"])
-            # xlei: need to be consisted with all the operators that are relevant
-            get = random.choice(op_dict['Select']['downstream'])
-            ops.append(get)
 
-            if get in select_downstream:
-                select_downstream.remove(get)
-            n_downstream -= 1
-        elif depth + 1 > max_depth or op_count + 1 > max_op:
+        if depth + 1 > max_depth or op_count + 1 > max_op:
             return ['None' for _ in range(n_downstream)]
-
-        for _ in range(n_downstream):
-            if np.random.random() < 0.8:  # make sure not too many operators follow
-                ops.append('None')
+        else:
+            if select_op:  # if select at least one operator for select attribute
+                # get = random.choice(["GetCategory", "GetLoc", "GetViewAngle", "GetObject"])
+                # xlei: need to be consisted with all the operators that are relevant
+                for _ in range(n_downstream):
+                    if np.random.random() < 0.8:  # make sure not too many operators follow select
+                        children.append('None')
+                    else:
+                        if select_downstream:  # if the list is not empty, sample a downstream op
+                            get = random.choice(op_dict['Select']['downstream'])
+                            children.append(get)
+                            if get in select_downstream:
+                                select_downstream.remove(get)
+                        else:
+                            children.append('None')
+                return children
             else:
-                if select_downstream:  # sample a downstream op
-                    ops.append(select_downstream.pop(random.randrange(len(select_downstream))))
-                else:
-                    ops.append('None')
-        return ops
+                return ['None' for _ in range(n_downstream)]
     else:
         if op_dict[op_name]["same_children_op"]:
             child = sample_children_helper(op_name, op_count, max_op, depth, max_depth)
@@ -210,7 +210,7 @@ def branch_generator(G: nx.DiGraph,
     else:
         # exist always follows a select with operator as child
         select_op = True if root_op == 'Exist' else select_op
-        
+
         children = sample_children_op(op_name=root_op,
                                       op_count=op_count + 1,
                                       max_op=max_op,
@@ -218,15 +218,17 @@ def branch_generator(G: nx.DiGraph,
                                       max_depth=max_depth,
                                       select_op=select_op,
                                       select_downstream=select_downstream)
-       
+
         if root_op == 'Select' and any('Get' in c for c in children):
+            # stop generating overly complex tasks where selects with operator children follow more operators
             select_downstream = ['None'] * 4
             select_op = False
 
         depth += 1  # increment depth count
         parent = op_count
         if root_op == 'IsSame' and all(
-                op == 'CONST' for op in children):  # make sure we are not comparing two constants in IsSame
+                op == 'CONST' for op in children):
+            # make sure we are not comparing two constants in IsSame
             downstream = op_dict['IsSame']['downstream'].copy()
             downstream.remove('CONST')
             children[0] = random.choice(downstream)  # add a Get op to compare with the constant
@@ -236,10 +238,10 @@ def branch_generator(G: nx.DiGraph,
                 child = op_count + 1
                 # recursively generate branches based on the child operator
                 # op_count is incremented based on how many nodes were added in the child branch call
-         
+
                 op_count = branch_generator(G, op, child, max_op, depth, max_depth, select_op,
                                             select_downstream)
-                G.add_node(child, label=op)  # modify
+                G.add_node(child, label=op)  # modify the graph
                 G.add_edge(parent, child)
         return op_count
 

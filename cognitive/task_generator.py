@@ -510,83 +510,6 @@ class GetLoc(Get):
     def __init__(self, objs):
         super(GetLoc, self).__init__('loc', objs)
 
-
-class GetFixedObject(Get):
-    # this is not used elsewhere except for task bank CompareFixedObjectTemporal task
-    def __init__(self, objs):
-        super(GetFixedObject, self).__init__('fixed_object', objs)
-
-    def __str__(self):
-        words = ['object', 'of', str(self.objs)]
-        if not self.parent:
-            words += ['?']
-        return ' '.join(words)
-
-
-class GetTime(Operator):
-            
-    """Get time of an object.
-
-    This operator is not tested and not finished.
-    """
-
-    def __init__(self, objs):
-        """Get attribute of an object.
-
-        Args:
-          attr_type: string, color, shape, or loc. The type of attribute to get.
-          objs: Operator instance or Object instance
-        """
-        super(GetTime, self).__init__()
-        self.attr_type = 'time'
-        self.objs = objs
-        assert isinstance(objs, Operator)
-        self.set_child(objs)
-
-    def __str__(self):
-        words = [self.attr_type, 'of', str(self.objs)]
-        if not self.parent:
-            words += ['?']
-        return ' '.join(words)
-
-    def __call__(self, objset, epoch_now):
-        """Get the attribute.
-
-        By default, get the attribute of the unique object. If there are
-        multiple objects, then return INVALID.
-
-        Args:
-          objset: objset
-          epoch_now: epoch now
-
-        Returns:
-          attr: Attribute instance or INVALID
-        """
-        if isinstance(self.objs, Operator):
-            objs = self.objs(objset, epoch_now)
-        else:
-            objs = self.objs
-        if objs is const.DATA.INVALID:
-            return const.DATA.INVALID
-        elif len(objs) != 1:
-            # Ambiguous or non-existent
-            return const.DATA.INVALID
-        else:
-            
-            return objs[0].epoch[0]
-
-    def copy(self):
-        new_objs = self.objs.copy()
-        return GetTime(new_objs)
-
-    def get_expected_input(self, should_be):
-        raise NotImplementedError()
-        if should_be is None:
-            should_be = sg.random_attr(self.attr_type)
-        objs = sg.Object([should_be])
-        return [objs]
-
-
 class Exist(Operator):
     """Check if object with property exists."""
 
@@ -614,7 +537,7 @@ class Exist(Operator):
 
     def copy(self):
         new_objs = self.objs.copy()
-        return GetTime(new_objs)
+        return Exist(new_objs)
 
     def get_expected_input(self, should_be):
 
@@ -1369,7 +1292,7 @@ def get_leafs(G: nx.DiGraph):
 
 
 
-def convert_operators(
+def graph_to_operators(
         G: nx.DiGraph,
         root: int,
         operators: Dict[int, str],
@@ -1384,29 +1307,30 @@ def convert_operators(
     :param whens: each select is associated with 1 when
     :return:
     """
-    if list(G.successors(root)):
-        children = list(G.successors(root))
+    children = list(G.successors(root))
+    if children:
         # check the root's type of operator
         if operators[root] == 'Select':
             attr_dict = {attr: None for attr in const.ATTRS}
             for child in children:
+                # each child is an int indicating the node number
                 if 'Get' in operators[child]:
                     attr = operators[child].split('Get')[1].lower()
                     attr = 'view_angle' if attr == 'viewangle' else attr
-                    attr_dict[attr] = convert_operators(G, child, operators, operator_families, whens)
+                    attr_dict[attr] = graph_to_operators(G, child, operators, operator_families, whens)
                 else:
                     raise ValueError(f'Select cannot have {operators[child]} as a child operator')
             return Select(**attr_dict, when=whens[root])
         elif operators[root] == 'Exist':
-            return Exist(convert_operators(G, children[0], operators, operator_families, whens))
+            return Exist(graph_to_operators(G, children[0], operators, operator_families, whens))
         elif 'Get' in operators[root]:
             # init a Get operator
             return operator_families[operators[root]](
-                convert_operators(G, children[0], operators, operator_families, whens))
+                graph_to_operators(G, children[0], operators, operator_families, whens))
         elif operators[root] in const.LOGIC_OPS:
             # init a boolean operator
             assert len(children) > 1
-            ops = [convert_operators(G, c, operators, operator_families, whens) for c in children]
+            ops = [graph_to_operators(G, c, operators, operator_families, whens) for c in children]
             if isinstance(ops[0], sg.Attribute) or isinstance(ops[1], sg.Attribute):
                 if isinstance(ops[0], sg.Attribute):
                     attr = ops[0]
@@ -1515,7 +1439,7 @@ def subtask_generation(subtask_graph: GRAPH_TUPLE, op_dict: dict = None) -> TASK
 
     whens = {select: when for select, when in zip(selects, whens)}
 
-    op = convert_operators(subtask_G, root, op_dict, operator_families, whens)
+    op = graph_to_operators(subtask_G, root, op_dict, operator_families, whens)
     return op, TemporalTask(operator=op, n_frames=n_frames)
 
 

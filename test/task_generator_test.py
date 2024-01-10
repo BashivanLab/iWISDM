@@ -55,7 +55,7 @@ class TaskGeneratorTest(unittest.TestCase):
         n_frames = const.compare_when(whens) + 1
 
         whens = {select: when for select, when in zip(selects, whens)}
-        op = tg.convert_operators(G, root, operators, operator_families, whens)
+        op = tg.graph_to_operators(G, root, operators, operator_families, whens)
         task = tg.TemporalTask(operator=op, n_frames=n_frames)
         print(task)
 

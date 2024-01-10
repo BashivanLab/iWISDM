@@ -818,62 +818,6 @@ def render_obj(canvas, obj, img_size):
     else:
         render_static_obj(canvas, obj.to_static()[0], img_size)
 
-
-def render_static(objlists, img_size=224, save_name=None):
-    """Render a movie by epoch.
-
-    Args:
-      objlists: a list of lists of StaticObject instances
-      img_size: int, size of image (both x and y)
-      save_name: if not None, save movie at save_name
-
-    Returns:
-      movie: numpy array (n_time, img_size, img_size, 3)
-    """
-
-    n_epoch_max = max([o.epoch for objlist in objlists for o in objlist]) + 1
-
-    # list of lists of lists. Each inner-most list contains
-    # objects in a given epoch from a certain objlist.
-    by_epoch = []
-    key = lambda o: o.epoch
-    for objects in objlists:
-        by_epoch.append([])
-        # Sort objects by epoch
-        objects.sort(key=key)
-        last_epoch = -1
-        epoch_obj_dict = defaultdict(list,
-                                     [(epoch, list(group)) for epoch, group
-                                      in itertools.groupby(objects, key)])
-        for i in range(n_epoch_max):
-            # Order objects by location so that ordering is deterministic.
-            # It controls occlusion.
-            os = epoch_obj_dict[i]
-            os.sort(key=lambda o: o.loc)
-            by_epoch[-1].append(os)
-
-    # It's faster if use uint8 here, but later conversion to float32 seems slow
-    movie = np.zeros((len(objlists) * n_epoch_max, img_size, img_size, 3),
-                     np.float32)
-
-    i_frame = 0
-    for objects in by_epoch:
-        for epoch_objs in objects:
-            canvas = movie[i_frame:i_frame + 1, ...]  # return a view
-            canvas = np.squeeze(canvas, axis=0)
-            for obj in epoch_objs:
-                render_static_obj(canvas, obj, img_size)
-            i_frame += 1
-    assert i_frame == len(objlists) * n_epoch_max, '%d != %d' % (
-        i_frame, len(objlists) * n_epoch_max)
-
-    if save_name is not None:
-        t_total = len(objlists) * n_epoch_max * 1.0  # need fps >= 1
-        save_movie(movie, save_name, t_total)
-
-    return movie
-
-
 def render(objsets, img_size=224, save_name=None):
     """Render a movie by epoch.
 
