@@ -34,18 +34,23 @@ from cognitive.arguments import get_args
 
 from main import generate_temporal_example
 
-class NBACK_TaskDataset(Dataset):
+class ParallelGen_NBACK_Task(Dataset):
     def __init__(self, stim_dir, families = ["CompareLoc"], whens = ['last1', 'last0', ], 
                 seq_len = 6, nback = 2, 
-                phase = "train", dataset_size = 2560, train = True):
+                phase = "train", 
+                train = True, output_dir = None,
+                fixation_cue = True):
         self.phase = phase
         self.stim_dir = stim_dir
-        self.dataset_size = dataset_size
+        
         self.families = families
         self.whens = whens
         const.DATA = const.Data(self.stim_dir)
         self.train = train
         self.composition = seq_len - nback
+        self.output_dir = output_dir
+        self.fixation_cue = fixation_cue
+        self.img_size = 224
         
         families_count = defaultdict(lambda: 0)
         # you can also composite multiple DMS of different features together
@@ -62,17 +67,14 @@ class NBACK_TaskDataset(Dataset):
                             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
                         ])
         self.reset()
+
     def reset(self):
         self.task_family = np.random.permutation(self.families)
         self.compo_tasks = [generate_temporal_example(task_family=[family], 
                             max_memory = 6, whens = self.whens, 
                             first_shareable = self.first_shareable) for family in self.task_family]
 
-
-    def __len__(self):
-        return self.dataset_size
-
-    def __getitem__(self, idx):
+    def generate_trial(self, idx):
         self.reset()
         const.DATA = const.Data(self.stim_dir, train = self.train)
 
@@ -80,16 +82,25 @@ class NBACK_TaskDataset(Dataset):
         info = self.compo_tasks[0]
         for task in self.compo_tasks[1:]:
             info.merge(task)
-        # info.temporal_switch() ### XLEI: why do we need temporal switch? I don't think that is the case
+            # info.temporal_switch() ### XLEI: why do we need temporal switch? I don't think that is the case
+        # imgs, ins, action = info.generate_trial(fixation_cue = self.fixation_cue)
+        
+        # for i, img in enumerate(imgs):
+        #     imgs[i] = self.transform(img)
+        # actions = self._action_map(action)
+        
+        # imgs = torch.stack(imgs)
 
-        imgs, ins, action = info.generate_trial(fixation_cue = False)
-        
-        for i, img in enumerate(imgs):
-            imgs[i] = self.transform(img)
-        actions = self._action_map(action)
-        
-        imgs = torch.stack(imgs)
-        return imgs, "Instruction", torch.tensor(actions), 
+        fp = os.path.join(self.output_dir, 'trial' + str(idx))
+        info.write_trial_instance(fp, self.img_size, self.fixation_cue)
+        # self.write_trial_instance(fp, self.fixation_cue)
+        # return imgs, ins, torch.tensor(actions)
+
+    # Spawns the generation of n trials of the task into seperate cores 
+    def generate_trials(self, n_trials):
+        with Pool() as pool:
+            pool.map(self.generate_trial, range(self.cur_idx, self.cur_idx + n_trials))
+        self.cur_idx += n_trials
     
     def _action_map(self, actions):
         updated_actions = []
@@ -104,20 +115,13 @@ class NBACK_TaskDataset(Dataset):
 
 
 # be sure whens and nback n match
-# dst = NBACK_TaskDataset(stim_dir = "/mnt/store1/shared/XLshared_large_files/new_shapenet_train", 
-#                 families = ["CompareLoc"], whens = ['last2', 'last0', ], 
-#                 seq_len = 6, nback = 2, 
-#                 phase = "train", dataset_size = 10)
+dst = ParallelGen_NBACK_Task(stim_dir = "/mnt/store1/shared/XLshared_large_files/new_shapenet_train", 
+                families = ["CompareLoc"], whens = ['last2', 'last0', ], 
+                seq_len = 6, nback = 1, 
+                phase = "train", output_dir =  "/mnt/store1/xiaoxuan/sanity_check",)
 
-# for j in range(4):
-#     imgs, ins, actions = dst[j]
-#     print(actions)
-#     for i in range(len(imgs)):
-#         plt.figure()
-#         plt.imshow(imgs[i].permute(1,2,0))
-#         plt.title("action: %d"%actions[i])
-#         plt.savefig("/mnt/store1/xiaoxuan/sanity_check/trial%dframe%d.png"%(j,i))
 
+dst.generate_trial(16)
 
 
 

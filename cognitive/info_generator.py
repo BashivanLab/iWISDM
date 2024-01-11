@@ -66,15 +66,12 @@ class TaskInfoCompo(object):
         :return:
         """
 
-        # print("XLEI:what is the new_task_info:", type(new_task_info.tasks[0]))
-        # print(type(new_task_info))
         new_task = new_task_info.tasks[0]
         new_task_copy: tg.TemporalTask = new_task.copy()
-        # print(type(new_task_copy))
 
         new_task_idx = len(self.tasks)
         start_frame_idx = self.frame_info.get_start_frame(new_task_info, relative_tasks={new_task_idx})
-
+        
         # init new ObjSet
         # print("n_epoch:", new_task_copy.n_frames)
         objset = sg.ObjectSet(n_epoch=new_task_copy.n_frames, n_max_backtrack=(int(new_task_copy.avg_mem) * 3))
@@ -83,15 +80,10 @@ class TaskInfoCompo(object):
         # change the necessary selects first
         for i, (old_frame, new_frame) in enumerate(zip(self.frame_info[start_frame_idx:], new_task_info.frame_info)):
             last_k = 'last%d' % (len(new_task_info.frame_info) - i - 1)
-            # print("what is old_frame:", old_frame.objs)
-            # print("what is new_frame:", new_frame.objs)
             # if there are objects in both frames, then update the new task's selects
             if old_frame.objs and new_frame.objs:
                 # update the select such that it corresponds to the same object
                 # checks how many selects and if there are enough objects for the selects
-                # print("what is new_task_copy:", type(new_task_copy))
-                print(new_task_copy)
-                # print("what is old_frame.objs:", old_frame.objs)
                 filter_objs = new_task.reinit(new_task_copy, old_frame.objs, last_k)
                 if filter_objs:
                     changed = True
@@ -532,6 +524,9 @@ class FrameInfo(object):
             self.last_task = list(relative_tasks)[0]
             self.last_task_start = first_shareable
 
+            print("first shareable:", first_shareable)
+            
+            print("new first shareable:", new_first_shareable)
             self.first_shareable = new_first_shareable + first_shareable
             return first_shareable
 
