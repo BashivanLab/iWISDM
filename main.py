@@ -123,7 +123,7 @@ def generate_dataset(
         *args, **kwargs
 ) -> Dict[str, int]:
 
-    print("what are the **kwargs:", len(**kwargs))
+    
     if not random_families:
         assert families is not None
         print("what is composition:", composition)
@@ -192,7 +192,7 @@ def generate_dataset(
             if i % 10000 == 0 and i > 0:
                 print("Generated ", i, " examples")
             task_family = np.random.permutation(families)
-            print("XLEI: start generation of temporal example")
+
             compo_tasks = [generate_temporal_example(task_family=[family], *args, **kwargs)
                            for family in task_family]
             print("end of generating temporal examples")

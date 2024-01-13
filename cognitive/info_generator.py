@@ -524,9 +524,6 @@ class FrameInfo(object):
             self.last_task = list(relative_tasks)[0]
             self.last_task_start = first_shareable
 
-            print("first shareable:", first_shareable)
-            
-            print("new first shareable:", new_first_shareable)
             self.first_shareable = new_first_shareable + first_shareable
             return first_shareable
 
