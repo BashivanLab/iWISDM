@@ -138,37 +138,14 @@ class ParallelGen_NBACK_Task(Dataset):
 # )
 #
 # dst.generate_trial(16)
+# be sure whens and nback n match
+dst = ParallelGen_NBACK_Task(stim_dir = "/mnt/store1/shared/XLshared_large_files/new_shapenet_train", 
+                families = ["CompareLoc"], whens = ['last2', 'last0', ], 
+                seq_len = 6, nback = 2, 
+                phase = "train", output_dir =  "/mnt/store1/xiaoxuan/sanity_check",)
 
-# make sure all the tasks to be combined are DMS tasks
-# assert all('Compare' in family for family in args.families)
-# # the number of frames for each task is determined by n_back
-# # e.g. in 2_back tasks, individual tasks have 3 frames, we compose tasks based on the total length of the task
-# whens = [f'last{args.nback}', 'last0']
-# composition = args.nback_length - args.nback  # the number of compositions
-# print("number of composition:", composition)
-# assert len(args.families) == composition
-# first_shareable = 1
 
-# #  e.g. families = [CompareLoc, CompareCat] could have 4 different task orders
-# families_count = defaultdict(lambda: 0)
-# families = args.families
+dst.generate_trial(16)
 
-# task_family = np.random.permutation(families)
-# compo_tasks = [generate_temporal_example(task_family=[family], max_memory = 3, whens = whens, first_shareable = first_shareable) for family in task_family]
 
-# # temporal combination
-# info = compo_tasks[0]
-# for task in compo_tasks[1:]:
-#     info.merge(task)
-# # info.temporal_switch() ### XLEI: why do we need temporal switch? I don't think that is the case
 
-# imgs, ins, actions = info.generate_trial(fixation_cue = False)
-
-# print(len(imgs))
-# print(np.array(imgs[0]).shape)
-
-# for i in range(len(imgs)):
-#     plt.figure()
-#     plt.imshow(np.array(imgs[i]))
-#     plt.title("action: %s"%actions[i])
-#     plt.savefig("/mnt/store1/xiaoxuan/sanity_check/trial%dframe%d.png"%(0,i))
