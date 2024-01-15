@@ -41,7 +41,6 @@ class ParallelGen_NBACK_Task(Dataset):
             self,
             stim_dir,
             families=["CompareLoc"],
-            whens=['last1', 'last0', ],
             seq_len=6,
             nback=2,
             phase="train",
@@ -139,10 +138,14 @@ class ParallelGen_NBACK_Task(Dataset):
 #
 # dst.generate_trial(16)
 # be sure whens and nback n match
-dst = ParallelGen_NBACK_Task(stim_dir = "/mnt/store1/shared/XLshared_large_files/new_shapenet_train", 
-                families = ["CompareLoc"], whens = ['last2', 'last0', ], 
-                seq_len = 6, nback = 2, 
-                phase = "train", output_dir =  "/mnt/store1/xiaoxuan/sanity_check",)
+dst = ParallelGen_NBACK_Task(
+    stim_dir = "/mnt/store1/shared/XLshared_large_files/new_shapenet_train",
+    families = ["CompareLoc"],
+    seq_len = 6,
+    nback = 2,
+    phase = "train",
+    output_dir =  "/mnt/store1/xiaoxuan/sanity_check",
+)
 
 
 dst.generate_trial(16)
