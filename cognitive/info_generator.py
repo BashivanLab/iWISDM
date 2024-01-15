@@ -365,7 +365,7 @@ class TaskInfoCompo(object):
 
 
 class FrameInfo(object):
-    def __init__(self, task, objset):
+    def __init__(self, task: tg.TemporalTask, objset: sg.ObjectSet):
         """
         contains information about individual task's frames
         used for combining multiple temporal tasks, initialize with 1 task,
@@ -458,8 +458,8 @@ class FrameInfo(object):
         this is done by checking length of both tasks, then starting first based on first_shareable
 
         if both start at the same frame, but new task ends earlier,
-        then force the new task to start later.
-        otherwise, if new task start frame is after existing task start frame,
+        then force the new task to start later by adding more empty frames to the old task.
+        otherwise, if new task start frame is after existing task's start frame,
         then new task can end earlier than existing task
 
         Overall, task order is arranged such that new task appears or finishes after the existing task

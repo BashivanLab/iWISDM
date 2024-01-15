@@ -163,7 +163,7 @@ class Select(Operator):
         category = category or sg.SNCategory(None)
         object = object or sg.SNObject(category, None)
         view_angle = view_angle or sg.SNViewAngle(object, None)
-                             
+
         self.loc, self.category, self.object, self.view_angle = loc, category, object, view_angle
         self.set_child([loc, category, object, view_angle])
 
@@ -185,7 +185,7 @@ class Select(Operator):
             return const.DATA.INVALID
 
         space = None
-        
+
         subset = objset.select(
             epoch_now,
             space=space,
@@ -200,7 +200,7 @@ class Select(Operator):
     def copy(self):
         return Select(loc=self.loc, category=self.category, object=self.object, view_angle=self.view_angle,
                       when=self.when, space_type=self.space_type)
-        
+
     def hard_update(self, obj: sg.Object):
         """
         change the attributes based on the attributes of the provided obj
@@ -451,8 +451,8 @@ class Get(Operator):
         Returns:
           attr: Attribute instance or INVALID
         """
-        
-        if isinstance(self.objs, Operator):          
+
+        if isinstance(self.objs, Operator):
             objs = self.objs(objset, epoch_now)
         else:
             objs = self.objs
@@ -481,7 +481,6 @@ class Get(Operator):
 class Go(Get):
     """Go to location of object."""
 
-    
     def __init__(self, objs):
         super(Go, self).__init__('loc', objs)
 
@@ -509,6 +508,7 @@ class GetLoc(Get):
 
     def __init__(self, objs):
         super(GetLoc, self).__init__('loc', objs)
+
 
 class Exist(Operator):
     """Check if object with property exists."""
@@ -582,7 +582,7 @@ class Switch(Operator):
         self.both_options_avail = both_options_avail
 
     def __str__(self):
-        
+
         words = [
             'if',
             str(self.statement), ',', 'then',
@@ -653,7 +653,7 @@ class Switch(Operator):
         """
         if should_be is None:
             should_be = random.random() > 0.5
-        
+
         return should_be, None, None
 
 
@@ -748,7 +748,6 @@ class IsSame(Operator):
         return attr1_assign, attr2_assign
 
 
-
 class NotSame(Operator):
     """Check if two attributes are not the same."""
 
@@ -838,6 +837,7 @@ class NotSame(Operator):
                 attr2_assign = sg.another_attr(attr) if should_be else attr
         return attr1_assign, attr2_assign
 
+
 class And(Operator):
     """And operator."""
 
@@ -896,7 +896,7 @@ class Task(object):
         return self._operator(objset, epoch_now)
 
     def __str__(self):
-        
+
         return str(self._operator)
 
     def _add_all_nodes(self, op: Union[Operator, sg.Attribute], visited: dict, G: nx.DiGraph, count: int):
@@ -1081,7 +1081,7 @@ class TemporalTask(Task):
     def __init__(self, operator=None, n_frames=None, first_shareable=None, whens=None):
         super(TemporalTask, self).__init__(operator)
         self.n_frames = n_frames
-   
+
         self._first_shareable = first_shareable
         self.avg_mem = None
         self.whens = whens
@@ -1092,7 +1092,7 @@ class TemporalTask(Task):
         new_task.n_frames = self.n_frames
         new_task._first_shareable = self.first_shareable
         new_task.avg_mem = self.avg_mem
-        nodes = self.topological_sort()    
+        nodes = self.topological_sort()
         new_task._operator = self._operator.copy()
         return new_task
 
@@ -1119,14 +1119,13 @@ class TemporalTask(Task):
         # filter for select operators that corresponds directly to an object and match lastk
         selects = list()
 
-        
         for node in self.topological_sort():
             if isinstance(node, Select) and node.check_attrs():
                 # print("what is node.when:", node.when)
                 if lastk and node.when == lastk:
                     selects.append(node)
                 else:
-                    continue # XLEI: only keep select operators that matches certain timestamp[lastk]
+                    continue  # XLEI: only keep select operators that matches certain timestamp[lastk]
                     # selects.append(node)
         return selects
 
@@ -1134,8 +1133,7 @@ class TemporalTask(Task):
         # return the attribute of the object that is not randomly selected on lastk frame
         # for merging check purpose
         attrs = set()
-    
-    
+
         for lastk_select in self.filter_selects(self, lastk):
             for parent_op in lastk_select.parent:
                 if isinstance(parent_op, Get):
@@ -1163,14 +1161,12 @@ class TemporalTask(Task):
 
         assert all([o.when == objs[0].when for o in objs])
 
-
         copy_filter_selects = copy.filter_selects(copy, lastk)
         filter_selects = self.filter_selects(self, lastk)
 
         # uncomment if multiple stim per frame
         # assert len(filter_selects) == len(copy_filter_selects)
 
- 
         filter_objs = list()
         if filter_selects:
             if len(objs) < len(filter_selects):
@@ -1199,7 +1195,7 @@ class TemporalTask(Task):
         Returns:
           objset: full objset for all n_epoch
         """
-        
+
         self.avg_mem = average_memory_span
         n_epoch = self.n_frames
         # update n_max_backtrack to average_memory space instead of times 3
@@ -1222,7 +1218,7 @@ class TemporalTask(Task):
         info['avg_mem'] = self.avg_mem
         info['whens'] = self.whens
         info['operator'] = self._operator.to_json()
-        
+
         with open(fp, 'w') as f:
             json.dump(info, f, indent=4)
         return info
@@ -1289,7 +1285,6 @@ def get_leafs(G: nx.DiGraph):
     leafs = [x for x in G.nodes() if G.out_degree(x) == 0 and G.in_degree(x) == 1]
     assert all(leaf == 'Select' or leaf == 'CONST' for leaf in [G.nodes[node]['label'] for node in leafs])
     return leafs
-
 
 
 def graph_to_operators(
@@ -1420,8 +1415,7 @@ def load_operator_json(
             init['category'] = load_operator_json(op_dict['category'], operator_families, attr_families)
         elif 'sn_object' in op_dict:
             init['sn_object'] = load_operator_json(op_dict['sn_object'], operator_families, attr_families)
-       
-       
+
         return attr_families[name](value=op_dict['value'], **init)
 
 
@@ -1450,7 +1444,7 @@ def switch_generation(conditional: TASK, do_if: TASK, do_else: TASK, **kwargs) -
     conditional_op, conditional_task = conditional
     if_op, if_task = do_if
     else_op, else_task = do_else
- 
+
     op = Switch(conditional_op, if_op, else_op, **kwargs)
     n_frames = conditional_task.n_frames + if_task.n_frames + else_task.n_frames
     const.DATA.MAX_MEMORY = n_frames
