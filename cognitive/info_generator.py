@@ -249,7 +249,8 @@ class TaskInfoCompo(object):
 
         if is_instruction:
             comp_instruction, _ = self.get_instruction_obj_info()
-        else: comp_instruction = external_instruction
+        else:
+            comp_instruction = external_instruction
 
         compo = {
             'epochs': int(len(self.frame_info)),
@@ -567,9 +568,7 @@ class FrameInfo(object):
 
             for new_obj in new_frame.objs:
                 self.fi.objset.add(new_obj.copy(), len(self.fi) - 1, merge_idx=self.idx)  # update objset
-            for epoch, obj_list in self.fi.objset.dict.items():
-                if epoch == self.idx:
-                    self.objs = obj_list.copy()
+            self.objs = self.fi.objset.dict[self.idx].copy()
 
             # update the dictionary for relative_task_epoch
             temp = self.relative_task_epoch_idx.copy()

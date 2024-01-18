@@ -184,7 +184,10 @@ class Select(Operator):
         if const.DATA.INVALID in (loc, category, object, view_angle):
             return const.DATA.INVALID
 
-        space = None
+        if self.space_type is not None:
+            space = loc.get_space_to(self.space_type)
+        else:
+            space = sg.Space(None)
 
         subset = objset.select(
             epoch_now,
@@ -194,7 +197,6 @@ class Select(Operator):
             view_angle=view_angle,
             when=self.when,
         )
-
         return subset
 
     def copy(self):
@@ -1161,6 +1163,7 @@ class TemporalTask(Task):
 
         assert all([o.when == objs[0].when for o in objs])
 
+        # find selects that match the lastk
         copy_filter_selects = copy.filter_selects(copy, lastk)
         filter_selects = self.filter_selects(self, lastk)
 
@@ -1175,10 +1178,10 @@ class TemporalTask(Task):
             # match objs on that frame with the number of selects
             filter_objs = random.sample(objs, k=len(filter_selects))
             # print("what is filter_objs:", filter_objs)
-            for select in filter_selects:
-                for obj in filter_objs:
-                    select.soft_update(obj)
-            for select_copy in copy_filter_selects:
+            for select, select_copy, obj in zip(filter_selects, copy_filter_selects, filter_objs):
+                # each select that matches the lastk needs to change its attrs
+                # to point to the reused object from existing frames
+                select.soft_update(obj)
                 select_copy.hard_update(obj)
         # print("after updating, what is filter_objs:", filter_objs)
         return filter_objs
