@@ -279,7 +279,7 @@ class TaskInfoCompo(object):
         # print("compo_examples:", compo_example)
         # todo: solve slow instruction generation probel
         # return imgs, compo_example["instruction"], compo_example["answers"], 
-        return imgs, "instruction", compo_example["answers"]
+        return imgs, compo_example["instruction"], compo_example["answers"]
 
     def write_trial_instance(self, write_fp: str, img_size=224, fixation_cue=False) -> None:
         # generate trial information and save it locally
@@ -299,7 +299,7 @@ class TaskInfoCompo(object):
 
         examples, compo_example = self.get_examples()
 
-        filename = os.path.join(frames_fp, 'task_info')
+        filename = os.path.join(frames_fp, 'task_info.json')
         with open(filename, 'w') as f:
             json.dump(compo_example, f, indent=4)
         
