@@ -181,13 +181,13 @@ class Space(Attribute):
         else:
             avoid = avoid + [mid_point]
         # avoid the mid-point for fixation cue
-        
+
         n_max_try = 100
         avoid_radius2 = 0.04  # avoid radius squared
-        
-        dx = 0.001 # used to be 0.125 xuan => it does not matter now
+
+        dx = 0.001  # used to be 0.125 xuan => it does not matter now
         xrange = (self._value[0][0] + dx, self._value[0][1] - dx)
-        dy = 0.001 # used to be 0.125 xuan => it does not matter now
+        dy = 0.001  # used to be 0.125 xuan => it does not matter now
         yrange = (self._value[1][0] + dy, self._value[1][1] - dy)
         for i_try in range(n_max_try):
             # Round to 3 decimal places to save space in json dump
@@ -522,9 +522,13 @@ class Object(object):
         """
         :return: deep copy of the object
         """
-        new_obj = Object(attrs=[Loc(space=Space(self.loc.space.value), value=self.loc.value), Space(self.space.value),
-                                SNCategory(self.category.value), SNObject(self.category, self.object.value),
-                                SNViewAngle(self.object, self.view_angle.value)])
+        new_obj = Object(attrs=[
+            Loc(space=Space(self.loc.space.value), value=self.loc.value),
+            Space(self.loc.space.value),
+            SNCategory(self.category.value),
+            SNObject(self.category, self.object.value),
+            SNViewAngle(self.object, self.view_angle.value)
+        ])
         new_obj.when = self.when
         new_obj.epoch = self.epoch
         new_obj.deletable = self.deletable
@@ -731,9 +735,9 @@ class ObjectSet(object):
             epoch_now -= const.DATA.LASTMAP[when]
         else:
             epoch_now = merge_idx
-            
+
         return self.select_now(epoch_now, space, category, object, view_angle, delete_if_can)
-        
+
     def select_now(self,
                    epoch_now,
                    space=None,
@@ -788,15 +792,17 @@ def render_static_obj(canvas, obj, img_size):
     radius = int(0.25 * img_size)
 
     # Note that OpenCV color is (Blue, Green, Red)
-    center = [0,0]
+    center = [0, 0]
     if obj.loc[0] < 0.5:
         center[0] = 56
-    else: center[0] = 168
+    else:
+        center[0] = 168
     if obj.loc[1] < 0.5:
         center[1] = 56
-    else: center[1] = 168
+    else:
+        center[1] = 168
     # center = (int(obj.loc[0] * img_size), int(obj.loc[1] * img_size))
-  
+
     x_offset, x_end = center[0] - radius, center[0] + radius
     y_offset, y_end = center[1] - radius, center[1] + radius
     shape_net_obj = const.DATA.get_shapenet_object(obj, [radius * 2, radius * 2])
@@ -817,6 +823,7 @@ def render_obj(canvas, obj, img_size):
         render_static_obj(canvas, obj, img_size)
     else:
         render_static_obj(canvas, obj.to_static()[0], img_size)
+
 
 def render(objsets, img_size=224, save_name=None):
     """Render a movie by epoch.
@@ -1086,7 +1093,6 @@ def another_loc(loc):
 
 
 def random_grid_space():
-    
     return Space(random.choice(list(const.DATA.grid.values())))
 
 

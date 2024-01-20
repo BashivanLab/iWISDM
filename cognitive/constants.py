@@ -23,11 +23,13 @@ from __future__ import print_function
 import glob
 import os
 from typing import Tuple
+import sys
 
 import numpy as np
 import pandas as pd
 from PIL import Image
 from collections import OrderedDict
+import pickle5 as pickle
 
 # average memory duration: how many frames each object can be retained in the memory
 AVG_MEM = 3
@@ -73,7 +75,6 @@ class Data:
     """
 
     def __init__(self, dir_path=None, max_memory: int = 10, grid_size: Tuple[int, int] = (2, 2), train: bool = True):
-
         if dir_path is None:
             dir_path = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))),
                                     './data/min_shapenet_easy_angle')
@@ -82,19 +83,24 @@ class Data:
         if not os.path.exists(self.dir_path):
             print('Data folder does not exist.')
         pkls = sorted([fname for fname in glob.glob(f'{dir_path}/**/*.pkl', recursive=True)])
-        
-
-        assert len(pkls) > 0
-        self.pkl = pkls[0]
-        self.df: pd.DataFrame = pd.read_pickle(self.pkl)
+        csvs = sorted([fname for fname in glob.glob(f'{dir_path}/**/*.csv', recursive=True)])
+        if len(csvs) > 0:
+            self.fp = csvs[0]
+            self.df = pd.read_csv(self.fp)
+        elif len(pkls) > 0:
+            self.fp = pkls[0]
+            self.df: pd.DataFrame = pd.read_pickle(self.fp)
+        else:
+            raise ValueError(f'No dataset meta information found in {dir_path}')
         self.MOD_DICT = dict()
         for i in self.df['ctg_mod'].unique():
             self.MOD_DICT[int(i)] = dict()
             for cat in self.df.loc[self.df['ctg_mod'] == i]['obj_mod'].unique():
-                self.MOD_DICT[int(i)][int(cat)] = list(map(int, list(self.df.loc[(self.df['ctg_mod'] == i)
-                                                                                 & (self.df['obj_mod'] == cat)][
-                                                                         'ang_mod'].unique())))
-
+                self.MOD_DICT[int(i)][int(cat)] = list(
+                    map(int,
+                        list(self.df.loc[(self.df['ctg_mod'] == i) & (self.df['obj_mod'] == cat)]['ang_mod'].unique())
+                        )
+                )
         self.MAX_MEMORY = max_memory
         OBJECTPERCATEGORY = 14
         CATEGORIES = 12
@@ -111,7 +117,7 @@ class Data:
         self.INVALID = 'invalid'
 
         # Allowed vocabulary, the first word is invalid
-        
+
         self.INPUTVOCABULARY = [
                                    'invalid',
                                    '.', ',', '?',
@@ -141,7 +147,7 @@ class Data:
         if not self.train:
             if validation_path is None:
                 if self.valid_image_path is None:
-                    
+
                     valids = [fname for fname in glob.glob(f'{self.dir_path}/**/validation', recursive=True)]
                     if valids:
                         if os.path.isdir(valids[0]):
@@ -151,7 +157,6 @@ class Data:
             else:
                 self.valid_image_path = validation_path
             image_path = self.valid_image_path
-            
         else:
             if training_path is None:
                 if self.train_image_path is None:
@@ -164,14 +169,13 @@ class Data:
             else:
                 self.train_image_path = validation_path
             image_path = self.train_image_path
-        
+
         obj_cat: pd.DataFrame = self.df.loc[(self.df['ctg_mod'] == obj.category) &
                                             (self.df['obj_mod'] == obj.object) &
                                             (self.df['ang_mod'] == obj.view_angle)]
         if len(obj_cat) <= 0:
             raise ValueError(obj.category, obj.object, obj.view_angle)
 
-        
         obj_ref = int(obj_cat.iloc[0]['ref'])
         obj_path = os.path.join(image_path, f'{obj_ref}/image.png')
         img = Image.open(obj_path).convert('RGB').resize(obj_size)
@@ -189,7 +193,6 @@ class Data:
 
     @property
     def ALLWHENS(self):
-        
         return [f'last{k}' for k in range(self.MAX_MEMORY + 1)]
 
     @property
@@ -228,7 +231,7 @@ def get_prefs(grid_size):
 def get_grid(grid_size):
     # return (grid_size,grid_size) array of sg.space.values
     # convert from grid to space
-    
+
     x_space, y_space = grid_size[0] + 1, grid_size[1] + 1
     x_coords, y_coords = np.linspace(0, 1, x_space), np.linspace(0, 1, y_space)
     xx, yy = np.meshgrid(x_coords, y_coords, sparse=True)

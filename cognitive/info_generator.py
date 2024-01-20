@@ -249,7 +249,8 @@ class TaskInfoCompo(object):
 
         if is_instruction:
             comp_instruction, _ = self.get_instruction_obj_info()
-        else: comp_instruction = external_instruction
+        else:
+            comp_instruction = external_instruction
 
         compo = {
             'epochs': int(len(self.frame_info)),
@@ -365,7 +366,7 @@ class TaskInfoCompo(object):
 
 
 class FrameInfo(object):
-    def __init__(self, task, objset):
+    def __init__(self, task: tg.TemporalTask, objset: sg.ObjectSet):
         """
         contains information about individual task's frames
         used for combining multiple temporal tasks, initialize with 1 task,
@@ -458,8 +459,8 @@ class FrameInfo(object):
         this is done by checking length of both tasks, then starting first based on first_shareable
 
         if both start at the same frame, but new task ends earlier,
-        then force the new task to start later.
-        otherwise, if new task start frame is after existing task start frame,
+        then force the new task to start later by adding more empty frames to the old task.
+        otherwise, if new task start frame is after existing task's start frame,
         then new task can end earlier than existing task
 
         Overall, task order is arranged such that new task appears or finishes after the existing task
@@ -524,9 +525,6 @@ class FrameInfo(object):
             self.last_task = list(relative_tasks)[0]
             self.last_task_start = first_shareable
 
-            print("first shareable:", first_shareable)
-            
-            print("new first shareable:", new_first_shareable)
             self.first_shareable = new_first_shareable + first_shareable
             return first_shareable
 
@@ -570,9 +568,7 @@ class FrameInfo(object):
 
             for new_obj in new_frame.objs:
                 self.fi.objset.add(new_obj.copy(), len(self.fi) - 1, merge_idx=self.idx)  # update objset
-            for epoch, obj_list in self.fi.objset.dict.items():
-                if epoch == self.idx:
-                    self.objs = obj_list.copy()
+            self.objs = self.fi.objset.dict[self.idx].copy()
 
             # update the dictionary for relative_task_epoch
             temp = self.relative_task_epoch_idx.copy()
