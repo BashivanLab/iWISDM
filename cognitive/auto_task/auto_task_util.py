@@ -27,8 +27,8 @@ TASK = Tuple[Union[tg.Operator, sg.Attribute], tg.TemporalTask]
 
 # root_ops are the operators to begin a task
 # root_ops = ["GetCategory", "GetLoc", "GetViewAngle", "GetObject", "Exist", "IsSame", "And"]
-root_ops = ["IsSame", "And", "Exist", "Or"]
-boolean_ops = ["Exist", "IsSame", "And", "Or"]
+root_ops = ["IsSame", "And", "Or", "Exist", ]
+boolean_ops = ["IsSame", "And", "Or", "Exist", ]
 
 # all tasks end with select
 leaf_op = ["Select"]
@@ -38,7 +38,6 @@ mid_op = ["Switch"]
 boolean_ops.remove('Exist')
 root_ops.remove('Exist')
 root_ops += ["NotSame", "Or"]
-root_ops = ["Or"]
 boolean_ops += ["NotSame", "Or"]
 
 # dictionary specifying which operators can follow an operator,
@@ -58,25 +57,33 @@ op_dict = {
             # "sample_dist": [0,0,1],
             "sample_dist": [1 / 3, 1 / 3, 1 / 3],
             # "sample_dist": [0.90,0.1],
-            "same_children_op": False
+            "same_children_op": False,
+            "min_depth": 0,
+            "min_op": 0,
         },
     "GetCategory":
         {
             "n_downstream": 1,
             "downstream": ["Select"],
-            "sample_dist": [1]
+            "sample_dist": [1],
+            "min_depth": 1,
+            "min_op": 1,
         },
     "GetLoc":
         {
             "n_downstream": 1,
             "downstream": ["Select"],
-            "sample_dist": [1]
+            "sample_dist": [1],
+            "min_depth": 1,
+            "min_op": 1,
         },
     "GetObject":
         {
             "n_downstream": 1,
             "downstream": ["Select"],
-            "sample_dist": [1]
+            "sample_dist": [1],
+            "min_depth": 1,
+            "min_op": 1,
         },
     "IsSame":
         {
@@ -89,7 +96,9 @@ op_dict = {
             "sample_dist": [1 / 3, 1 / 3, 1 / 3],
             # "sample_dist": [0.90,0.1],
             # "sample_dist": [0,0,1],
-            "same_children_op": True  # same downstream op
+            "same_children_op": True,  # same downstream op
+            "min_depth": 2,
+            "min_op": 6,
         },
     "NotSame":
         {
@@ -103,6 +112,8 @@ op_dict = {
             # "sample_dist": [0,0,1],
             # "sample_dist": [0.90,0.1],
             "same_children_op": True,
+            "min_depth": 2,
+            "min_op": 6,
         },
     "And":
         {
@@ -111,6 +122,8 @@ op_dict = {
             # "sample_dist": [0.8, 0.2],
             "sample_dist": [0.4, 0.4, 0.1, 0.1],
             "same_children_op": False,
+            "min_depth": 3,
+            "min_op": 14,
         },
     "Or":
         {
@@ -120,7 +133,9 @@ op_dict = {
             # "sample_dist": [1 / 3, 1 / 3, 1 / 3, 0, 0, 0],
             # "sample_dist": [1 / 5, 1 / 5, 1 / 5, 1 / 5, 1 / 5],
             "sample_dist": [0.4, 0.4, 0.1, 0.1],
-            "same_children_op": False
+            "same_children_op": False,
+            "min_depth": 3,
+            "min_op": 14,
         },
     # "Xor":
     #     {
@@ -129,15 +144,20 @@ op_dict = {
     #         "downstream": ["IsSame", "NotSame", "And", "Or", "Xor"],
     #         # "sample_dist": [1 / 3, 1 / 3, 1 / 3, 0, 0, 0],
     #         "sample_dist": [1 / 5, 1 / 5, 1 / 5, 1 / 5, 1 / 5],
-    #         "same_children_op": False
+    #         "same_children_op": False,
+    #         "min_depth": 3,
+    #         "min_op": 14,
     #     },
-    #    "GetViewAngle":
-    #        {"n_downstream": 1,
+    # "GetViewAngle":
+    #     {
+    #         "n_downstream": 1,
     #         "downstream": ["Select"],
     #         "sample_dist": [1]
-    #         },
+    #     },
 }
 op_dict = defaultdict(dict, **op_dict)
+op_depth_limit = {k: v['min_depth'] for k, v in op_dict.items()}
+op_operators_limit = {k: v['min_op'] for k, v in op_dict.items()}
 
 
 # uncomment to add more ops
@@ -146,8 +166,10 @@ op_dict = defaultdict(dict, **op_dict)
 #     op_dict[op]['sample_dist'] = "sample_dist": [1 / 3, 1 / 3, 1 / 3, 0, 0, 0]
 
 
-def sample_root_helper(max_op, cur_depth, max_depth):
-    return
+def sample_root_helper(max_op, max_depth):
+    depth_filter = [op for op, v in op_depth_limit.items() if (v + 1 <= max_depth) and (op in root_ops)]
+    both_filter = [op for op in depth_filter if op_operators_limit[op] + 1 <= max_op]
+    return np.random.choice(both_filter)
 
 
 def sample_children_helper(op_name, op_count, max_op, cur_depth, max_depth):
