@@ -733,6 +733,8 @@ class IsSame(Operator):
             attr2_assign = Skip()
         else:
             if self.attr_type == 'view_angle':
+                # if sample another view_angle if not should be
+                # check for how many view_angles exist for the object first
                 obj = sg.random_attr('object')
                 while len(const.DATA.ALLVIEWANGLES[obj.category.value][obj.value]) < 2:
                     obj = sg.random_attr('object')
@@ -823,6 +825,8 @@ class NotSame(Operator):
             attr2_assign = Skip()
         else:
             if self.attr_type == 'view_angle':
+                # if sample another view_angle if should be
+                # check for how many view_angles exist for the object first
                 obj = sg.random_attr('object')
                 while len(const.DATA.ALLVIEWANGLES[obj.category.value][obj.value]) < 2:
                     obj = sg.random_attr('object')
@@ -863,6 +867,7 @@ class And(Operator):
         return And(new_op1, new_op2)
 
     def get_expected_input(self, should_be, objset, epoch_now):
+        # should_be is the expected output
         if should_be is None:
             should_be = random.random() > 0.5
 
@@ -878,6 +883,49 @@ class And(Operator):
                 op1_assign, op2_assign = True, False
             else:
                 op1_assign, op2_assign = False, False
+
+        return op1_assign, op2_assign
+
+
+class Or(Operator):
+    """Or operator."""
+
+    def __init__(self, op1, op2):
+        super(Or, self).__init__()
+        self.op1, self.op2 = op1, op2
+        self.set_child([op1, op2])
+
+    def __str__(self):
+        words = [str(self.op1), 'or', str(self.op2)]
+        if not self.parent:
+            words += ['?']
+        return ' '.join(words)
+
+    def __call__(self, objset, epoch_now):
+        return self.op1(objset, epoch_now) or self.op2(objset, epoch_now)
+
+    def copy(self):
+        new_op1 = self.op1.copy()
+        new_op2 = self.op2.copy()
+        return Or(new_op1, new_op2)
+
+    def get_expected_input(self, should_be, objset, epoch_now):
+        # should_be is the expected output
+        if should_be is None:
+            should_be = random.random() > 0.5
+
+        if should_be:
+            r = random.random()
+            # Assume the two operators are independent with P[op=False]=1-sqrt(0.5)
+            # Here show the conditional probability given the output is True
+            if r < 0.414:
+                op1_assign, op2_assign = False, True
+            elif r < 0.828:
+                op1_assign, op2_assign = True, False
+            else:
+                op1_assign, op2_assign = True, True
+        else:
+            op1_assign, op2_assign = False, False
 
         return op1_assign, op2_assign
 

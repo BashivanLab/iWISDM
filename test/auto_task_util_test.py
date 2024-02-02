@@ -114,16 +114,15 @@ class UtilTest(unittest.TestCase):
         A.draw('RandomTask1.png', prog='dot')
 
     def test_task_generation(self):
-        const.DATA = const.Data()
-        graph, task = util.task_generator(1, 1, 10, 3, True)
+        const.DATA = const.Data(
+            dir_path='/Users/markbai/Documents/COG_v3_shapenet/data/new_shapenet_val'
+        )
+        graph, task = util.task_generator(0, 1, 10, 3, True)
         G = graph[0]
         G = G.reverse()
         A = nx.nx_agraph.to_agraph(G)
         A.draw('RandomTask1.png', prog='dot')
-        G, count = task[1].to_graph('/Users/markbai/PycharmProjects/COG_v3_shapenet/test/reconstruct.png')
-        G = G.reverse()
-        A = nx.nx_agraph.to_agraph(G)
-        A.draw('RandomTask1_reconstruct.png', prog='dot')
+        G = task[1].to_graph()
 
 
 if __name__ == '__main__':
