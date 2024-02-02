@@ -29,103 +29,114 @@ TASK = Tuple[Union[tg.Operator, sg.Attribute], tg.TemporalTask]
 # root_ops = ["GetCategory", "GetLoc", "GetViewAngle", "GetObject", "Exist", "IsSame", "And"]
 root_ops = ["IsSame", "And", "Exist", "Or"]
 boolean_ops = ["Exist", "IsSame", "And", "Or"]
-boolean_ops.remove('Exist')
-root_ops.remove('Exist')
-# uncomment to add ops
-root_ops += ["NotSame", "Or"]
-root_ops = ["Or"]
-boolean_ops += ["NotSame", "Or"]
 
 # all tasks end with select
 leaf_op = ["Select"]
 mid_op = ["Switch"]
 
+# uncomment to add/remove ops
+boolean_ops.remove('Exist')
+root_ops.remove('Exist')
+root_ops += ["NotSame", "Or"]
+root_ops = ["Or"]
+boolean_ops += ["NotSame", "Or"]
+
 # dictionary specifying which operators can follow an operator,
 # e.g. GetCategory follows selecting an object
 # 4 operators are related to Select: category, location, view_angle, and the exact object
 # if the operator is None, then a random constant is sampled for that attribute
-op_dict = {"Select":
-               {"n_downstream": 4,
-                # "downstream": ["GetCategory", "GetLoc", "GetViewAngle", "GetObject", "None"],
-                "downstream": ["GetLoc", "GetCategory", "GetObject"],
-                # "downstream": ["GetCategory", "GetObject"],
-                # "sample_dist": [0,1,0,0,0],
-                # "sample_dist": [0.5,0.5],
-                # "sample_dist": [0.7,0.15,0.15],
-                # "sample_dist": [0,0,1],
-                "sample_dist": [1 / 3, 1 / 3, 1 / 3],
-                # "sample_dist": [0.90,0.1],
-                "same_children_op": False
-                },
-           "GetCategory":
-               {"n_downstream": 1,
-                "downstream": ["Select"],
-                "sample_dist": [1]
-                },
-           "GetLoc":
-               {"n_downstream": 1,
-                "downstream": ["Select"],
-                "sample_dist": [1]
-                },
-           #    "GetViewAngle":
-           #        {"n_downstream": 1,
-           #         "downstream": ["Select"],
-           #         "sample_dist": [1]
-           #         },
-           "GetObject":
-               {"n_downstream": 1,
-                "downstream": ["Select"],
-                "sample_dist": [1]
-                },
-           "IsSame":
-               {"n_downstream": 2,
-                # "downstream": ["GetCategory", "GetLoc", "GetViewAngle", "GetObject", "CONST"],
-                "downstream": ["GetLoc", "GetCategory", "GetObject"],
-                # "downstream": ["GetCategory", "GetObject"],
-                # "sample_dist": [0, 1, 0, 0, 0],
-                # "sample_dist": [0.45,0.45,0.1],
-                "sample_dist": [1 / 3, 1 / 3, 1 / 3],
-                # "sample_dist": [0.90,0.1],
-                # "sample_dist": [0,0,1],
-                "same_children_op": True  # same downstream op
-                },
-           "NotSame":
-               {"n_downstream": 2,
-                # "downstream": ["GetCategory", "GetLoc", "GetViewAngle", "GetObject"],
-                "downstream": ["GetLoc", "GetCategory", "GetObject"],
-                # "downstream": ["GetCategory", "GetObject"],
-                # "sample_dist": [1 / 4, 1 / 4, 1 / 4, 1 / 4],
-                # "sample_dist": [0.45,0.45,0.1],
-                "sample_dist": [1 / 3, 1 / 3, 1 / 3],
-                # "sample_dist": [0,0,1],
-                # "sample_dist": [0.90,0.1],
-                "same_children_op": True,
-                },
-           "And":
-               {"n_downstream": 2,
-                "downstream": ["IsSame", "NotSame", "And", "Or"],
-                # "sample_dist": [0.8, 0.2],
-                "sample_dist": [0.4, 0.4, 0.1, 0.1],
-                "same_children_op": False,
-                },
-           "Or":
-               {"n_downstream": 2,
-                # "downstream": ["Exist", "IsSame", "NotSame", "And", "Or", "Xor"],
-                "downstream": ["IsSame", "NotSame", "And", "Or"],
-                # "sample_dist": [1 / 3, 1 / 3, 1 / 3, 0, 0, 0],
-                # "sample_dist": [1 / 5, 1 / 5, 1 / 5, 1 / 5, 1 / 5],
-                "sample_dist": [0.4, 0.4, 0.1, 0.1],
-                "same_children_op": False
-                },
-           "Xor":
-               {"n_downstream": 2,
-                # "downstream": ["Exist", "IsSame", "NotSame", "And", "Or", "Xor"],
-                "downstream": ["IsSame", "NotSame", "And", "Or", "Xor"],
-                # "sample_dist": [1 / 3, 1 / 3, 1 / 3, 0, 0, 0],
-                "sample_dist": [1 / 5, 1 / 5, 1 / 5, 1 / 5, 1 / 5],
-                "same_children_op": False
-                },
-           }
+op_dict = {
+    "Select":
+        {
+            "n_downstream": 4,
+            # "downstream": ["GetCategory", "GetLoc", "GetViewAngle", "GetObject", "None"],
+            "downstream": ["GetLoc", "GetCategory", "GetObject"],
+            # "downstream": ["GetCategory", "GetObject"],
+            # "sample_dist": [0,1,0,0,0],
+            # "sample_dist": [0.5,0.5],
+            # "sample_dist": [0.7,0.15,0.15],
+            # "sample_dist": [0,0,1],
+            "sample_dist": [1 / 3, 1 / 3, 1 / 3],
+            # "sample_dist": [0.90,0.1],
+            "same_children_op": False
+        },
+    "GetCategory":
+        {
+            "n_downstream": 1,
+            "downstream": ["Select"],
+            "sample_dist": [1]
+        },
+    "GetLoc":
+        {
+            "n_downstream": 1,
+            "downstream": ["Select"],
+            "sample_dist": [1]
+        },
+    "GetObject":
+        {
+            "n_downstream": 1,
+            "downstream": ["Select"],
+            "sample_dist": [1]
+        },
+    "IsSame":
+        {
+            "n_downstream": 2,
+            # "downstream": ["GetCategory", "GetLoc", "GetViewAngle", "GetObject", "CONST"],
+            "downstream": ["GetLoc", "GetCategory", "GetObject"],
+            # "downstream": ["GetCategory", "GetObject"],
+            # "sample_dist": [0, 1, 0, 0, 0],
+            # "sample_dist": [0.45,0.45,0.1],
+            "sample_dist": [1 / 3, 1 / 3, 1 / 3],
+            # "sample_dist": [0.90,0.1],
+            # "sample_dist": [0,0,1],
+            "same_children_op": True  # same downstream op
+        },
+    "NotSame":
+        {
+            "n_downstream": 2,
+            # "downstream": ["GetCategory", "GetLoc", "GetViewAngle", "GetObject"],
+            "downstream": ["GetLoc", "GetCategory", "GetObject"],
+            # "downstream": ["GetCategory", "GetObject"],
+            # "sample_dist": [1 / 4, 1 / 4, 1 / 4, 1 / 4],
+            # "sample_dist": [0.45,0.45,0.1],
+            "sample_dist": [1 / 3, 1 / 3, 1 / 3],
+            # "sample_dist": [0,0,1],
+            # "sample_dist": [0.90,0.1],
+            "same_children_op": True,
+        },
+    "And":
+        {
+            "n_downstream": 2,
+            "downstream": ["IsSame", "NotSame", "And", "Or"],
+            # "sample_dist": [0.8, 0.2],
+            "sample_dist": [0.4, 0.4, 0.1, 0.1],
+            "same_children_op": False,
+        },
+    "Or":
+        {
+            "n_downstream": 2,
+            # "downstream": ["Exist", "IsSame", "NotSame", "And", "Or", "Xor"],
+            "downstream": ["IsSame", "NotSame", "And", "Or"],
+            # "sample_dist": [1 / 3, 1 / 3, 1 / 3, 0, 0, 0],
+            # "sample_dist": [1 / 5, 1 / 5, 1 / 5, 1 / 5, 1 / 5],
+            "sample_dist": [0.4, 0.4, 0.1, 0.1],
+            "same_children_op": False
+        },
+    # "Xor":
+    #     {
+    #         "n_downstream": 2,
+    #         # "downstream": ["Exist", "IsSame", "NotSame", "And", "Or", "Xor"],
+    #         "downstream": ["IsSame", "NotSame", "And", "Or", "Xor"],
+    #         # "sample_dist": [1 / 3, 1 / 3, 1 / 3, 0, 0, 0],
+    #         "sample_dist": [1 / 5, 1 / 5, 1 / 5, 1 / 5, 1 / 5],
+    #         "same_children_op": False
+    #     },
+    #    "GetViewAngle":
+    #        {"n_downstream": 1,
+    #         "downstream": ["Select"],
+    #         "sample_dist": [1]
+    #         },
+}
 op_dict = defaultdict(dict, **op_dict)
 
 
@@ -135,30 +146,41 @@ op_dict = defaultdict(dict, **op_dict)
 #     op_dict[op]['sample_dist'] = "sample_dist": [1 / 3, 1 / 3, 1 / 3, 0, 0, 0]
 
 
-def sample_children_helper(op_name, op_count, max_op, depth, max_depth):
+def sample_root_helper(max_op, cur_depth, max_depth):
+    return
+
+
+def sample_children_helper(op_name, op_count, max_op, cur_depth, max_depth):
     """
     helper function to ensure the task graph is not too complex, and return the child operator
     :param op_name: the current operator
     :param op_count: the current number of operators
     :param max_op: the maximum number of operators allowed
-    :param depth: the current depth
+    :param cur_depth: the current depth
     :param max_depth: the maximum depth of the task graph
     :return: a randomly sampled operator to follow the parent node
     """
-    if depth + 1 > max_depth or op_count + 4 > max_op or op_name == 'And':  # this prevents very complicated tasks
+    if cur_depth + 1 > max_depth or op_count + 4 > max_op or op_name == 'And':  # this prevents very complicated tasks
         return np.random.choice(op_dict[op_name]["downstream"], p=op_dict[op_name]["sample_dist"])
     else:
         return np.random.choice(op_dict[op_name]["downstream"])
 
 
-def sample_children_op(op_name: str, op_count: int, max_op: int, depth: int, max_depth: int, select_op: bool,
-                       select_downstream: List[str]) -> List[str]:
+def sample_children_op(
+        op_name: str,
+        op_count: int,
+        max_op: int,
+        cur_depth: int,
+        max_depth: int,
+        select_op: bool,
+        select_downstream: List[str]
+) -> List[str]:
     """
     sample the children operators given the operator name
     :param op_name: the name of the parent node
     :param op_count: operator count
     :param max_op: max number of operators allowed
-    :param depth: current depth
+    :param cur_depth: current depth
     :param max_depth: max depth allowed
     :param select_op: Boolean, does select follow an operator
     :param select_downstream: the downstream options that can be sampled from
@@ -170,14 +192,14 @@ def sample_children_op(op_name: str, op_count: int, max_op: int, depth: int, max
     if n_downstream == 1:
         # xlei: should I change it to the sample helper here?
         # return [random.choice(op_dict[op_name]["downstream"])]
-        return [sample_children_helper(op_name, op_count, max_op, depth, max_depth)]
+        return [sample_children_helper(op_name, op_count, max_op, cur_depth, max_depth)]
     elif op_name == 'Select':
         children = list()  # append children operators
 
         if select_downstream is None:
             select_downstream = op_dict['Select']['downstream']
 
-        if depth + 1 > max_depth or op_count + 1 > max_op:
+        if cur_depth + 1 > max_depth or op_count + 1 > max_op:
             return ['None' for _ in range(n_downstream)]
         else:
             if select_op:  # if select at least one operator for select attribute
@@ -199,20 +221,23 @@ def sample_children_op(op_name: str, op_count: int, max_op: int, depth: int, max
                 return ['None' for _ in range(n_downstream)]
     else:
         if op_dict[op_name]["same_children_op"]:
-            child = sample_children_helper(op_name, op_count, max_op, depth, max_depth)
+            child = sample_children_helper(op_name, op_count, max_op, cur_depth, max_depth)
             return [child for _ in range(n_downstream)]
         else:
-            return [sample_children_helper(op_name, op_count, max_op, depth, max_depth) for _ in range(n_downstream)]
+            return [sample_children_helper(op_name, op_count, max_op, cur_depth, max_depth) for _ in
+                    range(n_downstream)]
 
 
-def branch_generator(G: nx.DiGraph,
-                     root_op: str,
-                     op_count: int,
-                     max_op: int,
-                     depth: int,
-                     max_depth: int,
-                     select_op=False,
-                     select_downstream=None) -> int:
+def branch_generator(
+        G: nx.DiGraph,
+        root_op: str,
+        op_count: int,
+        max_op: int,
+        cur_depth: int,
+        max_depth: int,
+        select_op=False,
+        select_downstream=None
+) -> int:
     # function to complete a branch of subtask graph based on a root operator,
     # modifies G in place, and returns the leaf node number
     if root_op == 'None':
@@ -226,7 +251,7 @@ def branch_generator(G: nx.DiGraph,
         children = sample_children_op(op_name=root_op,
                                       op_count=op_count + 1,
                                       max_op=max_op,
-                                      depth=depth,
+                                      cur_depth=cur_depth,
                                       max_depth=max_depth,
                                       select_op=select_op,
                                       select_downstream=select_downstream)
@@ -236,7 +261,7 @@ def branch_generator(G: nx.DiGraph,
             select_downstream = ['None'] * 4
             select_op = False
 
-        depth += 1  # increment depth count
+        cur_depth += 1  # increment cur_depth count
         parent = op_count
         if root_op in ['IsSame', 'Or', 'NotSame']:
             if all(op == 'CONST' for op in children):
@@ -251,7 +276,7 @@ def branch_generator(G: nx.DiGraph,
                 # recursively generate branches based on the child operator
                 # op_count is incremented based on how many nodes were added in the child branch call
 
-                op_count = branch_generator(G, op, child, max_op, depth, max_depth, select_op,
+                op_count = branch_generator(G, op, child, max_op, cur_depth, max_depth, select_op,
                                             select_downstream)
                 G.add_node(child, label=op)  # modify the graph
                 G.add_edge(parent, child)
@@ -285,7 +310,13 @@ def subtask_graph_generator(count=0, max_op=20, max_depth=10, select_limit=False
     return G, root, op_count
 
 
-def task_generator(max_switch: int, switch_threshold: float, max_op: int, max_depth: int, select_limit: bool) -> Tuple[
+def task_generator(
+        max_switch: int,
+        switch_threshold: float,
+        max_op: int,
+        max_depth: int,
+        select_limit: bool
+) -> Tuple[
     GRAPH_TUPLE, TASK]:
     """
     function to generate a random task graph and corresponding task
@@ -367,8 +398,15 @@ def write_task_instance(G_tuple: GRAPH_TUPLE, task: TASK, write_fp: str):
     return None
 
 
-def write_trial_instance(task: tg.TemporalTask, write_fp: str, img_size=224, fixation_cue=True, train=True,
-                         is_instruction=True, external_instruction=None) -> None:
+def write_trial_instance(
+        task: tg.TemporalTask,
+        write_fp: str,
+        img_size=224,
+        fixation_cue=True,
+        train=True,
+        is_instruction=True,
+        external_instruction=None
+) -> None:
     # TODO: drawing the frames is slow!
     # save the actual generated frames into another folder
     if os.path.exists(write_fp):
