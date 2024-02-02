@@ -188,6 +188,51 @@ def sample_children_helper(op_name, op_count, max_op, cur_depth, max_depth):
         return np.random.choice(op_dict[op_name]["downstream"])
 
 
+def sample_children_helper(op_name, op_count, max_op, cur_depth, max_depth):
+    """
+    helper function to ensure the task complexity is bounded, and return the sampled child operator
+    :param op_name: the current operator
+    :param op_count: the current number of operators
+    :param max_op: the maximum number of operators allowed
+    :param cur_depth: the current depth
+    :param max_depth: the maximum depth of the task graph
+    :return: a randomly sampled operator to follow the parent node
+    """
+
+    downstream_ops = op_dict[op_name]["downstream"]
+    min_add_depth_filter = {op: (max_depth - (cur_depth + op_depth_limit[op])) for op in downstream_ops if
+                            (cur_depth + op_depth_limit[op] <= max_depth)}
+    min_add_op_filter = {op: (max_op - (op_count + op_operators_limit[op])) for op in downstream_ops if
+                         (op_count + op_operators_limit[op] <= max_op)}
+
+    if max(min_add_depth_filter.values()) > 0:
+        # if added operator sub-graph can fit and have left over depth
+        filtered_ops = [op for op, diff in min_add_depth_filter if diff > 0]
+        both_filter = {k: v for k, v in min_add_op_filter.items() if k in filtered_ops}
+        if max(both_filter.values()) > 0:
+            both_filter = [k for k, v in both_filter.items() if v > 0]
+            return np.random.choice(both_filter)
+        elif max(both_filter.values()) == 0:
+            both_filter = [k for k, v in both_filter.items() if v == 0]
+            return np.random.choice(both_filter)
+        else:
+            # cannot do anything about bounding, just complete the minimum task graph
+            return np.random.choice(op_dict[op_name]["downstream"], p=op_dict[op_name]["sample_dist"])
+    elif max(min_add_depth_filter.values()) == 0:
+        # if only certain operator sub-graphs can fit
+        filtered_ops = [op for op, diff in min_add_depth_filter if diff == 0]
+        both_filter = {k: v for k, v in min_add_op_filter.items() if k in filtered_ops}
+        if max(both_filter.values()) >= 0:
+            both_filter = [k for k, v in both_filter.items() if v == max(both_filter.values())]
+            return np.random.choice(both_filter)
+        else:
+            # cannot do anything about bounding, just complete the minimum task graph
+            return np.random.choice(op_dict[op_name]["downstream"], p=op_dict[op_name]["sample_dist"])
+    else:
+        # cannot do anything about bounding, just complete the minimum task graph
+        return np.random.choice(op_dict[op_name]["downstream"], p=op_dict[op_name]["sample_dist"])
+
+
 def sample_children_op(
         op_name: str,
         op_count: int,
@@ -221,7 +266,7 @@ def sample_children_op(
         if select_downstream is None:
             select_downstream = op_dict['Select']['downstream']
 
-        if cur_depth + 1 > max_depth or op_count + 1 > max_op:
+        if cur_depth + 2 > max_depth or op_count + 2 > max_op:
             return ['None' for _ in range(n_downstream)]
         else:
             if select_op:  # if select at least one operator for select attribute
@@ -273,7 +318,7 @@ def branch_generator(
         children = sample_children_op(op_name=root_op,
                                       op_count=op_count + 1,
                                       max_op=max_op,
-                                      cur_depth=cur_depth,
+                                      cur_depth=cur_depth + 1,
                                       max_depth=max_depth,
                                       select_op=select_op,
                                       select_downstream=select_downstream)
