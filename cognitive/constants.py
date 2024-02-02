@@ -29,7 +29,7 @@ import numpy as np
 import pandas as pd
 from PIL import Image
 from collections import OrderedDict
-import pickle5 as pickle
+import pickle as pickle
 
 # average memory duration: how many frames each object can be retained in the memory
 AVG_MEM = 3
