@@ -25,7 +25,6 @@ from typing import Tuple, Union, List
 GRAPH_TUPLE = Tuple[nx.DiGraph, int, int]
 TASK = Tuple[Union[tg.Operator, sg.Attribute], tg.TemporalTask]
 
-
 # root_ops are the operators to begin a task
 # root_ops = ["GetCategory", "GetLoc", "GetViewAngle", "GetObject", "Exist", "IsSame", "And"]
 root_ops = ["IsSame", "And", "Exist", "Or"]
@@ -33,9 +32,9 @@ boolean_ops = ["Exist", "IsSame", "And", "Or"]
 boolean_ops.remove('Exist')
 root_ops.remove('Exist')
 # uncomment to add ops
-root_ops += ["NotSame",]
-boolean_ops += ["NotSame"]
-# todo: haven't implement OR and XOR operator
+root_ops += ["NotSame", "Or"]
+# root_ops = ["Or"]
+boolean_ops += ["NotSame", "Or"]
 
 # all tasks end with select
 leaf_op = ["Select"]
@@ -103,18 +102,20 @@ op_dict = {"Select":
                 "same_children_op": True,
                 },
 
-            "And":
-                {"n_downstream": 2,
-                "downstream": ["IsSame", "And", "Or"],
-                "sample_dist": [1/3, 1/3, 1/3],
+           "And":
+               {"n_downstream": 2,
+                "downstream": ["IsSame", "NotSame", "And", "Or"],
+                # "sample_dist": [0.8, 0.2],
+                "sample_dist": [0.4, 0.4, 0.1, 0.1],
                 "same_children_op": False,
                 },
             "Or":
                 {"n_downstream": 2,
                 # "downstream": ["Exist", "IsSame", "NotSame", "And", "Or", "Xor"],
-                "downstream": ["IsSame", "And", "Or"],
+                "downstream": ["IsSame", "NotSame", "And", "Or"],
                 # "sample_dist": [1 / 3, 1 / 3, 1 / 3, 0, 0, 0],
-                "sample_dist":[1/3,1/3,1/3],
+                # "sample_dist": [1 / 5, 1 / 5, 1 / 5, 1 / 5, 1 / 5],
+                "sample_dist": [0.4, 0.4, 0.1, 0.1],
                 "same_children_op": False
                 },
             "Xor":
@@ -122,7 +123,7 @@ op_dict = {"Select":
                 # "downstream": ["Exist", "IsSame", "NotSame", "And", "Or", "Xor"],
                 "downstream": ["IsSame", "NotSame", "And", "Or", "Xor"],
                 # "sample_dist": [1 / 3, 1 / 3, 1 / 3, 0, 0, 0],
-                "sample_dist":[1/5,1/5,1/5,1/5,1/5],
+                "sample_dist": [1 / 5, 1 / 5, 1 / 5, 1 / 5, 1 / 5],
                 "same_children_op": False
                 },
 
@@ -239,12 +240,12 @@ def branch_generator(G: nx.DiGraph,
 
         depth += 1  # increment depth count
         parent = op_count
-        if root_op == 'IsSame' and all(
-                op == 'CONST' for op in children):
-            # make sure we are not comparing two constants in IsSame
-            downstream = op_dict['IsSame']['downstream'].copy()
-            downstream.remove('CONST')
-            children[0] = random.choice(downstream)  # add a Get op to compare with the constant
+        if root_op in ['IsSame', 'Or', 'NotSame']:
+            if all(op == 'CONST' for op in children):
+                # make sure we are not comparing two constants in IsSame
+                downstream = op_dict['IsSame']['downstream'].copy()
+                downstream.remove('CONST')
+                children[0] = random.choice(downstream)  # add a Get op to compare with the constant
 
         for op in children:  # loop over sampled children and modify the graph in place
             if op != 'None':  # if the operator is an operator
@@ -368,7 +369,8 @@ def write_task_instance(G_tuple: GRAPH_TUPLE, task: TASK, write_fp: str):
     return None
 
 
-def write_trial_instance(task: tg.TemporalTask, write_fp: str, img_size=224, fixation_cue=True, train=True, is_instruction = True, external_instruction = None) -> None:
+def write_trial_instance(task: tg.TemporalTask, write_fp: str, img_size=224, fixation_cue=True, train=True,
+                         is_instruction=True, external_instruction=None) -> None:
     # TODO: drawing the frames is slow!
     # save the actual generated frames into another folder
     if os.path.exists(write_fp):
@@ -386,12 +388,12 @@ def write_trial_instance(task: tg.TemporalTask, write_fp: str, img_size=224, fix
         filename = os.path.join(write_fp, f'epoch{i}.png')
         # this is slow!
         img.save(filename)
-    _, compo_example = compo_info.get_examples(is_instruction = is_instruction, external_instruction = external_instruction) # xlei: orginally have three outputs
+    _, compo_example = compo_info.get_examples(is_instruction=is_instruction,
+                                               external_instruction=external_instruction)  # xlei: orginally have three outputs
     filename = os.path.join(write_fp, 'trial_info')
     with open(filename, 'w') as f:
         json.dump(compo_example, f, indent=4)
     return
-
 
 # if __name__ == '__main__':
 #     args = get_args()
