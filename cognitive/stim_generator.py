@@ -38,7 +38,6 @@ from typing import List
 
 import numpy as np
 import cv2 as cv2
-import tensorflow as tf
 
 from cognitive import constants as const
 
@@ -825,13 +824,12 @@ def render_obj(canvas, obj, img_size):
         render_static_obj(canvas, obj.to_static()[0], img_size)
 
 
-def render(objsets, img_size=224, save_name=None):
+def render(objsets, img_size=224):
     """Render a movie by epoch.
 
     Args:
       objsets: an ObjsetSet instance or a list of them
       img_size: int, size of image (both x and y)
-      save_name: if not None, save movie at save_name
 
     Returns:
       movie: numpy array (n_time, img_size, img_size, 3)
@@ -855,11 +853,6 @@ def render(objsets, img_size=224, save_name=None):
             for obj in subset:
                 render_obj(canvas, obj, img_size)
             i_frame += 1
-
-    if save_name is not None:
-        t_total = n_objset * n_epoch_max * 1.0  # need fps >= 1
-        save_movie(movie, save_name, t_total)
-
     return movie
 
 
@@ -1102,11 +1095,3 @@ def another_grid_space(space):
     keys.remove(key)
     new_key = random.choice(keys)
     return Space(const.DATA.grid[new_key])
-
-
-def main(argv):
-    del argv  # Unused.
-
-
-if __name__ == '__main__':
-    tf.app.run(main)

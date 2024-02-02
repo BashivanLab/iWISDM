@@ -20,16 +20,11 @@ from __future__ import print_function
 
 from collections import OrderedDict
 import random
-import tensorflow.compat.v1 as tf
 
 from cognitive import stim_generator as sg
 from cognitive import task_generator as tg
 from cognitive.task_generator import TemporalTask
 from cognitive import constants as const
-
-FLAGS = tf.app.flags.FLAGS
-
-tf.app.flags.DEFINE_string('task_family', 'all', 'name of the task to be trained')
 
 GLOBAL_SEED = None
 

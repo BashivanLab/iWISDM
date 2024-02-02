@@ -24,7 +24,6 @@ import itertools
 import multiprocessing
 from multiprocessing import Pool
 import numpy as np
-import tensorflow.compat.v1 as tf
 
 from cognitive import stim_generator as sg
 from cognitive import task_generator as tg

@@ -33,7 +33,7 @@ boolean_ops.remove('Exist')
 root_ops.remove('Exist')
 # uncomment to add ops
 root_ops += ["NotSame", "Or"]
-# root_ops = ["Or"]
+root_ops = ["Or"]
 boolean_ops += ["NotSame", "Or"]
 
 # all tasks end with select
@@ -45,63 +45,62 @@ mid_op = ["Switch"]
 # 4 operators are related to Select: category, location, view_angle, and the exact object
 # if the operator is None, then a random constant is sampled for that attribute
 op_dict = {"Select":
-            {"n_downstream": 4,
-            # "downstream": ["GetCategory", "GetLoc", "GetViewAngle", "GetObject", "None"],
-            "downstream": ["GetLoc", "GetCategory", "GetObject"],
-            # "downstream": ["GetCategory", "GetObject"],
-            # "sample_dist": [0,1,0,0,0],
-            # "sample_dist": [0.5,0.5],
-            # "sample_dist": [0.7,0.15,0.15],
-            # "sample_dist": [0,0,1],
-            "sample_dist": [1/3,1/3,1/3],
-            # "sample_dist": [0.90,0.1],
-            "same_children_op": False
-            },
-            "GetCategory":
-                {"n_downstream": 1,
+               {"n_downstream": 4,
+                # "downstream": ["GetCategory", "GetLoc", "GetViewAngle", "GetObject", "None"],
+                "downstream": ["GetLoc", "GetCategory", "GetObject"],
+                # "downstream": ["GetCategory", "GetObject"],
+                # "sample_dist": [0,1,0,0,0],
+                # "sample_dist": [0.5,0.5],
+                # "sample_dist": [0.7,0.15,0.15],
+                # "sample_dist": [0,0,1],
+                "sample_dist": [1 / 3, 1 / 3, 1 / 3],
+                # "sample_dist": [0.90,0.1],
+                "same_children_op": False
+                },
+           "GetCategory":
+               {"n_downstream": 1,
                 "downstream": ["Select"],
                 "sample_dist": [1]
                 },
-            "GetLoc":
-                {"n_downstream": 1,
+           "GetLoc":
+               {"n_downstream": 1,
                 "downstream": ["Select"],
                 "sample_dist": [1]
                 },
-            #    "GetViewAngle":
-            #        {"n_downstream": 1,
-            #         "downstream": ["Select"],
-            #         "sample_dist": [1]
-            #         },
-            "GetObject":
-                {"n_downstream": 1,
+           #    "GetViewAngle":
+           #        {"n_downstream": 1,
+           #         "downstream": ["Select"],
+           #         "sample_dist": [1]
+           #         },
+           "GetObject":
+               {"n_downstream": 1,
                 "downstream": ["Select"],
                 "sample_dist": [1]
-            },
-            "IsSame":
-                {"n_downstream": 2,
+                },
+           "IsSame":
+               {"n_downstream": 2,
                 # "downstream": ["GetCategory", "GetLoc", "GetViewAngle", "GetObject", "CONST"],
                 "downstream": ["GetLoc", "GetCategory", "GetObject"],
                 # "downstream": ["GetCategory", "GetObject"],
                 # "sample_dist": [0, 1, 0, 0, 0],
                 # "sample_dist": [0.45,0.45,0.1],
-                "sample_dist": [1/3,1/3,1/3],
+                "sample_dist": [1 / 3, 1 / 3, 1 / 3],
                 # "sample_dist": [0.90,0.1],
                 # "sample_dist": [0,0,1],
                 "same_children_op": True  # same downstream op
                 },
-            "NotSame":
-                {"n_downstream": 2,
+           "NotSame":
+               {"n_downstream": 2,
                 # "downstream": ["GetCategory", "GetLoc", "GetViewAngle", "GetObject"],
                 "downstream": ["GetLoc", "GetCategory", "GetObject"],
                 # "downstream": ["GetCategory", "GetObject"],
                 # "sample_dist": [1 / 4, 1 / 4, 1 / 4, 1 / 4],
                 # "sample_dist": [0.45,0.45,0.1],
-                "sample_dist": [1/3,1/3,1/3],
+                "sample_dist": [1 / 3, 1 / 3, 1 / 3],
                 # "sample_dist": [0,0,1],
                 # "sample_dist": [0.90,0.1],
                 "same_children_op": True,
                 },
-
            "And":
                {"n_downstream": 2,
                 "downstream": ["IsSame", "NotSame", "And", "Or"],
@@ -109,8 +108,8 @@ op_dict = {"Select":
                 "sample_dist": [0.4, 0.4, 0.1, 0.1],
                 "same_children_op": False,
                 },
-            "Or":
-                {"n_downstream": 2,
+           "Or":
+               {"n_downstream": 2,
                 # "downstream": ["Exist", "IsSame", "NotSame", "And", "Or", "Xor"],
                 "downstream": ["IsSame", "NotSame", "And", "Or"],
                 # "sample_dist": [1 / 3, 1 / 3, 1 / 3, 0, 0, 0],
@@ -118,15 +117,14 @@ op_dict = {"Select":
                 "sample_dist": [0.4, 0.4, 0.1, 0.1],
                 "same_children_op": False
                 },
-            "Xor":
-                {"n_downstream": 2,
+           "Xor":
+               {"n_downstream": 2,
                 # "downstream": ["Exist", "IsSame", "NotSame", "And", "Or", "Xor"],
                 "downstream": ["IsSame", "NotSame", "And", "Or", "Xor"],
                 # "sample_dist": [1 / 3, 1 / 3, 1 / 3, 0, 0, 0],
                 "sample_dist": [1 / 5, 1 / 5, 1 / 5, 1 / 5, 1 / 5],
                 "same_children_op": False
                 },
-
            }
 op_dict = defaultdict(dict, **op_dict)
 

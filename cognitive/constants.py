@@ -117,7 +117,6 @@ class Data:
         self.INVALID = 'invalid'
 
         # Allowed vocabulary, the first word is invalid
-
         self.INPUTVOCABULARY = [
                                    'invalid',
                                    '.', ',', '?',
@@ -145,9 +144,9 @@ class Data:
     def get_shapenet_object(self, obj, obj_size, training_path=None, validation_path=None):
         # sample stimuli that satisfies the properties specified by obj dictionary
         if not self.train:
+            # find validation image dataset folder
             if validation_path is None:
                 if self.valid_image_path is None:
-
                     valids = [fname for fname in glob.glob(f'{self.dir_path}/**/validation', recursive=True)]
                     if valids:
                         if os.path.isdir(valids[0]):
@@ -158,6 +157,7 @@ class Data:
                 self.valid_image_path = validation_path
             image_path = self.valid_image_path
         else:
+            # find train image dataset folder
             if training_path is None:
                 if self.train_image_path is None:
                     trains = [fname for fname in glob.glob(f'{self.dir_path}/**/train', recursive=True)]

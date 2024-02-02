@@ -926,7 +926,6 @@ class Or(Operator):
                 op1_assign, op2_assign = True, True
         else:
             op1_assign, op2_assign = False, False
-
         return op1_assign, op2_assign
 
 
@@ -1055,7 +1054,8 @@ class Task(object):
                 inputs = node.get_expected_input(should_be, objset, epoch_now)
                 objset = inputs[0]
                 inputs = inputs[1:]
-            elif isinstance(node, IsSame) or isinstance(node, And) or isinstance(node, NotSame):
+            elif (isinstance(node, IsSame) or isinstance(node, NotSame)
+                  or isinstance(node, And) or isinstance(node, Or)):
                 inputs = node.get_expected_input(should_be, objset, epoch_now)
             else:
                 inputs = node.get_expected_input(should_be)
