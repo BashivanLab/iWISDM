@@ -128,6 +128,52 @@ class UtilTest(unittest.TestCase):
             write_fp='/Users/markbai/Documents/COG_v3_shapenet/test/trial'
         )
 
+    def test_subtask_complexity(self):
+        const.DATA = const.Data(
+            dir_path='/Users/markbai/Documents/COG_v3_shapenet/data/new_shapenet_val/',
+            train=False
+        )
+        op_name = 'And'
+        op_count = 11
+        max_op = 20
+        cur_depth = 7
+        max_depth = 10
+        child_ops = [util.sample_children_helper(
+            op_name=op_name,
+            op_count=op_count,
+            max_op=max_op,
+            cur_depth=cur_depth,
+            max_depth=max_depth
+        ) for _ in range(100)]
+        self.assertTrue(all(op in ['IsSame', 'NotSame'] for op in child_ops))
+        max_op, max_depth = 30, 5
+        tasks = [util.task_generator(
+            max_switch=0,
+            switch_threshold=0,
+            max_op=max_op,
+            max_depth=max_depth,
+            select_limit=True
+        )[1]
+                 for _ in range(100)]
+        op_count = [util.count_depth_and_op(t[0])[0] for t in tasks]
+        depth_count = [util.count_depth_and_op(t[0])[1] for t in tasks]
+        self.assertTrue(max(op_count) <= max_op)
+        self.assertTrue(max(depth_count) <= max_depth)
+
+        max_op, max_depth = 100, 9
+        tasks = [util.task_generator(
+            max_switch=0,
+            switch_threshold=0,
+            max_op=max_op,
+            max_depth=max_depth,
+            select_limit=True
+        )[1]
+                 for _ in range(100)]
+        op_count = [util.count_depth_and_op(t[0])[0] for t in tasks]
+        depth_count = [util.count_depth_and_op(t[0])[1] for t in tasks]
+        self.assertTrue(max(op_count) <= max_op)
+        self.assertTrue(max(depth_count) <= max_depth)
+
 
 if __name__ == '__main__':
     unittest.main()

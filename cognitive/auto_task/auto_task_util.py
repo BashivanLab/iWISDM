@@ -27,8 +27,8 @@ TASK = Tuple[Union[tg.Operator, sg.Attribute], tg.TemporalTask]
 
 # root_ops are the operators to begin a task
 # root_ops = ["GetCategory", "GetLoc", "GetViewAngle", "GetObject", "Exist", "IsSame", "And"]
-root_ops = ["IsSame", "And", "Or", "Exist", ]
-boolean_ops = ["IsSame", "And", "Or", "Exist", ]
+root_ops = ["IsSame", "And", "Or", "Exist", "NotSame", ]
+boolean_ops = ["IsSame", "And", "Or", "Exist", "NotSame"]
 
 # all tasks end with select
 leaf_op = ["Select"]
@@ -37,8 +37,6 @@ mid_op = ["Switch"]
 # uncomment to add/remove ops
 boolean_ops.remove('Exist')
 root_ops.remove('Exist')
-root_ops += ["NotSame", "Or"]
-boolean_ops += ["NotSame", "Or"]
 
 # dictionary specifying which operators can follow an operator,
 # e.g. GetCategory follows selecting an object
@@ -58,32 +56,32 @@ op_dict = {
             "sample_dist": [1 / 3, 1 / 3, 1 / 3],
             # "sample_dist": [0.90,0.1],
             "same_children_op": False,
-            "min_depth": 0,
-            "min_op": 0,
+            "min_depth": 1,
+            "min_op": 1,
         },
     "GetCategory":
         {
             "n_downstream": 1,
             "downstream": ["Select"],
             "sample_dist": [1],
-            "min_depth": 1,
-            "min_op": 1,
+            "min_depth": 2,
+            "min_op": 2,
         },
     "GetLoc":
         {
             "n_downstream": 1,
             "downstream": ["Select"],
             "sample_dist": [1],
-            "min_depth": 1,
-            "min_op": 1,
+            "min_depth": 2,
+            "min_op": 2,
         },
     "GetObject":
         {
             "n_downstream": 1,
             "downstream": ["Select"],
             "sample_dist": [1],
-            "min_depth": 1,
-            "min_op": 1,
+            "min_depth": 2,
+            "min_op": 2,
         },
     "IsSame":
         {
@@ -97,8 +95,8 @@ op_dict = {
             # "sample_dist": [0.90,0.1],
             # "sample_dist": [0,0,1],
             "same_children_op": True,  # same downstream op
-            "min_depth": 2,
-            "min_op": 6,
+            "min_depth": 3,
+            "min_op": 7,
         },
     "NotSame":
         {
@@ -112,18 +110,18 @@ op_dict = {
             # "sample_dist": [0,0,1],
             # "sample_dist": [0.90,0.1],
             "same_children_op": True,
-            "min_depth": 2,
-            "min_op": 6,
+            "min_depth": 3,
+            "min_op": 7,
         },
     "And":
         {
             "n_downstream": 2,
             "downstream": ["IsSame", "NotSame", "And", "Or"],
             # "sample_dist": [0.8, 0.2],
-            "sample_dist": [0.4, 0.4, 0.1, 0.1],
+            "sample_dist": [0.5, 0.5, 0, 0],
             "same_children_op": False,
-            "min_depth": 3,
-            "min_op": 14,
+            "min_depth": 4,
+            "min_op": 15,
         },
     "Or":
         {
@@ -132,10 +130,10 @@ op_dict = {
             "downstream": ["IsSame", "NotSame", "And", "Or"],
             # "sample_dist": [1 / 3, 1 / 3, 1 / 3, 0, 0, 0],
             # "sample_dist": [1 / 5, 1 / 5, 1 / 5, 1 / 5, 1 / 5],
-            "sample_dist": [0.4, 0.4, 0.1, 0.1],
+            "sample_dist": [0.5, 0.5, 0, 0],
             "same_children_op": False,
-            "min_depth": 3,
-            "min_op": 14,
+            "min_depth": 4,
+            "min_op": 15,
         },
     # "Xor":
     #     {
@@ -165,32 +163,40 @@ op_operators_limit = {k: v['min_op'] for k, v in op_dict.items()}
 #     op_dict[op]['downstream'] = ["Exist", "IsSame", "NotSame", "And", "Or", "Xor"],
 #     op_dict[op]['sample_dist'] = "sample_dist": [1 / 3, 1 / 3, 1 / 3, 0, 0, 0]
 
+def count_depth_and_op(op):
+    op_count, depth_count = 0, 0
+    if not isinstance(op, tg.Operator):
+        return op_count, depth_count
+    if op.child:
+        depth_counts = list()
+        for c in op.child:
+            add_count = count_depth_and_op(c)
+            op_count += add_count[0]
+            depth_counts += [add_count[1]]
+        depth_count += max(depth_counts)
+    else:
+        return 1, 1
+    op_count += 1
+    depth_count += 1
+    return op_count, depth_count
+
 
 def sample_root_helper(max_op, max_depth):
-    depth_filter = [op for op, v in op_depth_limit.items() if (v + 1 <= max_depth) and (op in root_ops)]
-    both_filter = [op for op in depth_filter if op_operators_limit[op] + 1 <= max_op]
+    depth_filter = [op for op, v in op_depth_limit.items() if (v <= max_depth) and (op in root_ops)]
+    both_filter = [op for op in depth_filter if op_operators_limit[op] <= max_op]
+    if not both_filter:
+        depth = {op: v for op, v, in op_depth_limit.items() if op in root_ops}
+        root_op = {op: v for op, v, in op_operators_limit.items() if op in root_ops}
+        raise ValueError(f'The specified task complexity is too low given the available root operators\n'
+                         f'The minimum depth of the specified root operators is: {depth}\n'
+                         f'The minimum depth of the specified root operators is: {root_op}')
     return np.random.choice(both_filter)
 
 
 def sample_children_helper(op_name, op_count, max_op, cur_depth, max_depth):
     """
-    helper function to ensure the task graph is not too complex, and return the child operator
-    :param op_name: the current operator
-    :param op_count: the current number of operators
-    :param max_op: the maximum number of operators allowed
-    :param cur_depth: the current depth
-    :param max_depth: the maximum depth of the task graph
-    :return: a randomly sampled operator to follow the parent node
-    """
-    if cur_depth + 1 > max_depth or op_count + 4 > max_op or op_name == 'And':  # this prevents very complicated tasks
-        return np.random.choice(op_dict[op_name]["downstream"], p=op_dict[op_name]["sample_dist"])
-    else:
-        return np.random.choice(op_dict[op_name]["downstream"])
-
-
-def sample_children_helper(op_name, op_count, max_op, cur_depth, max_depth):
-    """
     helper function to ensure the task complexity is bounded, and return the sampled child operator
+    max_depth is a tighter bound than max_op since operators have to complete their subtask graph
     :param op_name: the current operator
     :param op_count: the current number of operators
     :param max_op: the maximum number of operators allowed
@@ -200,34 +206,33 @@ def sample_children_helper(op_name, op_count, max_op, cur_depth, max_depth):
     """
 
     downstream_ops = op_dict[op_name]["downstream"]
-    min_add_depth_filter = {op: (max_depth - (cur_depth + op_depth_limit[op])) for op in downstream_ops if
+    min_add_depth_filter = {op: (max_depth - (cur_depth + op_depth_limit[op] - 1)) for op in downstream_ops if
                             (cur_depth + op_depth_limit[op] <= max_depth)}
     min_add_op_filter = {op: (max_op - (op_count + op_operators_limit[op])) for op in downstream_ops if
                          (op_count + op_operators_limit[op] <= max_op)}
 
     if max(min_add_depth_filter.values()) > 0:
         # if added operator sub-graph can fit and have left over depth
-        filtered_ops = [op for op, diff in min_add_depth_filter if diff > 0]
+        filtered_ops = [op for op, diff in min_add_depth_filter.items() if diff > 0]
         both_filter = {k: v for k, v in min_add_op_filter.items() if k in filtered_ops}
-        if max(both_filter.values()) > 0:
-            both_filter = [k for k, v in both_filter.items() if v > 0]
-            return np.random.choice(both_filter)
-        elif max(both_filter.values()) == 0:
-            both_filter = [k for k, v in both_filter.items() if v == 0]
-            return np.random.choice(both_filter)
-        else:
-            # cannot do anything about bounding, just complete the minimum task graph
-            return np.random.choice(op_dict[op_name]["downstream"], p=op_dict[op_name]["sample_dist"])
+        if both_filter:
+            if max(both_filter.values()) > 0:
+                both_filter = [k for k, v in both_filter.items() if v > 0]
+                return np.random.choice(both_filter)
+            elif max(both_filter.values()) == 0:
+                both_filter = [k for k, v in both_filter.items() if v == 0]
+                return np.random.choice(both_filter)
+        return np.random.choice(op_dict[op_name]["downstream"], p=op_dict[op_name]["sample_dist"])
     elif max(min_add_depth_filter.values()) == 0:
         # if only certain operator sub-graphs can fit
-        filtered_ops = [op for op, diff in min_add_depth_filter if diff == 0]
+        filtered_ops = [op for op, diff in min_add_depth_filter.items() if diff == 0]
         both_filter = {k: v for k, v in min_add_op_filter.items() if k in filtered_ops}
-        if max(both_filter.values()) >= 0:
-            both_filter = [k for k, v in both_filter.items() if v == max(both_filter.values())]
-            return np.random.choice(both_filter)
-        else:
-            # cannot do anything about bounding, just complete the minimum task graph
-            return np.random.choice(op_dict[op_name]["downstream"], p=op_dict[op_name]["sample_dist"])
+        if both_filter:
+            if max(both_filter.values()) >= 0:
+                both_filter = [k for k, v in both_filter.items() if v == max(both_filter.values())]
+                return np.random.choice(both_filter)
+        # cannot do anything about bounding, just complete the minimum task graph
+        return np.random.choice(op_dict[op_name]["downstream"], p=op_dict[op_name]["sample_dist"])
     else:
         # cannot do anything about bounding, just complete the minimum task graph
         return np.random.choice(op_dict[op_name]["downstream"], p=op_dict[op_name]["sample_dist"])
@@ -265,7 +270,6 @@ def sample_children_op(
 
         if select_downstream is None:
             select_downstream = op_dict['Select']['downstream']
-
         if cur_depth + 2 > max_depth or op_count + 2 > max_op:
             return ['None' for _ in range(n_downstream)]
         else:
@@ -312,23 +316,25 @@ def branch_generator(
     elif root_op == 'CONST':
         return op_count  # don't add any nodes or edges
     else:
-        # exist always follows a select with operator as child
+        # Exist operator always follows a select with operator as child
         select_op = True if root_op == 'Exist' else select_op
 
-        children = sample_children_op(op_name=root_op,
-                                      op_count=op_count + 1,
-                                      max_op=max_op,
-                                      cur_depth=cur_depth + 1,
-                                      max_depth=max_depth,
-                                      select_op=select_op,
-                                      select_downstream=select_downstream)
+        children = sample_children_op(
+            op_name=root_op,
+            op_count=op_count + 1,
+            max_op=max_op,
+            cur_depth=cur_depth + 1,
+            max_depth=max_depth,
+            select_op=select_op,
+            select_downstream=select_downstream
+        )
+        cur_depth += 1  # increment cur_depth count
 
         if root_op == 'Select' and any('Get' in c for c in children):
             # stop generating overly complex tasks where selects with operator children follow more operators
             select_downstream = ['None'] * 4
             select_op = False
 
-        cur_depth += 1  # increment cur_depth count
         parent = op_count
         if root_op in ['IsSame', 'Or', 'NotSame']:
             if all(op == 'CONST' for op in children):
@@ -367,12 +373,12 @@ def subtask_graph_generator(count=0, max_op=20, max_depth=10, select_limit=False
 
     op_count = count
 
-    root_op = root_op if root_op else random.choice(root_ops)
+    root_op = root_op if root_op else sample_root_helper(max_op, max_depth)
     G.add_node(op_count, label=root_op)
 
     select_downstream = ['None'] * 4 if select_limit else None
 
-    op_count = branch_generator(G, root_op, op_count, max_op, 1, max_depth,
+    op_count = branch_generator(G, root_op, op_count, max_op, 0, max_depth,
                                 select_downstream=select_downstream)
     return G, root, op_count
 
@@ -388,7 +394,7 @@ def task_generator(
     """
     function to generate a random task graph and corresponding task
     :param max_switch: the maximum number of switch operators allowed
-    :param switch_threshold: how likely a switch operator is sampled
+    :param switch_threshold: float in [0,1], how likely a switch operator is sampled, higher is more likely
     :param max_op: max number of operators allowed
     :param max_depth: max depth of the task graph
     :param select_limit: whether to add operator after selects. if True, then constants are sampled.
