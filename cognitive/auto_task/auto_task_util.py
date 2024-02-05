@@ -98,7 +98,7 @@ op_dict = {
         {
             "n_downstream": 2,
             # "downstream": ["GetCategory", "GetLoc", "GetViewAngle", "GetObject"],
-            "downstream": ["GetLoc", "GetCategory", "GetObject"],
+            "downstream": ["GetLoc", "GetCategory", "GetObject", "CONST"],
             # "downstream": ["GetCategory", "GetObject"],
             # "sample_dist": [1 / 4, 1 / 4, 1 / 4, 1 / 4],
             # "sample_dist": [0.45,0.45,0.1],

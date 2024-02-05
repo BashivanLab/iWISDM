@@ -41,7 +41,7 @@ BOOLEAN_OUT_OPS = ['IsSame', 'Exist', 'And', 'Or', 'Xor', 'NotSame']
 
 # attributes available for given dataset (shapenet)
 # need to be updated if other datasets are used
-ATTRS = ['object', 'view_angle', 'category', 'loc']
+ATTRS = ['object', 'view_angle', 'category', 'location']
 
 
 def compare_when(when_list):
@@ -122,7 +122,7 @@ class Data:
                                    'invalid',
                                    '.', ',', '?',
                                    'object', 'color', 'shape',
-                                   'loc', 'on',
+                                   'location', 'on',
                                    'if', 'then', 'else',
                                    'exist',
                                    'equal', 'and',
