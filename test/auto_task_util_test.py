@@ -146,6 +146,7 @@ class UtilTest(unittest.TestCase):
             max_depth=max_depth
         ) for _ in range(100)]
         self.assertTrue(all(op in ['IsSame', 'NotSame'] for op in child_ops))
+
         max_op, max_depth = 30, 5
         tasks = [util.task_generator(
             max_switch=0,

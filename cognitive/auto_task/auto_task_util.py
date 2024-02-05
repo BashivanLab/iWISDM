@@ -27,16 +27,12 @@ TASK = Tuple[Union[tg.Operator, sg.Attribute], tg.TemporalTask]
 
 # root_ops are the operators to begin a task
 # root_ops = ["GetCategory", "GetLoc", "GetViewAngle", "GetObject", "Exist", "IsSame", "And"]
-root_ops = ["IsSame", "And", "Or", "Exist", "NotSame", ]
-boolean_ops = ["IsSame", "And", "Or", "Exist", "NotSame"]
+root_ops = ["IsSame", "And", "Or", "NotSame", ]
+boolean_ops = ["IsSame", "And", "Or", "NotSame"]
 
 # all tasks end with select
 leaf_op = ["Select"]
 mid_op = ["Switch"]
-
-# uncomment to add/remove ops
-boolean_ops.remove('Exist')
-root_ops.remove('Exist')
 
 # dictionary specifying which operators can follow an operator,
 # e.g. GetCategory follows selecting an object
@@ -87,7 +83,7 @@ op_dict = {
         {
             "n_downstream": 2,
             # "downstream": ["GetCategory", "GetLoc", "GetViewAngle", "GetObject", "CONST"],
-            "downstream": ["GetLoc", "GetCategory", "GetObject"],
+            "downstream": ["GetLoc", "GetCategory", "GetObject", "CONST"],
             # "downstream": ["GetCategory", "GetObject"],
             # "sample_dist": [0, 1, 0, 0, 0],
             # "sample_dist": [0.45,0.45,0.1],
@@ -135,6 +131,15 @@ op_dict = {
             "min_depth": 4,
             "min_op": 15,
         },
+    "CONST":
+        {
+            "n_downstream": 0,
+            "downstream": [],
+            "sample_dist": [],
+            "same_children_op": False,
+            "min_depth": 1,
+            "min_op": 1,
+        }
     # "Xor":
     #     {
     #         "n_downstream": 2,
@@ -342,7 +347,12 @@ def branch_generator(
                 downstream = op_dict['IsSame']['downstream'].copy()
                 downstream.remove('CONST')
                 children[0] = random.choice(downstream)  # add a Get op to compare with the constant
-
+            if any(op == 'CONST' for op in children):
+                const_idx = children.index('CONST')
+                other_idx = 0 if const_idx == 1 else 1
+                # TODO: remove this check when there's mapping for object idx
+                if any(op == 'GetViewAngle' or op == 'GetObject' for op in children):
+                    children[const_idx] = children[other_idx]  # add a Get op to compare with the constant
         for op in children:  # loop over sampled children and modify the graph in place
             if op != 'None':  # if the operator is an operator
                 child = op_count + 1

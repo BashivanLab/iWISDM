@@ -135,6 +135,22 @@ class Loc(Attribute):
             return self.space == other.space
         return False
 
+    def __str__(self):
+        if len(const.DATA.grid) == 4:
+            key = const.DATA.get_grid_key(self.space)
+            if key[0] == 0:
+                if key[1] == 0:
+                    quadrant = 'top left'
+                else:
+                    quadrant = 'bottom left'
+            else:
+                if key[1] == 0:
+                    quadrant = 'top right'
+                else:
+                    quadrant = 'bottom right'
+            return 'location: ' + quadrant
+        return 'location: ' + self.value
+
     def get_space_to(self, space_type):
         if self.value is None:
             return Space(None)
@@ -235,8 +251,8 @@ class SNCategory(Attribute):
 
     def __str__(self):
         if self.attr_type in const.DATA.mods_with_mapping:
-            return 'Category: ' + const.DATA.mods_with_mapping[self.attr_type][self.value]
-        return 'Category: ' + str(self.value)
+            return 'category: ' + const.DATA.mods_with_mapping[self.attr_type][self.value]
+        return 'category: ' + str(self.value)
 
 
 class SNObject(Attribute):
@@ -254,8 +270,8 @@ class SNObject(Attribute):
 
     def __str__(self):
         if self.attr_type in const.DATA.mods_with_mapping:
-            return 'Object: ' + const.DATA.mods_with_mapping[self.attr_type][self.value]
-        return 'Object: ' + str(self.value)
+            return 'object: ' + const.DATA.mods_with_mapping[self.attr_type][self.value]
+        return 'object: ' + str(self.value)
 
     def sample(self):
         self.value = random_object(self.category).value
@@ -277,8 +293,8 @@ class SNViewAngle(Attribute):
 
     def __str__(self):
         if self.attr_type in const.DATA.mods_with_mapping:
-            return 'View Angle: ' + const.DATA.mods_with_mapping[self.attr_type][self.value]
-        return 'View Angle: ' + str(self.value)
+            return 'object: ' + const.DATA.mods_with_mapping[self.attr_type][self.value]
+        return 'object: ' + str(self.value)
 
     def sample(self):
         self.value = random_view_angle(self.object).value
@@ -300,7 +316,7 @@ class SNFixedObject(Attribute):
         self.object = sn_object
 
     def __str__(self):
-        return 'Object: ' + str(self.value)
+        return 'object: ' + str(self.value)
 
     def sample(self):
         self.value = random_view_angle(self.object).value
