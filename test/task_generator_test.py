@@ -118,6 +118,23 @@ class TaskGeneratorTest(unittest.TestCase):
             temp = objset.add(temp, epoch_now=i).copy()
         print(objset)
 
+    def testAttrStr(self):
+        const.DATA = const.Data(
+            dir_path='/Users/markbai/Documents/COG_v3_shapenet/data/new_shapenet_val/',
+            train=False
+        )
+        categories = sg.sample_category(4)
+        objects = [sg.sample_object(k=1, category=cat)[0] for cat in categories]
+        view_angles = [sg.sample_view_angle(k=1, obj=obj)[0] for obj in objects]
+
+        op1 = tg.Select(when='last2')
+        op2 = tg.Select(category=categories[1], when='last1')
+        new_task0 = tg.TemporalTask(tg.GetCategory(op1), 1)
+        objset = new_task0.generate_objset()
+
+        print(new_task0.get_target(objset))
+        new_task1 = tg.TemporalTask(tg.IsSame(tg.GetCategory(op1), tg.GetCategory(op2)), 3)
+
 
 if __name__ == '__main__':
     unittest.main()

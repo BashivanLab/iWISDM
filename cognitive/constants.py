@@ -80,6 +80,8 @@ class Data:
                                     './data/min_shapenet_easy_angle')
         self.dir_path = dir_path
         self.train = train
+        self.MAX_MEMORY = max_memory
+
         if not os.path.exists(self.dir_path):
             print('Data folder does not exist.')
         pkls = sorted([fname for fname in glob.glob(f'{dir_path}/**/*.pkl', recursive=True)])
@@ -92,22 +94,21 @@ class Data:
             self.df: pd.DataFrame = pd.read_pickle(self.fp)
         else:
             raise ValueError(f'No dataset meta information found in {dir_path}')
-        self.MOD_DICT = dict()
-        for i in self.df['ctg_mod'].unique():
-            self.MOD_DICT[int(i)] = dict()
-            for cat in self.df.loc[self.df['ctg_mod'] == i]['obj_mod'].unique():
-                self.MOD_DICT[int(i)][int(cat)] = list(
-                    map(int,
-                        list(self.df.loc[(self.df['ctg_mod'] == i) & (self.df['obj_mod'] == cat)]['ang_mod'].unique())
-                        )
-                )
-        self.MAX_MEMORY = max_memory
-        OBJECTPERCATEGORY = 14
-        CATEGORIES = 12
-        VIEW_ANGLES = 4
-        self.ID2Category = {i: None for i in range(CATEGORIES)}
-        self.ID2Object = {i: None for i in range(CATEGORIES * OBJECTPERCATEGORY)}
-        self.ID2ViewAngle = {i: None for i in range(VIEW_ANGLES)}
+        self.MOD_DICT = self.get_mod_dict()
+
+        CATEGORIES = len(self.MOD_DICT)
+        OBJECTPERCATEGORY = {cat: len(val) for cat, val in self.MOD_DICT.items()}
+        # VIEW_ANGLES = 4
+        self.mods_with_mapping = dict()
+        if 'ctg' in self.df.columns.values:
+            self.IDX2Category = dict()
+            for cat, _ in self.MOD_DICT.items():
+                labels = self.df[self.df['ctg_mod'] == cat]['ctg']
+                assert len(set(labels)) == 1, f'found more than 1 label for the cateogry {cat}'
+                self.IDX2Category[cat] = set(labels).pop()
+            self.mods_with_mapping['category'] = self.IDX2Category
+        # self.IDX2Object = {i: None for i in range(CATEGORIES * OBJECTPERCATEGORY)}
+        # self.IDX2ViewAngle = {i: None for i in range(VIEW_ANGLES)}
 
         self.ALLSPACES = ['left', 'right', 'top', 'bottom']
         self.ALLCATEGORIES = list(self.MOD_DICT.keys())
@@ -200,20 +201,17 @@ class Data:
         # all delays have equal probability
         return [1 / (self.MAX_MEMORY + 1)] * len(self.ALLWHENS)
 
-
-def get_mod_dict(df):
-    # return an exhausitive list of all possible feature combinations
-    MOD_DICT = dict()
-    for i in df['ctg_mod'].unique():
-        MOD_DICT[i] = dict()
-        for cat in df.loc[df['ctg_mod'] == i]['obj_mod'].unique():
-            MOD_DICT[i][cat] = list(df.loc[(df['ctg_mod'] == i)
-                                           & (df['obj_mod'] == cat)]['ang_mod'].unique())
-    return MOD_DICT
-
-
-# Maximum number of words in a sentence
-MAXSEQLENGTH = 25
+    def get_mod_dict(self):
+        # return an exhausitive list of all possible feature combinations
+        MOD_DICT = dict()
+        for i in self.df['ctg_mod'].unique():
+            MOD_DICT[i] = dict()
+            for cat in self.df[self.df['ctg_mod'] == i]['obj_mod'].unique():
+                MOD_DICT[i][cat] = list(map(
+                    int,
+                    self.df[(self.df['ctg_mod'] == i) & (self.df['obj_mod'] == cat)]['ang_mod'].unique()
+                ))
+        return MOD_DICT
 
 
 # If use popvec out_type

@@ -234,6 +234,8 @@ class SNCategory(Attribute):
         self.value = another_category(self).value
 
     def __str__(self):
+        if self.attr_type in const.DATA.mods_with_mapping:
+            return 'Category: ' + const.DATA.mods_with_mapping[self.attr_type][self.value]
         return 'Category: ' + str(self.value)
 
 
@@ -251,6 +253,8 @@ class SNObject(Attribute):
         return False
 
     def __str__(self):
+        if self.attr_type in const.DATA.mods_with_mapping:
+            return 'Object: ' + const.DATA.mods_with_mapping[self.attr_type][self.value]
         return 'Object: ' + str(self.value)
 
     def sample(self):
@@ -272,6 +276,8 @@ class SNViewAngle(Attribute):
         self.object = sn_object
 
     def __str__(self):
+        if self.attr_type in const.DATA.mods_with_mapping:
+            return 'View Angle: ' + const.DATA.mods_with_mapping[self.attr_type][self.value]
         return 'View Angle: ' + str(self.value)
 
     def sample(self):

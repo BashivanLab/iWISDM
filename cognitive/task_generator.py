@@ -465,9 +465,8 @@ class Get(Operator):
             # Ambiguous or non-existent
             return const.DATA.INVALID
         else:
-            if self.attr_type == 'fixed_object':
-                return getattr(objs[0], 'object')
-            return getattr(objs[0], self.attr_type)
+            attr = getattr(objs[0], self.attr_type)
+            return attr
 
     def copy(self):
         new_objs = self.objs.copy()
