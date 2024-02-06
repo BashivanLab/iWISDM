@@ -127,7 +127,7 @@ class Loc(Attribute):
         super(Loc, self).__init__(value)
         if space is None:
             space = random_grid_space()
-        self.attr_type = 'loc'
+        self.attr_type = 'location'
         self.space = space
 
     def __eq__(self, other):
@@ -429,7 +429,7 @@ class Object(object):
 
     def __str__(self):
         return ' '.join([
-            'Object:', 'loc',
+            'Object:', 'location',
             str(self.loc), 'category',
             str(self.category), 'object',
             str(self.object), 'view_angle',
@@ -1003,7 +1003,7 @@ def random_attr(attr_type) -> Attribute:
     elif attr_type == 'fixed_object':
         obj = random_object(random_category())
         return random_fixed_object(obj)
-    elif attr_type == 'loc':
+    elif attr_type == 'location':
         space = random_grid_space()
         return space.sample()
     else:
@@ -1034,9 +1034,9 @@ def another_attr(attr):
 def random_loc(n=1):
     locs = list()
     for i in range(n):
-        loc = random_attr('loc')
+        loc = random_attr('location')
         while loc in locs:
-            loc = random_attr('loc')
+            loc = random_attr('location')
         locs.append(loc)
     return locs
 

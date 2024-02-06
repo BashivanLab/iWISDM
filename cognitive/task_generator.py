@@ -312,12 +312,12 @@ class Select(Operator):
             attr_type_not_fixed = list()
 
             # First evaluate the inputs of the operator that can be evaluated
-            for attr_type in ['loc', 'category', 'object', 'view_angle']:
+            for attr_type in ['location', 'category', 'object', 'view_angle']:
                 a = getattr(self, attr_type)
                 attr = a(objset, epoch_now)
                 # If the input is successfully evaluated
                 if attr is not const.DATA.INVALID and attr.has_value:
-                    if attr_type == 'loc' and self.space_type is not None:
+                    if attr_type == 'location' and self.space_type is not None:
                         attr = attr.get_space_to(self.space_type)
                         print('space type is not none')
                     attr_new_object.append(attr)
@@ -345,7 +345,7 @@ class Select(Operator):
             # If an attribute of select is an operator, then the expected input is the value of obj
             # attr_new_object is the output for the subsequent root children
             attr_expected_in = list()
-            for attr_type in ['loc', 'category', 'object', 'view_angle']:
+            for attr_type in ['location', 'category', 'object', 'view_angle']:
                 a = getattr(self, attr_type)
                 if isinstance(a, Operator):
                     # Only operators need expected_in
@@ -363,7 +363,7 @@ class Select(Operator):
         if not should_be:
             # First determine the attributes to flip later
             attr_type_to_flip = list()
-            for attr_type in ['loc', 'category', 'object', 'view_angle']:
+            for attr_type in ['location', 'category', 'object', 'view_angle']:
                 a = getattr(self, attr_type)
                 # If attribute is operator or is a specified value
                 if isinstance(a, Operator) or a.has_value:
@@ -372,7 +372,7 @@ class Select(Operator):
             # Now generate expected input attributes
             attr_expected_in = list()
             attr_new_object = list()
-            for attr_type in ['loc', 'category', 'object', 'view_angle']:
+            for attr_type in ['location', 'category', 'object', 'view_angle']:
                 a = getattr(self, attr_type)
                 attr = a(objset, epoch_now)
                 if isinstance(a, Operator):
@@ -390,7 +390,7 @@ class Select(Operator):
             # Randomly pick one attribute to flip
             attr_type = random.choice(attr_type_to_flip)
             i = attr_type_to_flip.index(attr_type)
-            if attr_type == 'loc':
+            if attr_type == 'location':
                 # if the location of the object is determined by the loc another object
                 # e.g. Exist->Select->GetLoc->Select:
                 # check if exist object with location of a specified category/object/view_angle
@@ -402,8 +402,8 @@ class Select(Operator):
                 # Select a different attribute
                 attr_new_object[i] = sg.another_attr(attr_new_object[i])
                 # Not flipping loc, so place it in the correct direction
-                if 'loc' in attr_type_to_flip:
-                    j = attr_type_to_flip.index('loc')
+                if 'location' in attr_type_to_flip:
+                    j = attr_type_to_flip.index('location')
                     loc = attr_new_object[j]
                     attr_new_object[j] = loc.get_space_to(self.space_type)
 
@@ -483,7 +483,7 @@ class Go(Get):
     """Go to location of object."""
 
     def __init__(self, objs):
-        super(Go, self).__init__('loc', objs)
+        super(Go, self).__init__('location', objs)
 
     def __str__(self):
         return ' '.join(['point', str(self.objs)])
@@ -508,7 +508,7 @@ class GetLoc(Get):
     """Get location of object."""
 
     def __init__(self, objs):
-        super(GetLoc, self).__init__('loc', objs)
+        super(GetLoc, self).__init__('location', objs)
 
 
 class Exist(Operator):
@@ -740,8 +740,8 @@ class IsSame(Operator):
                 attr = sg.random_view_angle(obj)
                 attr1_assign = attr
                 attr2_assign = attr if should_be else sg.another_attr(attr)
-            elif self.attr_type == 'loc':
-                attr = sg.random_attr('loc')
+            elif self.attr_type == 'location':
+                attr = sg.random_attr('location')
                 attr1_assign = attr
                 attr2_assign = attr.space.sample() if should_be else sg.another_attr(attr)
             else:
@@ -832,8 +832,8 @@ class NotSame(Operator):
                 attr = sg.random_view_angle(obj)
                 attr1_assign = attr
                 attr2_assign = sg.another_attr(attr) if should_be else attr
-            elif self.attr_type == 'loc':
-                attr = sg.random_attr('loc')
+            elif self.attr_type == 'location':
+                attr = sg.random_attr('location')
                 attr1_assign = attr
                 attr2_assign = sg.another_attr(attr) if should_be else attr.space.sample()
             else:
@@ -1505,7 +1505,7 @@ get_family_dict = OrderedDict([
     ('category', GetCategory),
     ('object', GetObject),
     ('view_angle', GetViewAngle),
-    ('loc', GetLoc)
+    ('location', GetLoc)
 ])
 
 BOOL_OP = [IsSame, Exist, And, Switch]
