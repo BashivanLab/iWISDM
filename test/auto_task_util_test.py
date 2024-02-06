@@ -174,7 +174,8 @@ class UtilTest(unittest.TestCase):
         depth_count = [util.count_depth_and_op(t[0])[1] for t in tasks]
         self.assertTrue(max(depth_count) <= max_depth)
         # depth upper bound is tight, not operator bound
-
+        objsets = [task[1].generate_objset() for task in tasks]
+        print('done')
 
 if __name__ == '__main__':
     unittest.main()

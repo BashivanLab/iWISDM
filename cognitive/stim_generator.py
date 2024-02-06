@@ -16,7 +16,7 @@
 """High-level API for generating stimuli.
 
 Objects are first generated abstractly, with high-level specifications
-like loc='random'.
+like location='random'.
 Abstract relationships between objects can also be specified.
 
 All objects and relationships are then collected into a ObjectSet.
@@ -219,7 +219,7 @@ class Space(Attribute):
         return Loc(space=self, value=loc_sample)
 
     def include(self, loc):
-        """Check if an unsampled location (a space) includes a loc."""
+        """Check if an unsampled location (a space) includes a location."""
         x, y = loc.value
         return ((self._value[0][0] < x < self._value[0][1]) and
                 (self._value[1][0] < y < self._value[1][1]))
@@ -372,7 +372,7 @@ class StaticObjectSet(object):
         subset = self.dict[epoch_now]
         # Order objects by location to have a deterministic ordering.
         # Ordering determines occlusion.
-        subset.sort(key=lambda o: (o.loc, o.category, o.object, o.view_angle))
+        subset.sort(key=lambda o: (o.location, o.category, o.object, o.view_angle))
         return subset
 
 
@@ -382,7 +382,7 @@ class Object(object):
     An object is a collection of attributes.
 
     Args:
-      loc: tuple (x, y)
+      location: tuple (x, y)
       color: string ('red', 'green', 'blue', 'white')
       shape: string ('circle', 'square')
       when: string ('last', 'last1', 'last2',)
@@ -390,7 +390,7 @@ class Object(object):
         distractors.
 
     Raises:
-      TypeError if loc, color, shape are neither None nor respective Attributes
+      TypeError if location, color, shape are neither None nor respective Attributes
     """
 
     def __init__(self,
@@ -399,7 +399,7 @@ class Object(object):
                  deletable=False):
 
         self.space = random_grid_space()
-        self.loc = Loc(space=self.space, value=None)
+        self.location = Loc(space=self.space, value=None)
         self.category = SNCategory(value=None)
         self.object = SNObject(self.category, value=None)
         self.view_angle = SNViewAngle(self.object, value=None)
@@ -409,7 +409,7 @@ class Object(object):
                 if isinstance(a, Space):
                     self.space = a
                 elif isinstance(a, Loc):
-                    self.loc = a
+                    self.location = a
                     self.space = a.space
                 elif isinstance(a, SNCategory):
                     self.category = a
@@ -430,7 +430,7 @@ class Object(object):
     def __str__(self):
         return ' '.join([
             'Object:', 'location',
-            str(self.loc), 'category',
+            str(self.location), 'category',
             str(self.category), 'object',
             str(self.object), 'view_angle',
             str(self.view_angle), 'when',
@@ -501,8 +501,8 @@ class Object(object):
     def dump(self):
         """Returns representation of self suitable for dumping as json."""
         return {
-            'location': str(self.loc.value),
-            'space': const.DATA.get_grid_key(self.loc.space),
+            'location': str(self.location.value),
+            'space': const.DATA.get_grid_key(self.location.space),
             'category': int(self.category.value),
             'object': int(self.object.value),
             'view angle': int(self.view_angle.value),
@@ -513,7 +513,7 @@ class Object(object):
 
     def to_static(self):
         """Convert self to a list of StaticObjects."""
-        return [StaticObject(loc=self.loc.value,
+        return [StaticObject(loc=self.location.value,
                              category=self.category.value,
                              object=self.object.value,
                              view_angle=self.view_angle.value,
@@ -544,8 +544,8 @@ class Object(object):
         :return: deep copy of the object
         """
         new_obj = Object(attrs=[
-            Loc(space=Space(self.loc.space.value), value=self.loc.value),
-            Space(self.loc.space.value),
+            Loc(space=Space(self.location.space.value), value=self.location.value),
+            Space(self.location.space.value),
             SNCategory(self.category.value),
             SNObject(self.category, self.object.value),
             SNViewAngle(self.object, self.view_angle.value)
@@ -620,7 +620,7 @@ class ObjectSet(object):
 
         This function will attempt to add the obj if possible.
         It will not only add the object to the objset, but also instantiate the
-        attributes such as color, shape, and loc if not already instantiated.
+        attributes such as color, shape, and location if not already instantiated.
 
         Args:
           obj: an Object instance
@@ -661,9 +661,9 @@ class ObjectSet(object):
             return self.last_added_obj
 
         # instantiate the object attributes
-        if not obj.loc.has_value:
-            avoid = [o.loc.value for o in self.select_now(epoch_now)]
-            obj.loc = obj.space.sample(avoid=avoid)
+        if not obj.location.has_value:
+            avoid = [o.location.value for o in self.select_now(epoch_now)]
+            obj.location = obj.space.sample(avoid=avoid)
 
         if obj.view_angle.has_value:
             obj.object = obj.view_angle.object
@@ -726,7 +726,7 @@ class ObjectSet(object):
 
         Args:
           epoch_now: int, the current epoch
-          space: None or a Loc instance, the loc to be selected.
+          space: None or a Loc instance, the location to be selected.
           color: None or a Color instance, the color to be selected.
           shape: None or a Shape instance, the shape to be selected.
           when: None or a string, the temporal window to be selected.
@@ -781,7 +781,7 @@ class ObjectSet(object):
             subset = [o for o in subset if o.view_angle == view_angle]
 
         if space is not None and space.has_value:
-            subset = [o for o in subset if space.include(o.loc)]
+            subset = [o for o in subset if space.include(o.location)]
 
         if delete_if_can:
             for o in subset:
@@ -792,7 +792,7 @@ class ObjectSet(object):
             subset = [o for o in subset if not o.deletable]
 
         # Order objects by location to have a deterministic ordering
-        subset.sort(key=lambda o: (o.loc.value, o.category.value, o.object.value, o.view_angle.value))
+        subset.sort(key=lambda o: (o.location.value, o.category.value, o.object.value, o.view_angle.value))
 
         return subset
 
@@ -814,15 +814,15 @@ def render_static_obj(canvas, obj, img_size):
 
     # Note that OpenCV color is (Blue, Green, Red)
     center = [0, 0]
-    if obj.loc[0] < 0.5:
+    if obj.location[0] < 0.5:
         center[0] = 56
     else:
         center[0] = 168
-    if obj.loc[1] < 0.5:
+    if obj.location[1] < 0.5:
         center[1] = 56
     else:
         center[1] = 168
-    # center = (int(obj.loc[0] * img_size), int(obj.loc[1] * img_size))
+    # center = (int(obj.location[0] * img_size), int(obj.location[1] * img_size))
 
     x_offset, x_end = center[0] - radius, center[0] + radius
     y_offset, y_end = center[1] - radius, center[1] + radius

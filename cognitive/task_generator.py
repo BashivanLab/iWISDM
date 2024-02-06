@@ -140,7 +140,7 @@ class Select(Operator):
     """Selecting the objects that satisfy properties."""
 
     def __init__(self,
-                 loc=None,
+                 location=None,
                  category=None,
                  object=None,
                  view_angle=None,
@@ -152,40 +152,40 @@ class Select(Operator):
         if attrs:
             for attr in attrs:
                 if isinstance(attr, sg.Loc):
-                    loc = attr
+                    location = attr
                 elif isinstance(attr, sg.SNCategory):
                     category = attr
                 elif isinstance(attr, sg.SNObject):
                     object = attr
                 elif isinstance(attr, sg.SNViewAngle):
                     view_angle = attr
-        loc = loc or sg.Loc(space=sg.random_grid_space(), value=None)
+        location = location or sg.Loc(space=sg.random_grid_space(), value=None)
         category = category or sg.SNCategory(None)
         object = object or sg.SNObject(category, None)
         view_angle = view_angle or sg.SNViewAngle(object, None)
 
-        self.loc, self.category, self.object, self.view_angle = loc, category, object, view_angle
-        self.set_child([loc, category, object, view_angle])
+        self.location, self.category, self.object, self.view_angle = location, category, object, view_angle
+        self.set_child([location, category, object, view_angle])
 
         self.when = when
         self.space_type = space_type
 
     def __str__(self):
         return obj_str(
-            self.loc, self.category, self.object, self.view_angle, self.when, self.space_type)
+            self.location, self.category, self.object, self.view_angle, self.when, self.space_type)
 
     def __call__(self, objset, epoch_now):
         """Return subset of objset."""
-        loc = self.loc(objset, epoch_now)
+        location = self.location(objset, epoch_now)
         category = self.category(objset, epoch_now)
         object = self.object(objset, epoch_now)
         view_angle = self.view_angle(object, epoch_now)
 
-        if const.DATA.INVALID in (loc, category, object, view_angle):
+        if const.DATA.INVALID in (location, category, object, view_angle):
             return const.DATA.INVALID
 
         if self.space_type is not None:
-            space = loc.get_space_to(self.space_type)
+            space = location.get_space_to(self.space_type)
         else:
             space = sg.Space(None)
 
@@ -200,7 +200,7 @@ class Select(Operator):
         return subset
 
     def copy(self):
-        return Select(loc=self.loc, category=self.category, object=self.object, view_angle=self.view_angle,
+        return Select(location=self.location, category=self.category, object=self.object, view_angle=self.view_angle,
                       when=self.when, space_type=self.space_type)
 
     def hard_update(self, obj: sg.Object):
@@ -214,7 +214,7 @@ class Select(Operator):
         self.category = obj.category
         self.object = obj.object
         self.view_angle = obj.view_angle
-        self.loc = obj.loc
+        self.location = obj.location
         return True
 
     def soft_update(self, obj: sg.Object):
@@ -230,7 +230,7 @@ class Select(Operator):
         self.category = obj.category if self.category.has_value else self.category
         self.object = obj.object if self.object.has_value else self.object
         self.view_angle = obj.view_angle if self.view_angle.has_value else self.view_angle
-        self.loc = obj.loc if self.loc.has_value else self.loc
+        self.location = obj.location if self.location.has_value else self.location
         return True
 
     def get_expected_input(self, should_be, objset, epoch_now):
@@ -349,7 +349,7 @@ class Select(Operator):
                 a = getattr(self, attr_type)
                 if isinstance(a, Operator):
                     # Only operators need expected_in
-                    # removed checking for loc, since we're not flipping attributes
+                    # removed checking for location, since we're not flipping attributes
                     attr = getattr(obj, attr_type)
                     attr_expected_in.append(attr)
                 else:
@@ -391,21 +391,21 @@ class Select(Operator):
             attr_type = random.choice(attr_type_to_flip)
             i = attr_type_to_flip.index(attr_type)
             if attr_type == 'location':
-                # if the location of the object is determined by the loc another object
+                # if the location of the object is determined by the location another object
                 # e.g. Exist->Select->GetLoc->Select:
                 # check if exist object with location of a specified category/object/view_angle
 
                 # If flip location, place it in the opposite direction
-                loc = attr_new_object[i]
-                attr_new_object[i] = loc.get_opposite_space_to(self.space_type)
+                location = attr_new_object[i]
+                attr_new_object[i] = location.get_opposite_space_to(self.space_type)
             else:
                 # Select a different attribute
                 attr_new_object[i] = sg.another_attr(attr_new_object[i])
-                # Not flipping loc, so place it in the correct direction
+                # Not flipping location, so place it in the correct direction
                 if 'location' in attr_type_to_flip:
                     j = attr_type_to_flip.index('location')
-                    loc = attr_new_object[j]
-                    attr_new_object[j] = loc.get_space_to(self.space_type)
+                    location = attr_new_object[j]
+                    attr_new_object[j] = location.get_space_to(self.space_type)
 
             # Add an object based on these attributes
             obj = sg.Object(attr_new_object, when=self.when)
@@ -425,7 +425,7 @@ class Get(Operator):
         """Get attribute of an object.
 
         Args:
-          attr_type: string, color, shape, or loc. The type of attribute to get.
+          attr_type: string, color, shape, or location. The type of attribute to get.
           objs: Operator instance or Object instance
         """
         super(Get, self).__init__()
@@ -1248,6 +1248,7 @@ class TemporalTask(Task):
 
         self.avg_mem = average_memory_span
         n_epoch = self.n_frames
+        const.DATA.MAX_MEMORY = n_epoch
         # update n_max_backtrack to average_memory space instead of times 3
         n_max_backtrack = int(average_memory_span)  # why do this conversion? waste of time?
         objset = sg.ObjectSet(n_epoch=n_epoch, n_max_backtrack=n_max_backtrack)
