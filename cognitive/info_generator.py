@@ -331,7 +331,7 @@ class TaskInfoCompo(object):
                 frame_obj: sg.Object
                 for frame_obj in frame.objs:
                     if frame_obj.compare_attrs(obj, ['object', 'view_angle', 'category']):
-                        obj.loc = frame_obj.loc
+                        obj.location = frame_obj.location
         return objset
 
     def __len__(self):

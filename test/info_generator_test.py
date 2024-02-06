@@ -58,7 +58,7 @@ class InfoGeneratorTest(unittest.TestCase):
         compo_info_2 = ig.TaskInfoCompo(new_task2, fi2)
 
         compo_info.merge(compo_info_2, reuse=1)
-        self.assertTrue(all(obj1.compare_attrs(obj2, ['color', 'shape', 'loc'])
+        self.assertTrue(all(obj1.compare_attrs(obj2, ['color', 'shape', 'location'])
                             for obj1, obj2 in zip(compo_info.task_objset[1].set, compo_info.frame_info[1].objs)))
 
     def testChangeTaskObjset(self):
@@ -100,7 +100,7 @@ class InfoGeneratorTest(unittest.TestCase):
         for changed_obj, ori_obj in zip(changed_objset, ori_objset):
             self.assertEqual(changed_obj.shape, ori_obj.shape)
             self.assertEqual(changed_obj.color, ori_obj.color)
-            self.assertIn(changed_obj.loc, [loc1, loc2])
+            self.assertIn(changed_obj.location, [loc1, loc2])
 
     def testString(self):
         const.DATA = const.Data('../data/min_shapenet_easy_angle')
