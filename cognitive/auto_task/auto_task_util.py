@@ -26,8 +26,7 @@ GRAPH_TUPLE = Tuple[nx.DiGraph, int, int]
 TASK = Tuple[Union[tg.Operator, sg.Attribute], tg.TemporalTask]
 
 # root_ops are the operators to begin a task
-# root_ops = ["GetCategory", "GetLoc", "GetViewAngle", "GetObject", "Exist", "IsSame", "And"]
-root_ops = ["IsSame", "And", "Or", "NotSame", ]
+root_ops = ["IsSame", "And", "Or", "NotSame", "GetLoc"]
 boolean_ops = ["IsSame", "And", "Or", "NotSame"]
 
 # all tasks end with select
@@ -42,15 +41,14 @@ op_dict = {
     "Select":
         {
             "n_downstream": 4,
-            # "downstream": ["GetCategory", "GetLoc", "GetViewAngle", "GetObject", "None"],
-            "downstream": ["GetLoc", "GetCategory", "GetObject"],
-            # "downstream": ["GetCategory", "GetObject"],
-            # "sample_dist": [0,1,0,0,0],
-            # "sample_dist": [0.5,0.5],
-            # "sample_dist": [0.7,0.15,0.15],
-            # "sample_dist": [0,0,1],
-            "sample_dist": [1 / 3, 1 / 3, 1 / 3],
-            # "sample_dist": [0.90,0.1],
+            # "downstream": ["GetLoc", "GetCategory", "GetObject"],
+            # "downstream": ["CONST"],
+            "downstream": ["GetLoc"],
+            # "downstream": ["GetCategory"],
+            # "downstream": ["GetObject"],
+            # "sample_dist": [1 / 3, 1 / 3, 1 / 3],
+            # "sample_dist": [0.5, 0.5],
+            "sample_dist": [1],
             "same_children_op": False,
             "min_depth": 1,
             "min_op": 1,
@@ -71,26 +69,27 @@ op_dict = {
             "min_depth": 2,
             "min_op": 2,
         },
+
     "GetObject":
         {
             "n_downstream": 1,
             "downstream": ["Select"],
             "sample_dist": [1],
             "min_depth": 2,
-            "min_op": 2,
+            "min_op": 2,    
         },
     "IsSame":
         {
             "n_downstream": 2,
-            # "downstream": ["GetCategory", "GetLoc", "GetViewAngle", "GetObject", "CONST"],
-            "downstream": ["GetLoc", "GetCategory", "GetObject", "CONST"],
-            # "downstream": ["GetCategory", "GetObject"],
-            # "sample_dist": [0, 1, 0, 0, 0],
-            # "sample_dist": [0.45,0.45,0.1],
-            "sample_dist": [1 / 3, 1 / 3, 1 / 3],
-            # "sample_dist": [0.90,0.1],
-            # "sample_dist": [0,0,1],
-            "same_children_op": True,  # same downstream op
+            # "downstream": ["GetLoc", "GetCategory", "GetObject", "CONST"],
+            # "downstream": ["CONST"],
+            "downstream": ["GetLoc", "CONST"],
+            # "downstream": ["GetCategory"],
+            # "downstream": ["GetObject"],
+            # "sample_dist": [1/4, 1/4, 1/4, 1/4],
+            # "sample_dist": [1],
+            "sample_dist": [0.9,0.1],
+            "same_children_op": True,
             "min_depth": 3,
             "min_op": 7,
         },
@@ -98,13 +97,15 @@ op_dict = {
         {
             "n_downstream": 2,
             # "downstream": ["GetCategory", "GetLoc", "GetViewAngle", "GetObject"],
-            "downstream": ["GetLoc", "GetCategory", "GetObject"],
-            # "downstream": ["GetCategory", "GetObject"],
+            # "downstream": ["GetLoc", "GetCategory", "GetObject", "CONST"],
+            # "downstream": ["CONST"],
+            "downstream": ["GetLoc", "CONST"],
+            # "downstream": ["GetLoc", ],
+            # "downstream": ["GetCategory"],
+            # "downstream": ["GetObject"],
             # "sample_dist": [1 / 4, 1 / 4, 1 / 4, 1 / 4],
-            # "sample_dist": [0.45,0.45,0.1],
-            "sample_dist": [1 / 3, 1 / 3, 1 / 3],
-            # "sample_dist": [0,0,1],
-            # "sample_dist": [0.90,0.1],
+            # "sample_dist": [1],
+            "sample_dist": [0.9,0.1],
             "same_children_op": True,
             "min_depth": 3,
             "min_op": 7,
@@ -113,8 +114,7 @@ op_dict = {
         {
             "n_downstream": 2,
             "downstream": ["IsSame", "NotSame", "And", "Or"],
-            # "sample_dist": [0.8, 0.2],
-            "sample_dist": [0.5, 0.5, 0, 0],
+            "sample_dist": [0.75, 0.05, 0.1, 0.1],    
             "same_children_op": False,
             "min_depth": 4,
             "min_op": 15,
@@ -122,11 +122,8 @@ op_dict = {
     "Or":
         {
             "n_downstream": 2,
-            # "downstream": ["Exist", "IsSame", "NotSame", "And", "Or", "Xor"],
             "downstream": ["IsSame", "NotSame", "And", "Or"],
-            # "sample_dist": [1 / 3, 1 / 3, 1 / 3, 0, 0, 0],
-            # "sample_dist": [1 / 5, 1 / 5, 1 / 5, 1 / 5, 1 / 5],
-            "sample_dist": [0.5, 0.5, 0, 0],
+            "sample_dist": [0.75, 0.05, 0.1, 0.1],
             "same_children_op": False,
             "min_depth": 4,
             "min_op": 15,
@@ -140,24 +137,8 @@ op_dict = {
             "min_depth": 1,
             "min_op": 1,
         }
-    # "Xor":
-    #     {
-    #         "n_downstream": 2,
-    #         # "downstream": ["Exist", "IsSame", "NotSame", "And", "Or", "Xor"],
-    #         "downstream": ["IsSame", "NotSame", "And", "Or", "Xor"],
-    #         # "sample_dist": [1 / 3, 1 / 3, 1 / 3, 0, 0, 0],
-    #         "sample_dist": [1 / 5, 1 / 5, 1 / 5, 1 / 5, 1 / 5],
-    #         "same_children_op": False,
-    #         "min_depth": 3,
-    #         "min_op": 14,
-    #     },
-    # "GetViewAngle":
-    #     {
-    #         "n_downstream": 1,
-    #         "downstream": ["Select"],
-    #         "sample_dist": [1]
-    #     },
-}
+    }
+
 op_dict = defaultdict(dict, **op_dict)
 op_depth_limit = {k: v['min_depth'] for k, v in op_dict.items()}
 op_operators_limit = {k: v['min_op'] for k, v in op_dict.items()}
