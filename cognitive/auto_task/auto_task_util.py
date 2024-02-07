@@ -86,7 +86,7 @@ op_dict = {
             # "downstream": ["GetLoc", "CONST"],
             # "downstream": ["GetCategory"],
             # "downstream": ["GetObject"],
-            # "sample_dist": [1 / 4, 1 / 4, 1 / 4, 1 / 4],
+            "sample_dist": [1 / 3, 1 / 3, 0, 1 / 3],
             # "sample_dist": [1],
             # "sample_dist": [0.9,0.1],
             "same_children_op": True,
@@ -331,8 +331,11 @@ def branch_generator(
         if root_op in ['IsSame', 'Or', 'NotSame']:
             if all(op == 'CONST' for op in children):
                 # make sure we are not comparing two constants in IsSame
-                downstream = op_dict['IsSame']['downstream'].copy()
+                downstream = op_dict[root_op]['downstream'].copy()
                 downstream.remove('CONST')
+                if 'sample_dist' in op_dict[root_op]:
+                    downstream = [op for op in downstream
+                                  if op_dict[root_op]['sample_dist'][op_dict[root_op]['downstream'].index(op)] > 0.0]
                 children[0] = random.choice(downstream)  # add a Get op to compare with the constant
             if any(op == 'CONST' for op in children):
                 const_idx = children.index('CONST')

@@ -101,7 +101,7 @@ class Attribute(object):
     def to_json(self):
         info = dict()
         info['name'] = self.__class__.__name__
-        info['value'] = str(self.value)
+        info['value'] = self.get_value
         info.update(self.self_json())
         return info
 
@@ -112,6 +112,9 @@ class Attribute(object):
     def has_value(self):
         return self.value is not None
 
+    @property
+    def get_value(self):
+        return self.value
 
 class Loc(Attribute):
     """Location class."""
@@ -166,15 +169,9 @@ class Loc(Attribute):
                           }[space_type]
         return self.get_space_to(opposite_space)
 
-    def self_json(self):
-        return {'space': self.space.to_json()}
-
-    def to_json(self):
-        info = dict()
-        info['name'] = self.__class__.__name__
-        info['value'] = self.value
-        info.update(self.self_json())
-        return info
+    @property
+    def get_value(self):
+        return self.value if self.has_value else self.value
 
 
 class Space(Attribute):
@@ -244,6 +241,10 @@ class Space(Attribute):
                           }[space_type]
         return self.get_space_to(opposite_space)
 
+    @property
+    def get_value(self):
+        return self._value if self.has_value else self.value
+
 
 class SNCategory(Attribute):
     def __init__(self, value):
@@ -260,6 +261,10 @@ class SNCategory(Attribute):
         if self.attr_type in const.DATA.mods_with_mapping:
             return 'category: ' + const.DATA.mods_with_mapping[self.attr_type][self.value]
         return 'category: ' + str(self.value)
+
+    @property
+    def get_value(self):
+        return int(self.value) if self.has_value else self.value
 
 
 class SNObject(Attribute):
@@ -289,6 +294,10 @@ class SNObject(Attribute):
     def self_json(self):
         return {'category': self.category.to_json()}
 
+    @property
+    def get_value(self):
+        return int(self.value) if self.has_value else self.value
+
 
 class SNViewAngle(Attribute):
     def __init__(self, sn_object, value):
@@ -312,6 +321,10 @@ class SNViewAngle(Attribute):
     def self_json(self):
         return {'sn_object': self.object.to_json()}
 
+    @property
+    def get_value(self):
+        return int(self.value) if self.has_value else self.value
+
 
 class SNFixedObject(Attribute):
     # used for sanity check, fixed object, only changes view angle
@@ -330,6 +343,10 @@ class SNFixedObject(Attribute):
 
     def resample(self):
         self.value = another_view_angle(self).value
+
+    @property
+    def get_value(self):
+        return int(self.value) if self.has_value else self.value
 
 
 def static_objects_from_dict(d):
