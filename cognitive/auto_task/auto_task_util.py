@@ -76,7 +76,7 @@ op_dict = {
             "downstream": ["Select"],
             "sample_dist": [1],
             "min_depth": 2,
-            "min_op": 2,    
+            "min_op": 2,
         },
     "IsSame":
         {
@@ -86,7 +86,7 @@ op_dict = {
             # "downstream": ["GetLoc", "CONST"],
             # "downstream": ["GetCategory"],
             # "downstream": ["GetObject"],
-            "sample_dist": [1/4, 1/4, 1/4, 1/4],
+            "sample_dist": [1 / 4, 1 / 4, 1 / 4, 1 / 4],
             # "sample_dist": [1],
             # "sample_dist": [0.9,0.1],
             "same_children_op": True,
@@ -113,7 +113,7 @@ op_dict = {
         {
             "n_downstream": 2,
             "downstream": ["IsSame", "NotSame", "And", "Or"],
-            "sample_dist": [0.75, 0.05, 0.1, 0.1],    
+            "sample_dist": [1 / 2, 1 / 2, 0, 0],
             "same_children_op": False,
             "min_depth": 4,
             "min_op": 15,
@@ -122,7 +122,7 @@ op_dict = {
         {
             "n_downstream": 2,
             "downstream": ["IsSame", "NotSame", "And", "Or"],
-            "sample_dist": [0.75, 0.05, 0.1, 0.1],
+            "sample_dist": [1 / 2, 1 / 2, 0, 0],
             "same_children_op": False,
             "min_depth": 4,
             "min_op": 15,
@@ -136,13 +136,15 @@ op_dict = {
             "min_depth": 1,
             "min_op": 1,
         }
-    }
+}
 
 op_dict = defaultdict(dict, **op_dict)
 op_depth_limit = {k: v['min_depth'] for k, v in op_dict.items()}
 op_operators_limit = {k: v['min_op'] for k, v in op_dict.items()}
 
-op_dict['IsSame']['force_sample_dist'] = [9/10, 0, 0, 1/10]
+op_dict['IsSame']['force_sample_dist'] = [9 / 10, 0, 0, 1 / 10]
+
+
 # uncomment to add more ops
 # for op in ['And', 'Or', 'Xor']:
 #     op_dict[op]['downstream'] = ["Exist", "IsSame", "NotSame", "And", "Or", "Xor"],
@@ -195,8 +197,12 @@ def sample_children_helper(op_name, op_count, max_op, cur_depth, max_depth):
                             (cur_depth + op_depth_limit[op] <= max_depth)}
     min_add_op_filter = {op: (max_op - (op_count + op_operators_limit[op])) for op in downstream_ops if
                          (op_count + op_operators_limit[op] <= max_op)}
+
     if 'force_sample_dist' in op_dict[op_name]:
         return np.random.choice(op_dict[op_name]["downstream"], p=op_dict[op_name]["force_sample_dist"])
+    if not min_add_depth_filter:
+        return np.random.choice(op_dict[op_name]["downstream"], p=op_dict[op_name]["sample_dist"])
+
     if max(min_add_depth_filter.values()) > 0:
         # if added operator sub-graph can fit and have left over depth
         filtered_ops = [op for op, diff in min_add_depth_filter.items() if diff > 0]
