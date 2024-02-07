@@ -142,6 +142,7 @@ op_dict = defaultdict(dict, **op_dict)
 op_depth_limit = {k: v['min_depth'] for k, v in op_dict.items()}
 op_operators_limit = {k: v['min_op'] for k, v in op_dict.items()}
 
+
 # uncomment to add more ops
 # for op in ['And', 'Or', 'Xor']:
 #     op_dict[op]['downstream'] = ["Exist", "IsSame", "NotSame", "And", "Or", "Xor"],

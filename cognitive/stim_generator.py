@@ -169,6 +169,13 @@ class Loc(Attribute):
     def self_json(self):
         return {'space': self.space.to_json()}
 
+    def to_json(self):
+        info = dict()
+        info['name'] = self.__class__.__name__
+        info['value'] = self.value
+        info.update(self.self_json())
+        return info
+
 
 class Space(Attribute):
     """Space class."""
