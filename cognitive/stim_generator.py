@@ -101,7 +101,7 @@ class Attribute(object):
     def to_json(self):
         info = dict()
         info['name'] = self.__class__.__name__
-        info['value'] = self.value
+        info['value'] = str(self.value)
         info.update(self.self_json())
         return info
 

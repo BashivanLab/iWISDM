@@ -1264,9 +1264,9 @@ class TemporalTask(Task):
 
     def to_json(self, fp):
         info = dict()
-        info['n_frames'] = self.n_frames
-        info['first_shareable'] = self.first_shareable
-        info['avg_mem'] = self.avg_mem
+        info['n_frames'] = int(self.n_frames)
+        info['first_shareable'] = int(self.first_shareable)
+        info['avg_mem'] = int(self.avg_mem)
         info['whens'] = self.whens
         info['operator'] = self._operator.to_json()
 

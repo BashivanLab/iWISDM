@@ -175,7 +175,10 @@ class UtilTest(unittest.TestCase):
         self.assertTrue(max(depth_count) <= max_depth)
         # depth upper bound is tight, not operator bound
         objsets = [task[1].generate_objset() for task in tasks]
+        for t in tasks:
+            t[1].to_json('/Users/markbai/Documents/COG_v3_shapenet/data/test/test.json')
         print('done')
+
 
 if __name__ == '__main__':
     unittest.main()
