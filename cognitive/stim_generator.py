@@ -814,11 +814,11 @@ def render_static_obj(canvas, obj, img_size):
 
     # Note that OpenCV color is (Blue, Green, Red)
     center = [0, 0]
-    if obj.location[0] < 0.5:
+    if obj.loc[0] < 0.5:
         center[0] = 56
     else:
         center[0] = 168
-    if obj.location[1] < 0.5:
+    if obj.loc[1] < 0.5:
         center[1] = 56
     else:
         center[1] = 168
