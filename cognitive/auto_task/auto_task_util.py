@@ -86,7 +86,7 @@ op_dict = {
             # "downstream": ["GetLoc", "CONST"],
             # "downstream": ["GetCategory"],
             # "downstream": ["GetObject"],
-            "sample_dist": [1 / 4, 1 / 4, 1 / 4, 1 / 4],
+            # "sample_dist": [1 / 4, 1 / 4, 1 / 4, 1 / 4],
             # "sample_dist": [1],
             # "sample_dist": [0.9,0.1],
             "same_children_op": True,
@@ -102,7 +102,7 @@ op_dict = {
             # "downstream": ["GetLoc", ],
             # "downstream": ["GetCategory"],
             # "downstream": ["GetObject"],
-            "sample_dist": [1 / 4, 1 / 4, 1 / 4, 1 / 4],
+            # "sample_dist": [1 / 4, 1 / 4, 1 / 4, 1 / 4],
             # "sample_dist": [1],
             # "sample_dist": [0.9,0.1],
             "same_children_op": True,
@@ -113,7 +113,7 @@ op_dict = {
         {
             "n_downstream": 2,
             "downstream": ["IsSame", "NotSame", "And", "Or"],
-            "sample_dist": [1 / 2, 1 / 2, 0, 0],
+            # "sample_dist": [1 / 2, 1 / 2, 0, 0],
             "same_children_op": False,
             "min_depth": 4,
             "min_op": 15,
@@ -122,7 +122,7 @@ op_dict = {
         {
             "n_downstream": 2,
             "downstream": ["IsSame", "NotSame", "And", "Or"],
-            "sample_dist": [1 / 2, 1 / 2, 0, 0],
+            # "sample_dist": [1 / 2, 1 / 2, 0, 0],
             "same_children_op": False,
             "min_depth": 4,
             "min_op": 15,
@@ -141,9 +141,6 @@ op_dict = {
 op_dict = defaultdict(dict, **op_dict)
 op_depth_limit = {k: v['min_depth'] for k, v in op_dict.items()}
 op_operators_limit = {k: v['min_op'] for k, v in op_dict.items()}
-
-op_dict['IsSame']['force_sample_dist'] = [9 / 10, 0, 0, 1 / 10]
-
 
 # uncomment to add more ops
 # for op in ['And', 'Or', 'Xor']:
@@ -198,10 +195,12 @@ def sample_children_helper(op_name, op_count, max_op, cur_depth, max_depth):
     min_add_op_filter = {op: (max_op - (op_count + op_operators_limit[op])) for op in downstream_ops if
                          (op_count + op_operators_limit[op] <= max_op)}
 
-    if 'force_sample_dist' in op_dict[op_name]:
-        return np.random.choice(op_dict[op_name]["downstream"], p=op_dict[op_name]["force_sample_dist"])
-    if not min_add_depth_filter:
+    complexity_downstream = [op_depth_limit[op] for op in downstream_ops]
+    min_complexity_downstream = [op for op in downstream_ops if op_depth_limit[op] == min(complexity_downstream)]
+    if "sample_dist" in op_dict[op_name]:
         return np.random.choice(op_dict[op_name]["downstream"], p=op_dict[op_name]["sample_dist"])
+    if not min_add_depth_filter:
+        return np.random.choice(min_complexity_downstream)
 
     if max(min_add_depth_filter.values()) > 0:
         # if added operator sub-graph can fit and have left over depth
@@ -214,7 +213,7 @@ def sample_children_helper(op_name, op_count, max_op, cur_depth, max_depth):
             elif max(both_filter.values()) == 0:
                 both_filter = [k for k, v in both_filter.items() if v == 0]
                 return np.random.choice(both_filter)
-        return np.random.choice(op_dict[op_name]["downstream"], p=op_dict[op_name]["sample_dist"])
+        return np.random.choice(min_complexity_downstream)
     elif max(min_add_depth_filter.values()) == 0:
         # if only certain operator sub-graphs can fit
         filtered_ops = [op for op, diff in min_add_depth_filter.items() if diff == 0]
@@ -224,10 +223,10 @@ def sample_children_helper(op_name, op_count, max_op, cur_depth, max_depth):
                 both_filter = [k for k, v in both_filter.items() if v == max(both_filter.values())]
                 return np.random.choice(both_filter)
         # cannot do anything about bounding, just complete the minimum task graph
-        return np.random.choice(op_dict[op_name]["downstream"], p=op_dict[op_name]["sample_dist"])
+        return np.random.choice(min_complexity_downstream)
     else:
         # cannot do anything about bounding, just complete the minimum task graph
-        return np.random.choice(op_dict[op_name]["downstream"], p=op_dict[op_name]["sample_dist"])
+        return np.random.choice(min_complexity_downstream)
 
 
 def sample_children_op(
