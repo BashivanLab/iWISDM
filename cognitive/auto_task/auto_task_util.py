@@ -26,7 +26,7 @@ GRAPH_TUPLE = Tuple[nx.DiGraph, int, int]
 TASK = Tuple[Union[tg.Operator, sg.Attribute], tg.TemporalTask]
 
 # root_ops are the operators to begin a task
-root_ops = ["IsSame", "And", "Or", "NotSame", "GetLoc"]
+root_ops = ["IsSame", "And", "Or", "NotSame"]
 boolean_ops = ["IsSame", "And", "Or", "NotSame"]
 
 # all tasks end with select
@@ -41,14 +41,14 @@ op_dict = {
     "Select":
         {
             "n_downstream": 4,
-            # "downstream": ["GetLoc", "GetCategory", "GetObject"],
+            "downstream": ["GetLoc", "GetCategory", "GetObject"],
             # "downstream": ["CONST"],
-            "downstream": ["GetLoc"],
+            # "downstream": ["GetLoc"],
             # "downstream": ["GetCategory"],
             # "downstream": ["GetObject"],
-            # "sample_dist": [1 / 3, 1 / 3, 1 / 3],
+            "sample_dist": [1 / 3, 1 / 3, 1 / 3],
             # "sample_dist": [0.5, 0.5],
-            "sample_dist": [1],
+            # "sample_dist": [1],
             "same_children_op": False,
             "min_depth": 1,
             "min_op": 1,
@@ -83,10 +83,12 @@ op_dict = {
             "n_downstream": 2,
             "downstream": ["GetLoc", "GetCategory", "GetObject", "CONST"],
             # "downstream": ["CONST"],
+            # "downstream": ["GetLoc"],
             # "downstream": ["GetLoc", "CONST"],
+            # "downstream": ["GetCategory", "CONST"],
             # "downstream": ["GetCategory"],
             # "downstream": ["GetObject"],
-            "sample_dist": [1 / 3, 1 / 3, 0, 1 / 3],
+            "sample_dist": [0.3, 0.3, 0.3, 0.1],
             # "sample_dist": [1],
             # "sample_dist": [0.9,0.1],
             "same_children_op": True,
@@ -98,11 +100,12 @@ op_dict = {
             "n_downstream": 2,
             "downstream": ["GetLoc", "GetCategory", "GetObject", "CONST"],
             # "downstream": ["CONST"],
+            # "downstream": ["GetLoc"],
             # "downstream": ["GetLoc", "CONST"],
-            # "downstream": ["GetLoc", ],
+            # "downstream": ["GetCategory", "CONST"],
             # "downstream": ["GetCategory"],
             # "downstream": ["GetObject"],
-            # "sample_dist": [1 / 4, 1 / 4, 1 / 4, 1 / 4],
+            "sample_dist": [0.3, 0.3, 0.3, 0.1],
             # "sample_dist": [1],
             # "sample_dist": [0.9,0.1],
             "same_children_op": True,
@@ -113,7 +116,7 @@ op_dict = {
         {
             "n_downstream": 2,
             "downstream": ["IsSame", "NotSame", "And", "Or"],
-            # "sample_dist": [1 / 2, 1 / 2, 0, 0],
+            "sample_dist": [1 / 2, 1 / 2, 0, 0],
             "same_children_op": False,
             "min_depth": 4,
             "min_op": 15,
@@ -122,7 +125,7 @@ op_dict = {
         {
             "n_downstream": 2,
             "downstream": ["IsSame", "NotSame", "And", "Or"],
-            # "sample_dist": [1 / 2, 1 / 2, 0, 0],
+            "sample_dist": [1 / 2, 1 / 2, 0, 0],
             "same_children_op": False,
             "min_depth": 4,
             "min_op": 15,
@@ -142,11 +145,8 @@ op_dict = defaultdict(dict, **op_dict)
 op_depth_limit = {k: v['min_depth'] for k, v in op_dict.items()}
 op_operators_limit = {k: v['min_op'] for k, v in op_dict.items()}
 
-
-# uncomment to add more ops
-# for op in ['And', 'Or', 'Xor']:
-#     op_dict[op]['downstream'] = ["Exist", "IsSame", "NotSame", "And", "Or", "Xor"],
-#     op_dict[op]['sample_dist'] = "sample_dist": [1 / 3, 1 / 3, 1 / 3, 0, 0, 0]
+# op_dict['IsSame']['force_sample_dist'] = [0.3, 0.3, 0.3, 0.1]
+# op_dict['NotSame']['force_sample_dist'] = [0.3, 0.3, 0.3, 0.1]
 
 def count_depth_and_op(op):
     op_count, depth_count = 0, 0
