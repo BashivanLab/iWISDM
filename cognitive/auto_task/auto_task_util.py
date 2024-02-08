@@ -26,8 +26,8 @@ GRAPH_TUPLE = Tuple[nx.DiGraph, int, int]
 TASK = Tuple[Union[tg.Operator, sg.Attribute], tg.TemporalTask]
 
 # root_ops are the operators to begin a task
-root_ops = ["IsSame", "And", "Or", "NotSame"]
-boolean_ops = ["IsSame", "And", "Or", "NotSame"]
+root_ops = ["IsSame", "And", "Or", "NotSame","GetLoc", "GetCategory"]
+boolean_ops = ["IsSame", "And", "Or", "NotSame","GetLoc", "GetCategory"]
 
 # all tasks end with select
 leaf_op = ["Select"]
@@ -41,12 +41,12 @@ op_dict = {
     "Select":
         {
             "n_downstream": 4,
-            "downstream": ["GetLoc", "GetCategory", "GetObject"],
+            "downstream": ["GetLoc", "GetCategory", "GetObject", "None"],
             # "downstream": ["CONST"],
             # "downstream": ["GetLoc"],
             # "downstream": ["GetCategory"],
             # "downstream": ["GetObject"],
-            "sample_dist": [1 / 3, 1 / 3, 1 / 3],
+            # "sample_dist": [1/4, 1/4, 1/4, 1/4],
             # "sample_dist": [0.5, 0.5],
             # "sample_dist": [1],
             "same_children_op": False,
@@ -88,9 +88,9 @@ op_dict = {
             # "downstream": ["GetCategory", "CONST"],
             # "downstream": ["GetCategory"],
             # "downstream": ["GetObject"],
-            "sample_dist": [0.3, 0.3, 0.3, 0.1],
+            "sample_dist": [4/15, 4/15, 4/15, 1/5],
             # "sample_dist": [1],
-            # "sample_dist": [0.9,0.1],
+            # "sample_dist": [0.8,0.2],
             "same_children_op": True,
             "min_depth": 3,
             "min_op": 7,
@@ -105,9 +105,9 @@ op_dict = {
             # "downstream": ["GetCategory", "CONST"],
             # "downstream": ["GetCategory"],
             # "downstream": ["GetObject"],
-            "sample_dist": [0.3, 0.3, 0.3, 0.1],
+            "sample_dist": [4/15, 4/15, 4/15, 1/5],
             # "sample_dist": [1],
-            # "sample_dist": [0.9,0.1],
+            # "sample_dist": [0.8,0.2],
             "same_children_op": True,
             "min_depth": 3,
             "min_op": 7,
