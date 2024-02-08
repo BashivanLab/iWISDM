@@ -54,7 +54,7 @@ def get_target_value(t):
     # Convert target t to string and convert True/False target values
     # to lower case strings for consistency with other uses of true/false
     # in vocabularies.
-    t = t.value if hasattr(t, 'value') else str(t)
+    t = str(t)
     if t is True or t == 'True':
         return 'true'
     if t is False or t == 'False':

@@ -29,6 +29,7 @@ from cognitive import constants as const
 from cognitive import stim_generator as sg
 from cognitive import task_generator as tg
 from cognitive.auto_task import auto_task_util as util
+from cognitive import info_generator
 
 
 def targets_to_str(targets):
@@ -128,11 +129,11 @@ class TaskGeneratorTest(unittest.TestCase):
         view_angles = [sg.sample_view_angle(k=1, obj=obj)[0] for obj in objects]
 
         op1 = tg.Select(when='last2')
-        new_task0 = tg.TemporalTask(tg.GetCategory(op1), 1)
+        new_task0 = tg.TemporalTask(tg.GetCategory(op1), 3)
         objset = new_task0.generate_objset()
 
         print(new_task0.get_target(objset))
-
+        new_task0.to_json('/Users/markbai/Documents/COG_v3_shapenet/data/test/test.json')
         new_task1 = tg.TemporalTask(tg.IsSame(tg.GetCategory(op1), categories[0]), 3)
         objset = new_task1.generate_objset()
         print(new_task0.get_target(objset))
