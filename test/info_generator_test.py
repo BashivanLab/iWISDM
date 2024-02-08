@@ -1,4 +1,5 @@
 import unittest
+import json
 
 from cognitive import info_generator as ig
 from cognitive import stim_generator as sg
@@ -10,6 +11,12 @@ families = list(tb.task_family_dict.keys())
 
 
 class InfoGeneratorTest(unittest.TestCase):
+    def setUp(self):
+        const.DATA = const.Data(
+            dir_path='/Users/markbai/Documents/COG_v3_shapenet/data/shapenet_handpicked_val/',
+            train=False
+        )
+
     def testMerge(self):
         categories = sg.sample_category(3)
         while len(shapes) != len(set(shapes)):
@@ -225,6 +232,67 @@ class InfoGeneratorTest(unittest.TestCase):
     def testObjectAddOne(self):
         t = 'observe object 1, observe object 2, category of object 1 equal category of object 2 ?observe object 3, observe object 4, delay, object of object 3 equal object of object 4 ?'
         print(ig.object_add(t, 2))
+
+    def testAttrStr(self):
+        const.DATA = const.Data(
+            dir_path='/Users/markbai/Documents/COG_v3_shapenet/data/new_shapenet_val/',
+            train=False
+        )
+        categories = sg.sample_category(4)
+        objects = [sg.sample_object(k=1, category=cat)[0] for cat in categories]
+        view_angles = [sg.sample_view_angle(k=1, obj=obj)[0] for obj in objects]
+
+        op1 = tg.Select(when='last2')
+        new_task0 = tg.TemporalTask(tg.GetCategory(op1), 3)
+        objset = new_task0.generate_objset()
+        fi = ig.FrameInfo(new_task0, objset)
+        ti = ig.TaskInfoCompo(new_task0, fi)
+        ti.get_examples()
+
+        print(new_task0.get_target(objset))
+        new_task0.to_json('/Users/markbai/Documents/COG_v3_shapenet/data/test/test.json')
+        new_task1 = tg.TemporalTask(tg.IsSame(tg.GetCategory(op1), categories[0]), 3)
+        objset = new_task1.generate_objset()
+        print(new_task0.get_target(objset))
+
+    def testAttrStr(self):
+        f = open('/Users/markbai/Documents/COG_v3_shapenet/data/test/1.json')
+        task_dict = json.load(f)
+        # first you have to load the operator objects
+        task_dict['operator'] = tg.load_operator_json(task_dict['operator'])
+        updated_task = tg.TemporalTask(
+            operator=task_dict['operator'],
+            n_frames=task_dict['n_frames'],
+            first_shareable=task_dict['first_shareable'],
+            whens=task_dict['whens']
+        )
+        fi = ig.FrameInfo(updated_task, updated_task.generate_objset())
+        compo_info = ig.TaskInfoCompo(updated_task, fi)
+        _, compo_examples = compo_info.get_examples()
+        _, instructions, answers = compo_info.generate_trial()
+        print(compo_examples['answers'])
+
+    def test_trials(self):
+        f = open('/Users/markbai/Documents/COG_v3_shapenet/data/test/bug.json')
+        task_dict = json.load(f)
+        # first you have to load the operator objects
+        task_dict['operator'] = tg.load_operator_json(task_dict['operator'])
+        updated_task = tg.TemporalTask(
+            operator=task_dict['operator'],
+            n_frames=task_dict['n_frames'],
+            first_shareable=task_dict['first_shareable'],
+            whens=task_dict['whens']
+        )
+        for _ in range(1000):
+            fi = ig.FrameInfo(updated_task, updated_task.generate_objset())
+            compo_info = ig.TaskInfoCompo(updated_task, fi)
+            answer = compo_info.get_examples()[1]['answers']
+            if answer[-1] == 'invalid':
+                compo_info.write_trial_instance(
+                    write_fp='/Users/markbai/Documents/COG_v3_shapenet/data/bug_trial'
+                )
+                print()
+            self.assertTrue(answer[-1] != 'invalid')
 
 
 if __name__ == '__main__':

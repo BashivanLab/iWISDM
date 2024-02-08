@@ -1094,9 +1094,11 @@ def sample_when(n=1):
     return np.random.choice(const.DATA.ALLWHENS, size=n, p=const.DATA.ALLWHENS_PROB, replace=False)
 
 
-def check_whens(whens):
+def check_whens(whens, existing_whens: list = None):
     # added check_whens to ensure 1 stimulus per frame
-    while len(set(whens)) != len(whens):
+    existing_whens = set() if not existing_whens else set(existing_whens)
+    len_ew = len(existing_whens)
+    while len(set(whens) | existing_whens) != (len(whens)+len_ew):
         whens = sample_when(len(whens))
     return whens
 

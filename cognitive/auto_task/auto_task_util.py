@@ -26,8 +26,8 @@ GRAPH_TUPLE = Tuple[nx.DiGraph, int, int]
 TASK = Tuple[Union[tg.Operator, sg.Attribute], tg.TemporalTask]
 
 # root_ops are the operators to begin a task
-root_ops = ["IsSame", "And", "Or", "NotSame","GetLoc", "GetCategory"]
-boolean_ops = ["IsSame", "And", "Or", "NotSame","GetLoc", "GetCategory"]
+root_ops = ["IsSame", "And", "Or", "NotSame", "GetLoc", "GetCategory"]
+boolean_ops = ["IsSame", "And", "Or", "NotSame", ]
 
 # all tasks end with select
 leaf_op = ["Select"]
@@ -88,7 +88,7 @@ op_dict = {
             # "downstream": ["GetCategory", "CONST"],
             # "downstream": ["GetCategory"],
             # "downstream": ["GetObject"],
-            "sample_dist": [4/15, 4/15, 4/15, 1/5],
+            "sample_dist": [4 / 15, 4 / 15, 4 / 15, 1 / 5],
             # "sample_dist": [1],
             # "sample_dist": [0.8,0.2],
             "same_children_op": True,
@@ -105,7 +105,7 @@ op_dict = {
             # "downstream": ["GetCategory", "CONST"],
             # "downstream": ["GetCategory"],
             # "downstream": ["GetObject"],
-            "sample_dist": [4/15, 4/15, 4/15, 1/5],
+            "sample_dist": [4 / 15, 4 / 15, 4 / 15, 1 / 5],
             # "sample_dist": [1],
             # "sample_dist": [0.8,0.2],
             "same_children_op": True,
@@ -144,6 +144,7 @@ op_dict = {
 op_dict = defaultdict(dict, **op_dict)
 op_depth_limit = {k: v['min_depth'] for k, v in op_dict.items()}
 op_operators_limit = {k: v['min_op'] for k, v in op_dict.items()}
+
 
 # op_dict['IsSame']['force_sample_dist'] = [0.3, 0.3, 0.3, 0.1]
 # op_dict['NotSame']['force_sample_dist'] = [0.3, 0.3, 0.3, 0.1]
@@ -402,10 +403,12 @@ def task_generator(
     :return: The random task graph tuple and task tuple
     """
     count = 0
-    # generate a subtask graph and actual task
+    whens = dict()
+
+    # generate a subtask graph and the actual task
     subtask_graph = subtask_graph_generator(count=count, max_op=max_op, max_depth=max_depth,
                                             select_limit=select_limit)
-    subtask = tg.subtask_generation(subtask_graph)
+    subtask, whens = tg.subtask_generation(subtask_graph, existing_whens=whens)
     count = subtask_graph[2] + 1  # start a new subtask graph node number according to old graph
     for _ in range(max_switch):
         if random.random() < switch_threshold:  # if add switch
@@ -415,16 +418,15 @@ def task_generator(
             conditional = subtask_graph_generator(count=count, max_op=max_op, max_depth=max_depth,
                                                   select_limit=select_limit,
                                                   root_op=random.choice(boolean_ops))
-            conditional_task = tg.subtask_generation(conditional)
-            if random.random() < 0.5:
-
+            conditional_task, whens = tg.subtask_generation(conditional, existing_whens=whens)
+            if random.random() < 0.5:  # randomly split the do_if and do_else tasks
                 do_if = subtask_graph
                 do_if_task = subtask
                 do_else = new_task_graph
-                do_else_task = tg.subtask_generation(do_else)
+                do_else_task, whens = tg.subtask_generation(do_else, existing_whens=whens)
             else:
                 do_if = new_task_graph
-                do_if_task = tg.subtask_generation(do_if)
+                do_if_task, whens = tg.subtask_generation(do_if, existing_whens=whens)
                 do_else = subtask_graph
                 do_else_task = subtask
             subtask_graph = switch_generator(conditional, do_if, do_else)

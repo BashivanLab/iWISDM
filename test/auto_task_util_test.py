@@ -6,13 +6,21 @@ import unittest
 import networkx as nx
 import numpy as np
 import random
+import json
 
 from cognitive import constants as const
 from cognitive.auto_task import auto_task_util as util
 import cognitive.task_generator as tg
+from cognitive import info_generator as ig
 
 
 class UtilTest(unittest.TestCase):
+    def setUp(self):
+        const.DATA = const.Data(
+            dir_path='/Users/markbai/Documents/COG_v3_shapenet/data/shapenet_handpicked_val/',
+            train=False
+        )
+
     def test_sample_children_op(self):
         samples = [util.sample_children_op(0, 'Select', 10) for _ in range(10)]
 
@@ -53,7 +61,6 @@ class UtilTest(unittest.TestCase):
         A.draw("branch.png", prog="dot")
 
     def test_write_task(self):
-        const.DATA = const.Data()
         G = nx.DiGraph()
         G.add_node(1, label='IsSame')
         G.add_node(2, label='GetViewAngle')
@@ -114,10 +121,6 @@ class UtilTest(unittest.TestCase):
         A.draw('RandomTask1.png', prog='dot')
 
     def test_task_generation(self):
-        const.DATA = const.Data(
-            dir_path='/Users/markbai/Documents/COG_v3_shapenet/data/new_shapenet_val/',
-            train=False
-        )
         graph, task = util.task_generator(0, 1, 10, 3, True)
         G = graph[0]
         G = G.reverse()
@@ -129,10 +132,6 @@ class UtilTest(unittest.TestCase):
         )
 
     def test_subtask_complexity(self):
-        const.DATA = const.Data(
-            dir_path='/Users/markbai/Documents/COG_v3_shapenet/data/new_shapenet_val/',
-            train=False
-        )
         op_name = 'And'
         op_count = 11
         max_op = 20
@@ -161,10 +160,11 @@ class UtilTest(unittest.TestCase):
         self.assertTrue(max(op_count) <= max_op)
         self.assertTrue(max(depth_count) <= max_depth)
 
+    def test_full(self):
         max_op, max_depth = 100, 9
         tasks = [util.task_generator(
-            max_switch=0,
-            switch_threshold=0,
+            max_switch=1,
+            switch_threshold=1.0,
             max_op=max_op,
             max_depth=max_depth,
             select_limit=True
@@ -174,9 +174,24 @@ class UtilTest(unittest.TestCase):
         depth_count = [util.count_depth_and_op(t[0])[1] for t in tasks]
         self.assertTrue(max(depth_count) <= max_depth)
         # depth upper bound is tight, not operator bound
-        objsets = [task[1].generate_objset() for task in tasks]
         for t in tasks:
-            t[1].to_json('/Users/markbai/Documents/COG_v3_shapenet/data/test/test.json')
+            task = t[1]
+            task.to_json('/Users/markbai/Documents/COG_v3_shapenet/data/test/test.json')
+
+            f = open('/Users/markbai/Documents/COG_v3_shapenet/data/test/test.json')
+            task_dict = json.load(f)
+            task_dict['operator'] = tg.load_operator_json(task_dict['operator'])
+            loaded_task = tg.TemporalTask(
+                operator=task_dict['operator'],
+                n_frames=task_dict['n_frames'],
+                first_shareable=task_dict['first_shareable'],
+                whens=task_dict['whens']
+            )
+            for _ in range(100):
+                fi = ig.FrameInfo(loaded_task, loaded_task.generate_objset())
+                compo_info = ig.TaskInfoCompo(loaded_task, fi)
+                _, instructions, answers = compo_info.generate_trial()
+                self.assertTrue(answers[-1] != 'invalid')
         print('done')
 
 

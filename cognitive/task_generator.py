@@ -1266,7 +1266,7 @@ class TemporalTask(Task):
         info = dict()
         info['n_frames'] = int(self.n_frames)
         info['first_shareable'] = int(self.first_shareable)
-        info['avg_mem'] = int(self.avg_mem)
+        info['avg_mem'] = int(self.avg_mem) if self.avg_mem else self.avg_mem
         info['whens'] = self.whens
         info['operator'] = self._operator.to_json()
 
@@ -1470,7 +1470,9 @@ def load_operator_json(
         return attr_families[name](value=op_dict['value'], **init)
 
 
-def subtask_generation(subtask_graph: GRAPH_TUPLE, op_dict: dict = None) -> TASK:
+def subtask_generation(subtask_graph: GRAPH_TUPLE, op_dict: dict = None, existing_whens: dict = None) -> TASK:
+    existing_whens = dict() if not existing_whens else existing_whens
+    # avoid duplicate whens across subtasks during switch generation
     subtask_G, root, _ = subtask_graph
     operator_families = get_operator_dict()
 
@@ -1478,14 +1480,15 @@ def subtask_generation(subtask_graph: GRAPH_TUPLE, op_dict: dict = None) -> TASK
         op_dict = {node[0]: node[1]['label'] for node in subtask_G.nodes(data=True)}
     selects = [op for op in subtask_G.nodes() if 'Select' == op_dict[op]]
 
-    const.DATA.MAX_MEMORY = len(selects) + 1
-    whens = sg.check_whens(sg.sample_when(len(selects)))
+    const.DATA.MAX_MEMORY = len(selects) + len(existing_whens.values()) + 1
+    whens = sg.check_whens(sg.sample_when(len(selects)), existing_whens.values())
     n_frames = const.compare_when(whens) + 1
 
     whens = {select: when for select, when in zip(selects, whens)}
-
+    existing_whens.update(whens)
+    assert len(existing_whens.values()) == len(set(existing_whens.values())), 'whens are duplicated'
     op = graph_to_operators(subtask_G, root, op_dict, operator_families, whens)
-    return op, TemporalTask(operator=op, n_frames=n_frames)
+    return (op, TemporalTask(operator=op, n_frames=n_frames, whens=whens)), existing_whens
 
 
 def switch_generation(conditional: TASK, do_if: TASK, do_else: TASK, **kwargs) -> TASK:
@@ -1498,7 +1501,7 @@ def switch_generation(conditional: TASK, do_if: TASK, do_else: TASK, **kwargs) -
 
     op = Switch(conditional_op, if_op, else_op, **kwargs)
     n_frames = conditional_task.n_frames + if_task.n_frames + else_task.n_frames
-    const.DATA.MAX_MEMORY = n_frames
+    # const.DATA.MAX_MEMORY = n_frames
     return op, TemporalTask(operator=op, n_frames=n_frames)
 
 
