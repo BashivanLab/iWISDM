@@ -1085,21 +1085,26 @@ def random_when():
     return np.random.choice(const.DATA.ALLWHENS, p=const.DATA.ALLWHENS_PROB)
 
 
-def sample_when(n=1):
+def sample_when(n=1, existing_whens=None):
     """
 
     :param n:
+    :param existing_whens:
     :return: a list of 'lastk', in random order
     """
-    return np.random.choice(const.DATA.ALLWHENS, size=n, p=const.DATA.ALLWHENS_PROB, replace=False)
+    if existing_whens is None:
+        return np.random.choice(const.DATA.ALLWHENS, size=n, p=const.DATA.ALLWHENS_PROB, replace=False)
+    else:
+        all_whens = set(const.DATA.ALLWHENS) - existing_whens
+        return np.random.choice(list(all_whens), size=n, replace=False)
 
 
 def check_whens(whens, existing_whens: list = None):
     # added check_whens to ensure 1 stimulus per frame
     existing_whens = set() if not existing_whens else set(existing_whens)
     len_ew = len(existing_whens)
-    while len(set(whens) | existing_whens) != (len(whens)+len_ew):
-        whens = sample_when(len(whens))
+    while len(set(whens) | existing_whens) != (len(whens) + len_ew):
+        whens = sample_when(len(whens), existing_whens)
     return whens
 
 

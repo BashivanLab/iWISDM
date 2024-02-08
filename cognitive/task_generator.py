@@ -1470,7 +1470,8 @@ def load_operator_json(
         return attr_families[name](value=op_dict['value'], **init)
 
 
-def subtask_generation(subtask_graph: GRAPH_TUPLE, op_dict: dict = None, existing_whens: dict = None) -> TASK:
+def subtask_generation(subtask_graph: GRAPH_TUPLE, op_dict: dict = None, existing_whens: dict = None) \
+        -> Tuple[TASK, dict]:
     existing_whens = dict() if not existing_whens else existing_whens
     # avoid duplicate whens across subtasks during switch generation
     subtask_G, root, _ = subtask_graph
@@ -1481,7 +1482,7 @@ def subtask_generation(subtask_graph: GRAPH_TUPLE, op_dict: dict = None, existin
     selects = [op for op in subtask_G.nodes() if 'Select' == op_dict[op]]
 
     const.DATA.MAX_MEMORY = len(selects) + len(existing_whens.values()) + 1
-    whens = sg.check_whens(sg.sample_when(len(selects)), existing_whens.values())
+    whens = sg.check_whens(sg.sample_when(len(selects)), list(existing_whens.values()))
     n_frames = const.compare_when(whens) + 1
 
     whens = {select: when for select, when in zip(selects, whens)}
