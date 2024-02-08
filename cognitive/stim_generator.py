@@ -152,7 +152,7 @@ class Loc(Attribute):
                     quadrant = 'top right'
                 else:
                     quadrant = 'bottom right'
-            return 'location: ' + quadrant
+            return '' + quadrant
         return 'location: ' + self.value
 
     def get_space_to(self, space_type):
@@ -260,7 +260,7 @@ class SNCategory(Attribute):
 
     def __str__(self):
         if self.attr_type in const.DATA.mods_with_mapping:
-            return 'category: ' + const.DATA.mods_with_mapping[self.attr_type][self.value]
+            return '' + const.DATA.mods_with_mapping[self.attr_type][self.value]
         return 'category: ' + str(self.value)
 
     @property
@@ -283,7 +283,7 @@ class SNObject(Attribute):
 
     def __str__(self):
         if self.attr_type in const.DATA.mods_with_mapping:
-            return 'object: ' + const.DATA.mods_with_mapping[self.attr_type][self.value]
+            return '' + const.DATA.mods_with_mapping[self.attr_type][self.value]
         return 'object: ' + str(self.value)
 
     def sample(self):
@@ -310,8 +310,8 @@ class SNViewAngle(Attribute):
 
     def __str__(self):
         if self.attr_type in const.DATA.mods_with_mapping:
-            return 'object: ' + const.DATA.mods_with_mapping[self.attr_type][self.value]
-        return 'object: ' + str(self.value)
+            return '' + const.DATA.mods_with_mapping[self.attr_type][self.value]
+        return 'view_angle: ' + str(self.value)
 
     def sample(self):
         self.value = random_view_angle(self.object).value
