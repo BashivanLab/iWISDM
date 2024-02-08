@@ -86,7 +86,7 @@ op_dict = {
             # "downstream": ["GetLoc", "CONST"],
             # "downstream": ["GetCategory"],
             # "downstream": ["GetObject"],
-            "sample_dist": [1 / 3, 1 / 3, 0, 1 / 3],
+            # "sample_dist": [1 / 4, 1 / 4, 1/4, 1 / 4],
             # "sample_dist": [1],
             # "sample_dist": [0.9,0.1],
             "same_children_op": True,
