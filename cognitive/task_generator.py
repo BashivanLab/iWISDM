@@ -591,7 +591,7 @@ class Switch(Operator):
             str(self.do_if_false)
         ]
         if not self.parent:
-            words += ['.']
+            words += ['?']
         return ' '.join(words)
 
     def __call__(self, objset, epoch_now):
