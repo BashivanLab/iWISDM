@@ -116,6 +116,7 @@ class Attribute(object):
     def get_value(self):
         return self.value
 
+
 class Loc(Attribute):
     """Location class."""
 
