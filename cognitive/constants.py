@@ -179,6 +179,7 @@ class Data:
 
         obj_ref = int(obj_cat.iloc[0]['ref'])
         obj_path = os.path.join(image_path, f'{obj_ref}/image.png')
+        # TODO：this is very slow, find better library for resizing and convert
         img = Image.open(obj_path).convert('RGB').resize(obj_size)
 
         return img
