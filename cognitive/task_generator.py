@@ -1492,7 +1492,7 @@ def subtask_generation(subtask_graph: GRAPH_TUPLE, op_dict: dict = None, existin
     return (op, TemporalTask(operator=op, n_frames=n_frames, whens=whens)), existing_whens
 
 
-def switch_generation(conditional: TASK, do_if: TASK, do_else: TASK, **kwargs) -> TASK:
+def switch_generation(conditional: TASK, do_if: TASK, do_else: TASK, existing_whens: dict, **kwargs) -> TASK:
     """
     combines all 3 temporal tasks and initialize the switch operator
     """
@@ -1501,9 +1501,9 @@ def switch_generation(conditional: TASK, do_if: TASK, do_else: TASK, **kwargs) -
     else_op, else_task = do_else
 
     op = Switch(conditional_op, if_op, else_op, **kwargs)
-    n_frames = conditional_task.n_frames + if_task.n_frames + else_task.n_frames
+    n_frames = const.compare_when(existing_whens.values()) + 1
     # const.DATA.MAX_MEMORY = n_frames
-    return op, TemporalTask(operator=op, n_frames=n_frames)
+    return op, TemporalTask(operator=op, n_frames=n_frames, whens=existing_whens)
 
 
 get_family_dict = OrderedDict([

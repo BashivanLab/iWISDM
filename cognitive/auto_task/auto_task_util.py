@@ -431,7 +431,7 @@ def task_generator(
                 do_else_task = subtask
             subtask_graph = switch_generator(conditional, do_if, do_else)
             count = subtask_graph[2] + 1
-            subtask = tg.switch_generation(conditional_task, do_if_task, do_else_task)
+            subtask = tg.switch_generation(conditional_task, do_if_task, do_else_task, whens)
     return subtask_graph, subtask
 
 
