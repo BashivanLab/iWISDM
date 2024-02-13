@@ -1,22 +1,19 @@
 import json
 import shutil
-import timeit
 from collections import defaultdict
-import traceback
 
 from cognitive.auto_task.arguments import get_args
 from cognitive import task_generator as tg
-from cognitive import constants as const
 from cognitive import stim_generator as sg
 from cognitive import info_generator as ig
+from cognitive import constants as const
 
 import numpy as np
 import random
+import timeit
 import networkx as nx
-from tqdm import tqdm
 from PIL import Image
 import os
-from networkx.drawing.nx_pydot import graphviz_layout
 
 from typing import Tuple, Union, List
 
@@ -41,14 +38,7 @@ op_dict = {
     "Select":
         {
             "n_downstream": 4,
-            "downstream": ["GetLoc", "GetCategory", "GetObject", "None"],
-            # "downstream": ["CONST"],
-            # "downstream": ["GetLoc"],
-            # "downstream": ["GetCategory"],
-            # "downstream": ["GetObject"],
-            # "sample_dist": [1/4, 1/4, 1/4, 1/4],
-            # "sample_dist": [0.5, 0.5],
-            # "sample_dist": [1],
+            "downstream": ["GetLoc", "GetCategory", "GetObject"],
             "same_children_op": False,
             "min_depth": 1,
             "min_op": 1,
@@ -57,7 +47,6 @@ op_dict = {
         {
             "n_downstream": 1,
             "downstream": ["Select"],
-            "sample_dist": [1],
             "min_depth": 2,
             "min_op": 2,
         },
@@ -65,16 +54,13 @@ op_dict = {
         {
             "n_downstream": 1,
             "downstream": ["Select"],
-            "sample_dist": [1],
             "min_depth": 2,
             "min_op": 2,
         },
-
     "GetObject":
         {
             "n_downstream": 1,
             "downstream": ["Select"],
-            "sample_dist": [1],
             "min_depth": 2,
             "min_op": 2,
         },
@@ -82,15 +68,8 @@ op_dict = {
         {
             "n_downstream": 2,
             "downstream": ["GetLoc", "GetCategory", "GetObject", "CONST"],
-            # "downstream": ["CONST"],
-            # "downstream": ["GetLoc"],
-            # "downstream": ["GetLoc", "CONST"],
-            # "downstream": ["GetCategory", "CONST"],
-            # "downstream": ["GetCategory"],
-            # "downstream": ["GetObject"],
             "sample_dist": [4 / 15, 4 / 15, 4 / 15, 1 / 5],
-            # "sample_dist": [1],
-            # "sample_dist": [0.8,0.2],
+
             "same_children_op": True,
             "min_depth": 3,
             "min_op": 7,
@@ -99,15 +78,7 @@ op_dict = {
         {
             "n_downstream": 2,
             "downstream": ["GetLoc", "GetCategory", "GetObject", "CONST"],
-            # "downstream": ["CONST"],
-            # "downstream": ["GetLoc"],
-            # "downstream": ["GetLoc", "CONST"],
-            # "downstream": ["GetCategory", "CONST"],
-            # "downstream": ["GetCategory"],
-            # "downstream": ["GetObject"],
             "sample_dist": [4 / 15, 4 / 15, 4 / 15, 1 / 5],
-            # "sample_dist": [1],
-            # "sample_dist": [0.8,0.2],
             "same_children_op": True,
             "min_depth": 3,
             "min_op": 7,
@@ -116,7 +87,6 @@ op_dict = {
         {
             "n_downstream": 2,
             "downstream": ["IsSame", "NotSame", "And", "Or"],
-            "sample_dist": [1 / 2, 1 / 2, 0, 0],
             "same_children_op": False,
             "min_depth": 4,
             "min_op": 15,
@@ -125,7 +95,6 @@ op_dict = {
         {
             "n_downstream": 2,
             "downstream": ["IsSame", "NotSame", "And", "Or"],
-            "sample_dist": [1 / 2, 1 / 2, 0, 0],
             "same_children_op": False,
             "min_depth": 4,
             "min_op": 15,
@@ -146,14 +115,13 @@ op_depth_limit = {k: v['min_depth'] for k, v in op_dict.items()}
 op_operators_limit = {k: v['min_op'] for k, v in op_dict.items()}
 
 
-# op_dict['IsSame']['force_sample_dist'] = [0.3, 0.3, 0.3, 0.1]
-# op_dict['NotSame']['force_sample_dist'] = [0.3, 0.3, 0.3, 0.1]
-
 def count_depth_and_op(op):
+    # return the operator count and the depth of the operator graph
     op_count, depth_count = 0, 0
     if not isinstance(op, tg.Operator):
         return op_count, depth_count
     if op.child:
+        # iterate over the nodes, and increment count
         depth_counts = list()
         for c in op.child:
             add_count = count_depth_and_op(c)
@@ -161,6 +129,7 @@ def count_depth_and_op(op):
             depth_counts += [add_count[1]]
         depth_count += max(depth_counts)
     else:
+        # at the leaf nodes
         return 1, 1
     op_count += 1
     depth_count += 1
@@ -246,38 +215,34 @@ def sample_children_op(
     :param op_count: operator count
     :param max_op: max number of operators allowed
     :param cur_depth: current depth
-    :param max_depth: max depth allowed
+    :param max_depth: max depth allowed for the task graph
     :param select_op: Boolean, does select follow an operator
     :param select_downstream: the downstream options that can be sampled from
     :return: list of operators
     """
 
-    n_downstream = op_dict[op_name]["n_downstream"]
-    # how many children need to be sampled
+    n_downstream = op_dict[op_name]["n_downstream"]  # how many children need to be sampled
     if n_downstream == 1:
-        # xlei: should I change it to the sample helper here?
-        # return [random.choice(op_dict[op_name]["downstream"])]
         return [sample_children_helper(op_name, op_count, max_op, cur_depth, max_depth)]
     elif op_name == 'Select':
         children = list()  # append children operators
 
-        if select_downstream is None:
-            select_downstream = op_dict['Select']['downstream']
         if cur_depth + 2 > max_depth or op_count + 2 > max_op:
             return ['None' for _ in range(n_downstream)]
         else:
-            if select_op:  # if select at least one operator for select attribute
-                # get = random.choice(["GetCategory", "GetLoc", "GetViewAngle", "GetObject"])
-                # xlei: need to be consisted with all the operators that are relevant
+            op_sampled = False
+            if select_op:  # if Select is followed by a Get operator
+                if select_downstream is None:
+                    select_downstream = op_dict['Select']['downstream']
                 for _ in range(n_downstream):
                     if np.random.random() < 0.8:  # make sure not too many operators follow select
                         children.append('None')
                     else:
-                        if select_downstream:  # if the list is not empty, sample a downstream op
-                            get = random.choice(op_dict['Select']['downstream'])
+                        if select_downstream and not op_sampled:  # if the list is not empty, sample a downstream op
+                            get = random.choice(select_downstream)
                             children.append(get)
-                            if get in select_downstream:
-                                select_downstream.remove(get)
+                            op_sampled = True
+                            select_downstream.remove(get)
                         else:
                             children.append('None')
                 return children
@@ -341,7 +306,7 @@ def branch_generator(
             if any(op == 'CONST' for op in children):
                 const_idx = children.index('CONST')
                 other_idx = 0 if const_idx == 1 else 1
-                # TODO: remove this check when there's mapping for object idx
+                # remove this check if there's mapping for object idx
                 if any(op == 'GetViewAngle' or op == 'GetObject' for op in children):
                     children[const_idx] = children[other_idx]  # add a Get op to compare with the constant
         for op in children:  # loop over sampled children and modify the graph in place
@@ -349,7 +314,6 @@ def branch_generator(
                 child = op_count + 1
                 # recursively generate branches based on the child operator
                 # op_count is incremented based on how many nodes were added in the child branch call
-
                 op_count = branch_generator(G, op, child, max_op, cur_depth, max_depth, select_op,
                                             select_downstream)
                 G.add_node(child, label=op)  # modify the graph
@@ -506,61 +470,33 @@ def write_trial_instance(
         json.dump(compo_example, f, indent=4)
     return
 
-# if __name__ == '__main__':
-#     args = get_args()
-#     print(args)
 
-#     const.DATA = const.Data(dir_path=args.stim_dir)
+if __name__ == '__main__':
+    args = get_args()
+    print(args)
 
-#     task_dir = args.task_dir
+    const.DATA = const.Data(
+        dir_path=args.stim_dir
+    )
+    if args.op_dict_json:
+        with open(args.op_dict_json) as f:
+            op_dict = json.load(f)
 
-#     if task_dir:  # if there is saved task information, then generate the frames
-#         if not os.path.isdir(task_dir):
-#             raise ValueError('Task Directory not found')
-#         start = timeit.default_timer()
-#         task_folders = [f.path for f in os.scandir(task_dir) if f.is_dir()]
-#         for f in task_folders:  # iterate each task folder
-#             try:
-#                 task_json_fp = os.path.join(f, 'temporal_task.json')
-#                 with open(task_json_fp, 'rb') as h:
-#                     task_dict = json.load(h)
-#                 task_dict['operator'] = tg.load_operator_json(task_dict['operator'])  # reconstruct the task
-#                 temporal_task = tg.TemporalTask(
-#                     operator=task_dict['operator'],
-#                     n_frames=task_dict['n_frames'],
-#                     first_shareable=task_dict['first_shareable'],
-#                     whens=task_dict['whens']
-#                 )
-#                 for i in range(args.n_trials):
-#                     instance_fp = os.path.join(f, f'trial_{i}')
-#                     if os.path.exists(instance_fp):
-#                         shutil.rmtree(instance_fp)
-#                     os.makedirs(instance_fp)
-#                     frame_info = ig.FrameInfo(temporal_task, temporal_task.generate_objset())
-#                     compo_info = ig.TaskInfoCompo(temporal_task,
-#                                                   frame_info)
-#                     # compo_info saves task information, and is used for task composition using merge
-#                     compo_info.write_trial_instance(instance_fp, args.img_size, args.fixation_cue)
-#                     # TODO: some guess objset error where ValueError occurs
-#                     write_trial_instance(temporal_task, instance_fp, args.img_size, args.fixation_cue)
-#             except Exception as e:
-#                 traceback.print_exc()
-#         stop = timeit.default_timer()
-#         print('Time taken to generate trials: ', stop - start)
-#     else:  # generate args.n_tasks
-#         start = timeit.default_timer()
-#         for i in range(args.n_tasks):
-#             # make directory for saving task information
-#             fp = os.path.join(args.output_dir, str(i))
-#             if os.path.exists(fp):
-#                 shutil.rmtree(fp)
-#             os.makedirs(fp)
+    start = timeit.default_timer()
+    for i in range(args.n_tasks):
+        # make directory for saving task information
+        fp = os.path.join(args.output_dir, str(i))
+        if os.path.exists(fp):
+            shutil.rmtree(fp)
+        os.makedirs(fp)
 
-#             task_graph, task = task_generator(args.max_switch,
-#                                               args.switch_threshold,
-#                                               args.max_op,
-#                                               args.max_depth,
-#                                               args.select_limit)
-#             write_task_instance(task_graph, task, fp)
-#         stop = timeit.default_timer()
-#         print('Time taken to generate tasks: ', stop - start)
+        task_graph, task = task_generator(
+            max_switch=args.max_switch,
+            switch_threshold=args.switch_threshold,
+            max_op=args.max_op,
+            max_depth=args.max_depth,
+            select_limit=args.select_limit
+        )
+        write_task_instance(task_graph, task, fp)
+    stop = timeit.default_timer()
+    print('Time taken to generate tasks: ', stop - start)
