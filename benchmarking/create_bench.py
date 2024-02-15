@@ -3,6 +3,7 @@ import json
 import shutil
 import argparse
 from natsort import natsorted
+from collections import defaultdict
 
 import sys
 sys.path.append(sys.path[0] + '/../../COG_v3_shapenet')
@@ -131,7 +132,7 @@ if __name__ == '__main__':
     parser.add_argument('--stim_dir', type=str, default='/home/lucas/XLshared_large_files/new_shapenet_val/')
     parser.add_argument('--tasks_dir', type=str, default='COG_v3_shapenet/benchmarking/temp/low_tasks_all')
     parser.add_argument('--trials_dir', type=str, default='COG_v3_shapenet/benchmarking/temp/low_all')
-    parser.add_argument('--op_dict_json', type=str, default='COG_v3_shapenet/benchmarking/configs/low_complexity.json')
+    parser.add_argument('--config_path', type=str, default='COG_v3_shapenet/benchmarking/configs/low_complexity.json')
     parser.add_argument('--max_memory', type=int, default=5)
     parser.add_argument('--max_len', type=int, default=6)
     parser.add_argument('--n_trials', type=int, default=1000)
@@ -156,13 +157,21 @@ if __name__ == '__main__':
     task_params = {'max_op': args.max_op, 'max_depth': args.max_memory, 'max_switch': args.max_switch, 'select_limit':args.select_limit, 'switch_threshold':args.switch_threshold}
 
     const.DATA = const.Data(dir_path=args.stim_dir, max_memory=args.max_memory)
-    with open(args.op_dict_json) as f:
-        op_dict = json.load(f)
+    with open(args.config_path) as f:
+        config = json.load(f)
+        op_dict = config['op_dict']
         op_dict['IsSame']['sample_dist'] = [4/ 15, 4 / 15, 4 / 15, 1 / 5]
         op_dict['NotSame']['sample_dist'] = [4/ 15, 4 / 15, 4 / 15, 1 / 5]
-        op_dict['root_ops'] = ["IsSame", "And", "Or", "NotSame", "GetLoc", "GetCategory"]
-        op_dict['boolean_ops'] = ["IsSame", "And", "Or", "NotSame", ]
-        auto_task.op_dict = op_dict
+        root_ops =  config['root_ops']
+        boolean_ops = config['boolean_ops']
+
+
+        auto_task.root_ops = root_ops
+        auto_task.boolean_ops = boolean_ops
+        auto_task.op_dict = defaultdict(dict, **op_dict)
+        auto_task.op_depth_limit = {k: v['min_depth'] for k, v in auto_task.op_dict.items()}
+        auto_task.op_operators_limit = {k: v['min_op'] for k, v in auto_task.op_dict.items()}
+
 
     # Set balance tracking dictionary
     # CHANGE DICTIONARIES TO MATCH FEATURE LABELS OF STIMULUS SET
