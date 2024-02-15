@@ -1,17 +1,4 @@
-# Copyright 2018 Google LLC
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     https://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ==============================================================================
+# code based on https://github.com/google/cog
 
 """High-level API for generating stimuli.
 
@@ -30,7 +17,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import itertools
 from bisect import bisect_left
 from collections import defaultdict
 import random
@@ -221,6 +207,8 @@ class Space(Attribute):
 
             if not_overlapping:
                 break
+        if not not_overlapping:
+            raise RuntimeError('Could not sample another location')
         return Loc(space=self, value=loc_sample)
 
     def include(self, loc):
@@ -327,29 +315,6 @@ class SNViewAngle(Attribute):
         return int(self.value) if self.has_value else self.value
 
 
-class SNFixedObject(Attribute):
-    # used for sanity check, fixed object, only changes view angle
-    def __init__(self, sn_object, value):
-        if value is not None:
-            assert isinstance(sn_object, SNObject)
-        super(SNFixedObject, self).__init__(value)
-        self.attr_type = 'fixed_object'
-        self.object = sn_object
-
-    def __str__(self):
-        return 'object: ' + str(self.value)
-
-    def sample(self):
-        self.value = random_view_angle(self.object).value
-
-    def resample(self):
-        self.value = another_view_angle(self).value
-
-    @property
-    def get_value(self):
-        return int(self.value) if self.has_value else self.value
-
-
 def static_objects_from_dict(d):
     epochs = d['epochs']
     epochs = epochs if isinstance(epochs, list) else [epochs]
@@ -407,11 +372,9 @@ class Object(object):
     An object is a collection of attributes.
 
     Args:
-      location: tuple (x, y)
-      color: string ('red', 'green', 'blue', 'white')
-      shape: string ('circle', 'square')
-      when: string ('last', 'last1', 'last2',)
-      deletable: boolean. Whether or not this object is deletable. True if
+      attrs: list [category, object, view_angle, loc]
+      when: string ('last', 'last1', 'last2')
+      deletable: boolean. Whether this object is deletable. True if
         distractors.
 
     Raises:
@@ -441,8 +404,6 @@ class Object(object):
                 elif isinstance(a, SNObject):
                     self.object = a
                 elif isinstance(a, SNViewAngle):
-                    self.view_angle = a
-                elif isinstance(a, SNFixedObject):
                     self.view_angle = a
                 else:
                     raise TypeError('Unknown type for attribute: ' +
@@ -508,8 +469,6 @@ class Object(object):
             self.change_object(attr)
         elif isinstance(attr, SNViewAngle):
             self.change_view_angle(attr)
-        elif isinstance(attr, SNFixedObject):
-            self.change_fixed_object(attr)
         else:
             raise NotImplementedError()
 
@@ -743,23 +702,24 @@ class ObjectSet(object):
                object=None,
                view_angle=None,
                when=None,
-               n_backtrack=None,
                delete_if_can=True,
                merge_idx=None
                ):
         """Select an object satisfying properties.
 
         Args:
-          epoch_now: int, the current epoch
-          space: None or a Loc instance, the location to be selected.
-          color: None or a Color instance, the color to be selected.
-          shape: None or a Shape instance, the shape to be selected.
-          when: None or a string, the temporal window to be selected.
-          n_backtrack: None or int, the number of epochs to backtrack
-          delete_if_can: boolean, delete object found if can
+            epoch_now: int, the current epoch
+            space: None or a Loc instance, the location to be selected.
+            category: None or an SNcategory instance, the ShapeNet category to be selected.
+            object: None or an SNobject instance, the ShapeNet object to be selected.
+            view_angle: None or an SNViewAngle instance, the ShapeNet view angle to be selected.
+
+            when: None or a string, the temporal window to be selected.
+            n_backtrack: None or int, the number of epochs to backtrack
+            delete_if_can: boolean, delete object found if can
 
         Returns:
-          a list of Object instance that fit the pattern provided by arguments
+            a list of Object instance that fit the pattern provided by arguments
         """
         space = space
         category = category or SNCategory(None)
@@ -991,31 +951,6 @@ def another_view_angle(view_angle):
                            value=random.choice(all_viewangles))
 
 
-def random_fixed_object(sn_object):
-    return SNFixedObject(sn_object=sn_object,
-                         value=random.choice(const.DATA.ALLVIEWANGLES[sn_object.category.value][sn_object.value]))
-
-
-def another_fixed_object(fixed_object):
-    try:
-        category = random_category()
-        if category == fixed_object.object.category:
-            all_objects = list(const.DATA.ALLOBJECTS[category.value])
-            all_objects.remove(fixed_object.object.value)
-
-            # resample category if no other objects in the same category
-            if not all_objects:
-                while category != fixed_object.object.category:
-                    category = random_category()
-                return random_fixed_object(random_object(category))
-            obj = SNObject(category=category, value=random.choice(all_objects))
-            return random_fixed_object(obj)
-        else:
-            return random_fixed_object(random_object(category))
-    except AttributeError:
-        raise NotImplementedError()
-
-
 def random_attr(attr_type) -> Attribute:
     if attr_type == 'object':
         category = random_category()
@@ -1025,9 +960,6 @@ def random_attr(attr_type) -> Attribute:
     elif attr_type == 'view_angle':
         obj = random_object(random_category())
         return random_view_angle(obj)
-    elif attr_type == 'fixed_object':
-        obj = random_object(random_category())
-        return random_fixed_object(obj)
     elif attr_type == 'location':
         space = random_grid_space()
         return space.sample()
@@ -1043,8 +975,6 @@ def another_attr(attr):
         return another_object(attr)
     elif isinstance(attr, SNViewAngle):
         return another_view_angle(attr)
-    elif isinstance(attr, SNFixedObject):
-        return another_fixed_object(attr)
     elif isinstance(attr, Space):
         return another_loc(attr)
     elif isinstance(attr, Loc):
@@ -1088,8 +1018,8 @@ def random_when():
 def sample_when(n=1, existing_whens=None):
     """
 
-    :param n:
-    :param existing_whens:
+    :param n: number of whens
+    :param existing_whens: avoid sampling multiple stimuli per frame
     :return: a list of 'lastk', in random order
     """
     if existing_whens is None:

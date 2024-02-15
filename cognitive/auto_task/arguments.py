@@ -11,12 +11,14 @@ def get_args():
                         help='the maximum number of switch operators in the task graph')
     parser.add_argument('--output_dir', default='./tasks', help='the output directory')
     parser.add_argument(
-        '--op_dict_json',
+        '--config_json',
         default='',
         help='Filepath of operator user specified dictionary in json format, '
              'this includes which operators can follow a parent operator in task graphs'
              'as well as the children operator sampling distribution.'
-             'If not specified, use the default op_dict in auto_task_util'
+             'users can also specify which operators can be sampled as the root operators, '
+             'as well as the set of boolean operators'
+             'If not specified, use the default config in auto_task_util'
     )
     parser.add_argument('--n_tasks', type=int, default=1000, help='number of tasks to generate')
     parser.add_argument('--select_limit', action='store_false', default=True)

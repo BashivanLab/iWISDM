@@ -1,4 +1,4 @@
-"""Script for generating a dataset"""
+"""Script for generating temporal composite task dataset, including nback"""
 
 from __future__ import absolute_import
 from __future__ import division
