@@ -1,5 +1,5 @@
 """
-Classes for building composite tasks
+Classes for building temporal composite tasks
 """
 
 import re
@@ -45,7 +45,7 @@ class TaskInfoCompo(object):
         # self.task_objset[0] = frame_info.objset.copy()
         # self.frame_info = frame_info
         # self.tempo_dict = dict()
-    
+
     def reset(self):
         if self.frame_info is None:
             if self.task.avg_mem is None:
@@ -71,7 +71,7 @@ class TaskInfoCompo(object):
 
         new_task_idx = len(self.tasks)
         start_frame_idx = self.frame_info.get_start_frame(new_task_info, relative_tasks={new_task_idx})
-        
+
         # init new ObjSet
         # print("n_epoch:", new_task_copy.n_frames)
         objset = sg.ObjectSet(n_epoch=new_task_copy.n_frames, n_max_backtrack=(int(new_task_copy.avg_mem) * 3))
@@ -153,7 +153,6 @@ class TaskInfoCompo(object):
                 info['attended_attr'] = defaultdict(set)  # key: task, value: attribute of the stim that are relevant
                 obj_info[epoch].append(info)
 
-
         # todo: uncomment below to allow instruction generation
         compo_instruction = ''
         if self.tempo_dict:
@@ -227,7 +226,7 @@ class TaskInfoCompo(object):
                 answers.append('null')
         return answers
 
-    def get_examples(self, is_instruction = True, external_instruction = None):
+    def get_examples(self, is_instruction=True, external_instruction=None):
         """
         get task examples
         :return: tuple of list of dictionaries containing information about the requested tasks
@@ -260,10 +259,9 @@ class TaskInfoCompo(object):
         }
         return examples, compo
 
-    # todo: xlei: change fixation to False, need to change it back
     def generate_trial(self, img_size=224, fixation_cue=True) -> None:
         objset = self.frame_info.objset
-        
+
         imgs = []
         for i, (epoch, frame) in enumerate(zip(sg.render(objset, img_size), self.frame_info)):
             # print("lxx what is i:", i)
@@ -303,7 +301,6 @@ class TaskInfoCompo(object):
         filename = os.path.join(frames_fp, 'task_info.json')
         with open(filename, 'w') as f:
             json.dump(compo_example, f, indent=4)
-        
 
         """
         Commenting these out for faster data gen - LG, Sat Nov 25

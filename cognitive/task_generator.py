@@ -1,17 +1,4 @@
-# Copyright 2018 Google LLC
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     https://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ==============================================================================
+# code based on https://github.com/google/cog
 
 """Vocabulary of functional programs.
 
@@ -477,16 +464,6 @@ class Get(Operator):
             should_be = sg.random_attr(self.attr_type)
         objs = sg.Object([should_be])
         return [objs]
-
-
-class Go(Get):
-    """Go to location of object."""
-
-    def __init__(self, objs):
-        super(Go, self).__init__('location', objs)
-
-    def __str__(self):
-        return ' '.join(['point', str(self.objs)])
 
 
 class GetObject(Get):
@@ -1513,4 +1490,4 @@ get_family_dict = OrderedDict([
     ('location', GetLoc)
 ])
 
-BOOL_OP = [IsSame, Exist, And, Switch]
+BOOL_OP = [IsSame, NotSame, Exist, And, Or]

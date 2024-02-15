@@ -1,18 +1,4 @@
-# Copyright 2018 Google LLC
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     https://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ==============================================================================
-## todo: do we need this license statement?
+# code based on https://github.com/google/cog
 
 """Store all the constants."""
 
@@ -29,7 +15,6 @@ import numpy as np
 import pandas as pd
 from PIL import Image
 from collections import OrderedDict
-import pickle as pickle
 
 # average memory duration: how many frames each object can be retained in the memory
 AVG_MEM = 3
@@ -96,10 +81,6 @@ class Data:
             raise ValueError(f'No dataset meta information found in {dir_path}')
         self.MOD_DICT = self.get_mod_dict()
 
-        CATEGORIES = len(self.MOD_DICT)
-        OBJECTPERCATEGORY = {cat: len(val) for cat, val in self.MOD_DICT.items()}
-        # VIEW_ANGLES = 4
-        self.mods_with_mapping = dict()
         if 'ctg' in self.df.columns.values:
             self.IDX2Category = dict()
             for cat, _ in self.MOD_DICT.items():
@@ -140,7 +121,6 @@ class Data:
         self.valid_image_path = None
 
         self.grid = get_grid(grid_size)
-        # print(self.grid)
 
     def get_shapenet_object(self, obj, obj_size, training_path=None, validation_path=None):
         # sample stimuli that satisfies the properties specified by obj dictionary
@@ -215,18 +195,6 @@ class Data:
         return MOD_DICT
 
 
-# If use popvec out_type
-def get_prefs(grid_size):
-    # an alternative representation of output type for grid coordinate
-    prefs_y, prefs_x = (np.mgrid[0:grid_size, 0:grid_size]) / (grid_size - 1.)
-    prefs_x = prefs_x.flatten().astype('float32')
-    prefs_y = prefs_y.flatten().astype('float32')
-
-    # numpy array (Grid_size**2, 2)
-    prefs = (np.array([prefs_x, prefs_y]).astype('float32')).T
-    return prefs
-
-
 def get_grid(grid_size):
     # return (grid_size,grid_size) array of sg.space.values
     # convert from grid to space
@@ -238,7 +206,3 @@ def get_grid(grid_size):
     grid_spaces = {(i, j): [(x_i, x_k), (y_i, y_k)] for i, (x_i, x_k) in enumerate(zip(xx[0::], xx[1::])) for
                    j, (y_i, y_k) in enumerate(zip(yy[0::], yy[1::]))}
     return OrderedDict(grid_spaces)
-
-
-GRID_SIZE = 7
-PREFS = get_prefs(GRID_SIZE)

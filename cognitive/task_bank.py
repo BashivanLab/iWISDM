@@ -1,17 +1,4 @@
-# Copyright 2018 Google LLC
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     https://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ==============================================================================
+# code based on https://github.com/google/cog
 
 """A bank of available tasks."""
 from __future__ import absolute_import
@@ -231,34 +218,6 @@ class DelayedCDM(TemporalTask):
         self.n_frames = const.compare_when([when1, when2]) + 1
 
 
-class RandomTask1(TemporalTask):
-    def __init__(self, whens=None, first_shareable=None):
-        super(RandomTask1, self).__init__(whens=whens, first_shareable=first_shareable)
-        if self.whens is None:
-            when1, when2 = reversed(sorted(sg.check_whens(sg.sample_when(2))))
-        else:
-            when1, when2 = self.whens[0], self.whens[1]
-
-        obj1, obj2 = tg.Select(when=when1), tg.Select(when=when2)
-        conditional = tg.IsSame(tg.GetLoc(obj1), tg.GetLoc(obj2))
-        do_if = tg.IsSame(tg.GetCategory(obj1), tg.GetCategory(obj2))
-        do_else = tg.IsSame(tg.GetObject(obj1), tg.GetObject(obj2))
-        self._operator = tg.Switch(conditional, do_if, do_else)
-        self.n_frames = const.compare_when([when1, when2]) + 1
-
-
-class RandomTask2(TemporalTask):
-    def __init__(self, whens=None, first_shareable=None):
-        super(RandomTask2, self).__init__(whens=whens, first_shareable=first_shareable)
-        when1, when2, when3, when4 = reversed(sorted(sg.check_whens(sg.sample_when(4))))
-        obj1, obj2, obj3, obj4 = tg.Select(when=when1), tg.Select(when=when2), tg.Select(when=when3), tg.Select(
-            when=when4)
-        conditional = tg.IsSame(tg.GetLoc(obj1), tg.GetLoc(obj2))
-        do_if, do_else = tg.GetCategory(obj1), tg.GetCategory(obj2)
-        self._operator = tg.Switch(conditional, do_if, do_else)
-        self.n_frames = const.compare_when([when1, when2, when3, when4]) + 1
-
-
 task_family_dict = OrderedDict([
     ('ExistCategoryOf', ExistCategoryOfTemporal),
     ('ExistViewAngleOf', ExistViewAngleOfTemporal),
@@ -269,7 +228,6 @@ task_family_dict = OrderedDict([
     ('CompareLoc', CompareLocTemporal),
     ('SequentialCategory', SequentialCategoryMatch),
     ('DelayedCDM', DelayedCDM),
-    ('RandomTask1', RandomTask1)
 ])
 
 

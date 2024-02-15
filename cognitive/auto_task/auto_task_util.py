@@ -1,3 +1,10 @@
+""" procedural task generation.
+
+based on the specified connectivity between operators,
+construct random task graphs by adding operators layer by layer
+also constructs tasks based on the generated graphs
+"""
+
 import json
 import shutil
 from collections import defaultdict
@@ -22,94 +29,97 @@ from typing import Tuple, Union, List
 GRAPH_TUPLE = Tuple[nx.DiGraph, int, int]
 TASK = Tuple[Union[tg.Operator, sg.Attribute], tg.TemporalTask]
 
-# root_ops are the operators to begin a task
-root_ops = ["IsSame", "And", "Or", "NotSame", "GetLoc", "GetCategory"]
-boolean_ops = ["IsSame", "And", "Or", "NotSame", ]
-
-# all tasks end with select
-leaf_op = ["Select"]
-mid_op = ["Switch"]
-
 # dictionary specifying which operators can follow an operator,
 # e.g. GetCategory follows selecting an object
 # 4 operators are related to Select: category, location, view_angle, and the exact object
 # if the operator is None, then a random constant is sampled for that attribute
-op_dict = {
-    "Select":
-        {
-            "n_downstream": 4,
-            "downstream": ["GetLoc", "GetCategory", "GetObject"],
-            "same_children_op": False,
-            "min_depth": 1,
-            "min_op": 1,
-        },
-    "GetCategory":
-        {
-            "n_downstream": 1,
-            "downstream": ["Select"],
-            "min_depth": 2,
-            "min_op": 2,
-        },
-    "GetLoc":
-        {
-            "n_downstream": 1,
-            "downstream": ["Select"],
-            "min_depth": 2,
-            "min_op": 2,
-        },
-    "GetObject":
-        {
-            "n_downstream": 1,
-            "downstream": ["Select"],
-            "min_depth": 2,
-            "min_op": 2,
-        },
-    "IsSame":
-        {
-            "n_downstream": 2,
-            "downstream": ["GetLoc", "GetCategory", "GetObject", "CONST"],
-            "sample_dist": [4 / 15, 4 / 15, 4 / 15, 1 / 5],
+config = {
+    'op_dict': {
+        "Select":
+            {
+                "n_downstream": 4,
+                "downstream": ["GetLoc", "GetCategory", "GetObject"],
+                "same_children_op": False,
+                "min_depth": 1,
+                "min_op": 1,
+            },
+        "GetCategory":
+            {
+                "n_downstream": 1,
+                "downstream": ["Select"],
+                "min_depth": 2,
+                "min_op": 2,
+            },
+        "GetLoc":
+            {
+                "n_downstream": 1,
+                "downstream": ["Select"],
+                "min_depth": 2,
+                "min_op": 2,
+            },
+        "GetObject":
+            {
+                "n_downstream": 1,
+                "downstream": ["Select"],
+                "min_depth": 2,
+                "min_op": 2,
+            },
+        "IsSame":
+            {
+                "n_downstream": 2,
+                "downstream": ["GetLoc", "GetCategory", "GetObject", "CONST"],
+                "sample_dist": [4 / 15, 4 / 15, 4 / 15, 1 / 5],
 
-            "same_children_op": True,
-            "min_depth": 3,
-            "min_op": 7,
-        },
-    "NotSame":
-        {
-            "n_downstream": 2,
-            "downstream": ["GetLoc", "GetCategory", "GetObject", "CONST"],
-            "sample_dist": [4 / 15, 4 / 15, 4 / 15, 1 / 5],
-            "same_children_op": True,
-            "min_depth": 3,
-            "min_op": 7,
-        },
-    "And":
-        {
-            "n_downstream": 2,
-            "downstream": ["IsSame", "NotSame", "And", "Or"],
-            "same_children_op": False,
-            "min_depth": 4,
-            "min_op": 15,
-        },
-    "Or":
-        {
-            "n_downstream": 2,
-            "downstream": ["IsSame", "NotSame", "And", "Or"],
-            "same_children_op": False,
-            "min_depth": 4,
-            "min_op": 15,
-        },
-    "CONST":
-        {
-            "n_downstream": 0,
-            "downstream": [],
-            "sample_dist": [],
-            "same_children_op": False,
-            "min_depth": 1,
-            "min_op": 1,
-        }
+                "same_children_op": True,
+                "min_depth": 3,
+                "min_op": 7,
+            },
+        "NotSame":
+            {
+                "n_downstream": 2,
+                "downstream": ["GetLoc", "GetCategory", "GetObject", "CONST"],
+                "sample_dist": [4 / 15, 4 / 15, 4 / 15, 1 / 5],
+                "same_children_op": True,
+                "min_depth": 3,
+                "min_op": 7,
+            },
+        "And":
+            {
+                "n_downstream": 2,
+                "downstream": ["IsSame", "NotSame", "And", "Or"],
+                "same_children_op": False,
+                "min_depth": 4,
+                "min_op": 15,
+            },
+        "Or":
+            {
+                "n_downstream": 2,
+                "downstream": ["IsSame", "NotSame", "And", "Or"],
+                "same_children_op": False,
+                "min_depth": 4,
+                "min_op": 15,
+            },
+        "CONST":
+            {
+                "n_downstream": 0,
+                "downstream": [],
+                "sample_dist": [],
+                "same_children_op": False,
+                "min_depth": 1,
+                "min_op": 1,
+            }
+    },
+    # root_ops are the operators to begin a task
+    'root_ops': ["IsSame", "And", "Or", "NotSame", "GetLoc", "GetCategory"],
+    'boolean_ops': ["IsSame", "And", "Or", "NotSame", ],
+    # all tasks end with select
+    'leaf_op': ["Select"],
+    'mid_op': ["Switch"],
 }
 
+op_dict = config['op_dict']
+root_ops = config['root_ops']
+boolean_ops = config['boolean_ops']
 op_dict = defaultdict(dict, **op_dict)
 op_depth_limit = {k: v['min_depth'] for k, v in op_dict.items()}
 op_operators_limit = {k: v['min_op'] for k, v in op_dict.items()}
@@ -478,9 +488,15 @@ if __name__ == '__main__':
     const.DATA = const.Data(
         dir_path=args.stim_dir
     )
-    if args.op_dict_json:
-        with open(args.op_dict_json) as f:
+    if args.config_json:
+        with open(args.config_json) as f:
             op_dict = json.load(f)
+            op_dict = config['op_dict']
+            root_ops = config['root_ops']
+            boolean_ops = config['boolean_ops']
+            op_dict = defaultdict(dict, **op_dict)
+            op_depth_limit = {k: v['min_depth'] for k, v in op_dict.items()}
+            op_operators_limit = {k: v['min_op'] for k, v in op_dict.items()}
 
     start = timeit.default_timer()
     for i in range(args.n_tasks):
