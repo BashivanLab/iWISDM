@@ -68,7 +68,7 @@ class Data:
         self.MAX_MEMORY = max_memory
 
         if not os.path.exists(self.dir_path):
-            print('Data folder does not exist.')
+            raise ValueError('Data folder does not exist.')
         pkls = sorted([fname for fname in glob.glob(f'{dir_path}/**/*.pkl', recursive=True)])
         csvs = sorted([fname for fname in glob.glob(f'{dir_path}/**/*.csv', recursive=True)])
         if len(csvs) > 0:
@@ -79,8 +79,9 @@ class Data:
             self.df: pd.DataFrame = pd.read_pickle(self.fp)
         else:
             raise ValueError(f'No dataset meta information found in {dir_path}')
-        self.MOD_DICT = self.get_mod_dict()
 
+        self.MOD_DICT = self.get_mod_dict()
+        self.mods_with_mapping = dict()
         if 'ctg' in self.df.columns.values:
             self.IDX2Category = dict()
             for cat, _ in self.MOD_DICT.items():

@@ -490,7 +490,7 @@ if __name__ == '__main__':
     )
     if args.config_json:
         with open(args.config_json) as f:
-            op_dict = json.load(f)
+            config = json.load(f)
             op_dict = config['op_dict']
             root_ops = config['root_ops']
             boolean_ops = config['boolean_ops']

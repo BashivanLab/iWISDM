@@ -702,6 +702,7 @@ class ObjectSet(object):
                object=None,
                view_angle=None,
                when=None,
+               n_backtrack=None,
                delete_if_can=True,
                merge_idx=None
                ):
