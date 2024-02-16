@@ -72,7 +72,7 @@
                 "min_op": 1
             }
     },
-    "root_ops": ["IsSame", "And", "Or", "NotSame"],
+    "root_ops": ["IsSame", "And", "Or", "NotSame", "GetLoc", "GetCategory"],
     "boolean_ops": ["IsSame", "And", "Or", "NotSame"],
     "leaf_op": ["Select"],
     "mid_op": ["Switch"]

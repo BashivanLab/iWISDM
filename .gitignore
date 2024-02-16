@@ -17,7 +17,7 @@ test
 .zip
 *.zip
 
-
+/benchmarking/temp/*
 */__pycache__/*
 __pycache__
 __pycache__/

@@ -2,7 +2,7 @@ import os
 import json
 import shutil
 import argparse
-# from natsort import natsorted
+from natsort import natsorted
 from collections import defaultdict
 
 import sys
@@ -70,8 +70,6 @@ def load_stored_tasks(fp):
 
 
 def create_tasks(track_tf, task_params, **kwargs):
-    print(kwargs)
-
     total_and = 0
     total_or = 0
     total_not = 0
@@ -86,13 +84,18 @@ def create_tasks(track_tf, task_params, **kwargs):
         task_ins = []
 
     while len(tasks) < kwargs['n_tasks']:
+        print(len(tasks))
+        print(kwargs['n_tasks'])
         task = create_task(task_params)
         if task.n_frames <= kwargs['max_len']:
+            print('under max len')
             instructions, answer, compo_info = generate_trial(task)
             n_and = instructions.count(' and ')
             n_or = instructions.count(' or ')
             if kwargs['min_bool_ops'] <= (n_and + n_or) <= kwargs['max_bool_ops']:
+                print('under bool op limit')
                 if kwargs['force_balance']:
+                    print('balanced')
                     if (track_tf[answer] + 1) / n_trials <= 1 / len(track_tf):
                         if not duplicate_check(task_ins, instructions):
                             track_tf[answer] += 1
@@ -121,8 +124,8 @@ def create_tasks(track_tf, task_params, **kwargs):
 
 def delete_last_n_files(directory, n):
     files = os.listdir(directory)
-    files.sort(key=os.path.getmtime, reverse=True)  # Sort files by modification time, latest first
-    files_to_delete = files[:n]
+    files = natsorted(files)  # Sort files in alphanumeric order
+    files_to_delete = files[-n:]
 
     for file_to_delete in files_to_delete:
         file_path = os.path.join(directory, file_to_delete)
@@ -134,11 +137,11 @@ def delete_last_n_files(directory, n):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='benchmark')
-    parser.add_argument('--train', action='store_false', default=False)
-    parser.add_argument('--stim_dir', type=str, default='../data/shapenet_handpicked_val')
-    parser.add_argument('--tasks_dir', type=str, default='temp/low_tasks_all')
-    parser.add_argument('--trials_dir', type=str, default='temp/low_all')
-    parser.add_argument('--config_path', type=str, default='configs/low_complexity.json')
+    parser.add_argument('--train', action='store_true', default=False)
+    parser.add_argument('--stim_dir', type=str, default='data/shapenet_handpicked_val')
+    parser.add_argument('--tasks_dir', type=str, default='benchmarking/temp/low_tasks_all')
+    parser.add_argument('--trials_dir', type=str, default='benchmarking/temp/low_trials_all')
+    parser.add_argument('--config_path', type=str, default='benchmarking/configs/low_complexity.json')
     parser.add_argument('--max_memory', type=int, default=5)
     parser.add_argument('--max_len', type=int, default=6)
     parser.add_argument('--n_trials', type=int, default=1000)
@@ -147,18 +150,23 @@ if __name__ == '__main__':
     parser.add_argument('--max_op', type=int, default=15)
     parser.add_argument('--max_switch', type=int, default=0)
     parser.add_argument('--switch_threshold', type=float, default=1.0)
-    parser.add_argument('--select_limit', action='store_false', default=True)
+    parser.add_argument('--select_limit', action='store_true', default=False)
     parser.add_argument('--features', type=str, default='all')
     parser.add_argument('--min_bool_ops', type=int, default=1)
     parser.add_argument('--max_bool_ops', type=int, default=1)
-    parser.add_argument('--force_balance', action='store_false', default=True)
-    parser.add_argument('--non_bool_actions', action='store_false', default=False)
+    parser.add_argument('--force_balance', action='store_true', default=False)
+    parser.add_argument('--non_bool_actions', action='store_false', default=True)
     args = parser.parse_args()
 
     # Remake task directory
     if os.path.exists(args.tasks_dir):
         shutil.rmtree(args.tasks_dir)
     os.makedirs(args.tasks_dir)
+    # Remake trials directory
+    if os.path.exists(args.trials_dir):
+        shutil.rmtree(args.trials_dir)
+    os.makedirs(args.trials_dir)
+
 
     task_params = {
         'max_op': args.max_op,
@@ -178,14 +186,9 @@ if __name__ == '__main__':
         op_dict = config['op_dict']
         root_ops = config['root_ops']
         boolean_ops = config['boolean_ops']
-        op_dict = defaultdict(dict, **op_dict)
-        op_depth_limit = {k: v['min_depth'] for k, v in op_dict.items()}
-        op_operators_limit = {k: v['min_op'] for k, v in op_dict.items()}
-        op_dict = config['op_dict']
         op_dict['IsSame']['sample_dist'] = [4 / 15, 4 / 15, 4 / 15, 1 / 5]
         op_dict['NotSame']['sample_dist'] = [4 / 15, 4 / 15, 4 / 15, 1 / 5]
-        root_ops = config['root_ops']
-        boolean_ops = config['boolean_ops']
+
 
         auto_task.root_ops = root_ops
         auto_task.boolean_ops = boolean_ops
@@ -200,21 +203,27 @@ if __name__ == '__main__':
         track_tf = {'true': 0, 'false': 0, 'benches': 0, 'boats': 0, 'cars': 0, 'chairs': 0, 'couches': 0,
                     'lighting': 0, 'planes': 0, 'tables': 0, 'bottom right': 0, 'bottom left': 0, 'top left': 0,
                     'top right': 0}
-        args.n_trials = args.n_trials + (len(args.tf_track) - args.n_trials % len(
-            args.tf_track))  # Makes sure n_trials is divisible by length of feature space
+        args.n_trials = args.n_trials + (len(track_tf) - args.n_trials % len(track_tf))  # Makes sure n_trials is divisible by length of feature space
+        args.n_tasks = args.n_trials
     elif args.features == 'category' and args.non_bool_actions:
         track_tf = {'true': 0, 'false': 0, 'benches': 0, 'boats': 0, 'cars': 0, 'chairs': 0, 'couches': 0,
                     'lighting': 0, 'planes': 0, 'tables': 0}
-        args.n_trials = args.n_trials + (len(args.tf_track) - args.n_trials % len(args.tf_track))
+        args.n_trials = args.n_trials + (len(track_tf) - args.n_trials % len(track_tf))
+        args.n_tasks = args.n_trials
     elif args.features == 'location' and args.non_bool_actions:
         track_tf = {'true': 0, 'false': 0, 'bottom right': 0, 'bottom left': 0, 'top left': 0, 'top right': 0}
-        args.n_trials = args.n_trials + (len(args.tf_track) - args.n_trials % len(args.tf_track))
+        args.n_trials = args.n_trials + (len(track_tf) - args.n_trials % len(track_tf))
+        args.n_tasks = args.n_trials
     elif args.features == 'object' and args.non_bool_actions:
         track_tf = {'true': 0, 'false': 0}
-        args.n_trials = args.n_trials + (len(args.tf_track) - args.n_trials % len(args.tf_track))
+        args.n_trials = args.n_trials + (len(track_tf) - args.n_trials % len(track_tf))
+        args.n_tasks = args.n_trials
     else:
         track_tf = {'true': 0, 'false': 0}
 
+    print(track_tf)
+    print(args.n_trials)
+    print(args.n_tasks)
     print('total:', len(create_tasks(track_tf, task_params, **vars(args))[0]))
 
     if args.non_bool_actions:
