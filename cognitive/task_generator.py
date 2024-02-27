@@ -424,7 +424,7 @@ class Get(Operator):
     def __str__(self):
         words = [self.attr_type, 'of', str(self.objs)]
         if not self.parent:
-            words += ['?']
+            words[-1] += '?'
         return ' '.join(words)
 
     def __call__(self, objset, epoch_now):
@@ -469,6 +469,12 @@ class Get(Operator):
 class GetObject(Get):
     def __init__(self, objs):
         super(GetObject, self).__init__('object', objs)
+
+    def __str__(self):
+        words = ['identity', 'of', str(self.objs)]
+        if not self.parent:
+            words[-1] += '?'
+        return ' '.join(words)
 
 
 class GetCategory(Get):
@@ -667,9 +673,9 @@ class IsSame(Operator):
         assert self.attr_type == self.attr2.attr_type
 
     def __str__(self):
-        words = [self.attr1.__str__(), 'equal', self.attr2.__str__()]
+        words = [self.attr1.__str__(), 'equals', self.attr2.__str__()]
         if not self.parent:
-            words += ['?']
+            words[-1] += '?'
         return ' '.join(words)
 
     def __call__(self, objset, epoch_now):
@@ -760,9 +766,9 @@ class NotSame(Operator):
         assert self.attr_type == self.attr2.attr_type
 
     def __str__(self):
-        words = [self.attr1.__str__(), 'not equal', self.attr2.__str__()]
+        words = [self.attr1.__str__(), 'not equals', self.attr2.__str__()]
         if not self.parent:
-            words += ['?']
+            words[-1] += '?'
         return ' '.join(words)
 
     def __call__(self, objset, epoch_now):
@@ -833,7 +839,7 @@ class And(Operator):
     def __str__(self):
         words = [str(self.op1), 'and', str(self.op2)]
         if not self.parent:
-            words += ['?']
+            words[-1] += '?'
         return ' '.join(words)
 
     def __call__(self, objset, epoch_now):
@@ -876,7 +882,7 @@ class Or(Operator):
     def __str__(self):
         words = [str(self.op1), 'or', str(self.op2)]
         if not self.parent:
-            words += ['?']
+            words[-1] += '?'
         return ' '.join(words)
 
     def __call__(self, objset, epoch_now):
