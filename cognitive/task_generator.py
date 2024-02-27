@@ -563,12 +563,14 @@ class Switch(Operator):
 
         words = [
             'if',
-            str(self.statement), ',', 'then',
-            str(self.do_if_true), ',', 'else',
+            str(self.statement) + ',',
+            'then',
+            str(self.do_if_true) + '?',
+            'else',
             str(self.do_if_false)
         ]
         if not self.parent:
-            words += ['?']
+            words[-1] += '?'
         return ' '.join(words)
 
     def __call__(self, objset, epoch_now):

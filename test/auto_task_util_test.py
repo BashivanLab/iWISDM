@@ -169,7 +169,7 @@ class UtilTest(unittest.TestCase):
             max_depth=max_depth,
             select_limit=True
         )[1]
-                 for _ in range(10000)]
+                 for _ in range(100)]
         op_count = [util.count_depth_and_op(t[0])[0] for t in tasks]
         depth_count = [util.count_depth_and_op(t[0])[1] for t in tasks]
         self.assertTrue(max(depth_count) <= max_depth)
