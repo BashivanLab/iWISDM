@@ -95,8 +95,9 @@ def create_tasks(track_tf, task_params, **kwargs):
             if kwargs['min_bool_ops'] <= (n_and + n_or) <= kwargs['max_bool_ops']:
                 print('under bool op limit')
                 if kwargs['force_balance']:
-                    print('balanced')
-                    if (track_tf[answer] + 1) / n_trials <= 1 / len(track_tf):
+                    print(track_tf[answer])
+                    if (track_tf[answer] + 1) / kwargs['n_trials'] <= 1 / len(track_tf):
+                        print('balanced')
                         if not duplicate_check(task_ins, instructions):
                             track_tf[answer] += 1
                             total_and += n_and
@@ -158,6 +159,8 @@ if __name__ == '__main__':
     parser.add_argument('--non_bool_actions', action='store_false', default=True)
     args = parser.parse_args()
 
+    print(args)
+
     # Remake task directory
     if os.path.exists(args.tasks_dir):
         shutil.rmtree(args.tasks_dir)
@@ -186,9 +189,14 @@ if __name__ == '__main__':
         op_dict = config['op_dict']
         root_ops = config['root_ops']
         boolean_ops = config['boolean_ops']
+
+        # For all features
         op_dict['IsSame']['sample_dist'] = [4 / 15, 4 / 15, 4 / 15, 1 / 5]
         op_dict['NotSame']['sample_dist'] = [4 / 15, 4 / 15, 4 / 15, 1 / 5]
 
+        # For loc or cat features only
+        # op_dict['IsSame']['sample_dist'] = [0.9, 0.1]
+        # op_dict['NotSame']['sample_dist'] = [0.9, 0.1]
 
         auto_task.root_ops = root_ops
         auto_task.boolean_ops = boolean_ops
@@ -223,7 +231,7 @@ if __name__ == '__main__':
 
     print(track_tf)
     print(args.n_trials)
-    print(args.n_tasks)
+    print(n_trials)
     print('total:', len(create_tasks(track_tf, task_params, **vars(args))[0]))
 
     if args.non_bool_actions:

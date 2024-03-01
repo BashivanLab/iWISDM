@@ -1,0 +1,79 @@
+{
+    "op_dict": {
+        "Select":
+            {
+                "n_downstream": 4,
+                "downstream": ["GetObject"],
+                "same_children_op": true,
+                "min_depth": 1,
+                "min_op": 1
+            },
+        "GetCategory":
+            {
+                "n_downstream": 1,
+                "downstream": ["Select"],
+                "min_depth": 2,
+                "min_op": 2
+            },
+        "GetLoc":
+            {
+                "n_downstream": 1,
+                "downstream": ["Select"],
+                "min_depth": 2,
+                "min_op": 2
+            },
+        "GetObject":
+            {
+                "n_downstream": 1,
+                "downstream": ["Select"],
+                "min_depth": 2,
+                "min_op": 2
+            },
+        "IsSame":
+            {
+                "n_downstream": 2,
+                "downstream": ["GetObject"],
+
+                "same_children_op": true,
+                "min_depth": 3,
+                "min_op": 7
+            },
+        "NotSame":
+            {
+                "n_downstream": 2,
+                "downstream": ["GetObject"],
+                "same_children_op": true,
+                "min_depth": 3,
+                "min_op": 7
+            },
+        "And":
+            {
+                "n_downstream": 2,
+                "downstream": ["IsSame", "NotSame", "And", "Or"],
+                "same_children_op": false,
+                "min_depth": 4,
+                "min_op": 15
+            },
+        "Or":
+            {
+                "n_downstream": 2,
+                "downstream": ["IsSame", "NotSame", "And", "Or"],
+                "same_children_op": false,
+                "min_depth": 4,
+                "min_op": 15
+            },
+        "CONST":
+            {
+                "n_downstream": 0,
+                "downstream": [],
+                "sample_dist": [],
+                "same_children_op": false,
+                "min_depth": 1,
+                "min_op": 1
+            }
+    },
+    "root_ops": ["IsSame", "And", "Or", "NotSame"],
+    "boolean_ops": ["IsSame", "And", "Or", "NotSame"],
+    "leaf_op": ["Select"],
+    "mid_op": ["Switch"]
+}
