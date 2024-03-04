@@ -156,7 +156,7 @@ if __name__ == '__main__':
     parser.add_argument('--min_bool_ops', type=int, default=1)
     parser.add_argument('--max_bool_ops', type=int, default=1)
     parser.add_argument('--force_balance', action='store_true', default=False)
-    parser.add_argument('--non_bool_actions', action='store_false', default=True)
+    parser.add_argument('--non_bool_actions', action='store_true', default=False)
     args = parser.parse_args()
 
     print(args)
@@ -191,12 +191,12 @@ if __name__ == '__main__':
         boolean_ops = config['boolean_ops']
 
         # For all features
-        op_dict['IsSame']['sample_dist'] = [4 / 15, 4 / 15, 4 / 15, 1 / 5]
-        op_dict['NotSame']['sample_dist'] = [4 / 15, 4 / 15, 4 / 15, 1 / 5]
+        # op_dict['IsSame']['sample_dist'] = [4 / 15, 4 / 15, 4 / 15, 1 / 5]
+        # op_dict['NotSame']['sample_dist'] = [4 / 15, 4 / 15, 4 / 15, 1 / 5]
 
         # For loc or cat features only
-        # op_dict['IsSame']['sample_dist'] = [0.9, 0.1]
-        # op_dict['NotSame']['sample_dist'] = [0.9, 0.1]
+        op_dict['IsSame']['sample_dist'] = [0.9, 0.1]
+        op_dict['NotSame']['sample_dist'] = [0.9, 0.1]
 
         auto_task.root_ops = root_ops
         auto_task.boolean_ops = boolean_ops

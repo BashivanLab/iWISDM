@@ -33,7 +33,6 @@
             {
                 "n_downstream": 2,
                 "downstream": ["GetLoc", "GetCategory", "GetObject", "CONST"],
-
                 "same_children_op": true,
                 "min_depth": 3,
                 "min_op": 7
