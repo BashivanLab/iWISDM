@@ -6,6 +6,8 @@ scripts/outputs/single-task/*.json
 scripts/outputs/single-task/*.png
 graphs
 test
+tutorials/outputs*
+*/outputs/*
 
 # OS generated files #
 ######################
@@ -16,6 +18,8 @@ test
 *.vscode
 .zip
 *.zip
+
+*cpy*
 
 /benchmarking/temp/*
 */__pycache__/*

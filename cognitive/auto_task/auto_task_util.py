@@ -19,7 +19,7 @@ import numpy as np
 import random
 import timeit
 import networkx as nx
-from PIL import Image
+import cv2
 import os
 
 from typing import Tuple, Union, List
@@ -469,17 +469,15 @@ def write_trial_instance(
         if fixation_cue:
             if not any('ending' in description for description in frame.description):
                 sg.add_fixation_cue(epoch)
-        img = Image.fromarray(epoch, 'RGB')
         filename = os.path.join(write_fp, f'epoch{i}.png')
-        # this is slow!
-        img.save(filename)
+        # this is fast!
+        cv2.imwrite(filename, epoch)
     _, compo_example = compo_info.get_examples(is_instruction=is_instruction,
                                                external_instruction=external_instruction)  # xlei: orginally have three outputs
     filename = os.path.join(write_fp, 'trial_info')
     with open(filename, 'w') as f:
         json.dump(compo_example, f, indent=4)
     return
-
 
 if __name__ == '__main__':
     args = get_args()
