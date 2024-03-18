@@ -1219,7 +1219,7 @@ class TemporalTask(Task):
         return filter_objs
 
     def generate_objset(self, average_memory_span=3, *args, **kwargs):
-        """Guess objset for all n_epoch.
+        """Guess objset for all n_epoch. this is 1 trial
 
         Mathematically, the average_memory_span is n_max_backtrack/3
 
@@ -1466,9 +1466,12 @@ def subtask_generation(subtask_graph: GRAPH_TUPLE, op_dict: dict = None, existin
         op_dict = {node[0]: node[1]['label'] for node in subtask_G.nodes(data=True)}
     selects = [op for op in subtask_G.nodes() if 'Select' == op_dict[op]]
 
-    const.DATA.MAX_MEMORY = len(selects) + len(existing_whens.values()) + 1
+    # if max_mem = 7 (const.LASTMAP = [last6, ..., last0]), len(selects) = 4,
+    # then there's no delay only if sample_when = [last3, last2, last1, last0]
+    const.DATA.MAX_MEMORY = len(selects) + len(existing_whens.values())
+    # resample whens so that every select is assigned to a different lastk
     whens = sg.check_whens(sg.sample_when(len(selects)), list(existing_whens.values()))
-    n_frames = const.compare_when(whens) + 1
+    n_frames = const.compare_when(whens) + 1  # find highest lastk to determine task number of frames
 
     whens = {select: when for select, when in zip(selects, whens)}
     existing_whens.update(whens)
@@ -1487,6 +1490,7 @@ def switch_generation(conditional: TASK, do_if: TASK, do_else: TASK, existing_wh
 
     op = Switch(conditional_op, if_op, else_op, **kwargs)
     n_frames = const.compare_when(existing_whens.values()) + 1
+
     # const.DATA.MAX_MEMORY = n_frames
     return op, TemporalTask(operator=op, n_frames=n_frames, whens=existing_whens)
 

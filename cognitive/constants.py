@@ -9,6 +9,7 @@ from __future__ import print_function
 import glob
 import os
 from typing import Tuple
+import re
 import sys
 
 import numpy as np
@@ -32,7 +33,8 @@ ATTRS = ['object', 'view_angle', 'category', 'location']
 def compare_when(when_list):
     # input: a list of "last%d"%k
     # output: the maximum delay the task can take (max k)
-    return max(list(map(lambda x: DATA.LASTMAP[x], when_list)))
+    # note, n_frames = compare_when + 1; if when_list is ['last0'], then there should be 1 frame
+    return max(list(map(lambda x: get_k(x), when_list)))
 
 
 def get_target_value(t):
@@ -50,6 +52,8 @@ def get_target_value(t):
 DATA = None
 
 
+# TODO: remove this global variable, and use instances of the class Data during usage
+
 class Data:
     """
     input:
@@ -65,6 +69,7 @@ class Data:
                                     './data/min_shapenet_easy_angle')
         self.dir_path = dir_path
         self.train = train
+        # TODO: remove max_memory
         self.MAX_MEMORY = max_memory
 
         if not os.path.exists(self.dir_path):
@@ -170,18 +175,13 @@ class Data:
         return list(self.grid.keys())[list(self.grid.values()).index(list(space._value))]
 
     @property
-    def LASTMAP(self):
-        # all possible delays
-        return {f'last{k}': k for k in range(self.MAX_MEMORY + 1)}
-
-    @property
     def ALLWHENS(self):
-        return [f'last{k}' for k in range(self.MAX_MEMORY + 1)]
+        return [f'last{k}' for k in range(self.MAX_MEMORY)]
 
     @property
     def ALLWHENS_PROB(self):
         # all delays have equal probability
-        return [1 / (self.MAX_MEMORY + 1)] * len(self.ALLWHENS)
+        return [1 / (self.MAX_MEMORY)] * len(self.ALLWHENS)
 
     def get_mod_dict(self):
         # return an exhausitive list of all possible feature combinations
@@ -194,6 +194,12 @@ class Data:
                     self.df[(self.df['ctg_mod'] == i) & (self.df['obj_mod'] == cat)]['ang_mod'].unique()
                 ))
         return MOD_DICT
+
+
+def get_k(last_k):
+    k_s = list(map(int, re.findall(r'\d+', last_k)))
+    assert len(k_s) == 1
+    return k_s[0]
 
 
 def get_grid(grid_size):

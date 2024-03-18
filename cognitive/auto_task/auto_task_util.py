@@ -479,6 +479,7 @@ def write_trial_instance(
         json.dump(compo_example, f, indent=4)
     return
 
+
 if __name__ == '__main__':
     args = get_args()
     print(args)

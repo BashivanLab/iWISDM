@@ -669,7 +669,7 @@ class ObjectSet(object):
         else:
             if merge_idx is None:
                 try:
-                    obj.epoch = [epoch_now - const.DATA.LASTMAP[obj.when], epoch_now - const.DATA.LASTMAP[obj.when] + 1]
+                    obj.epoch = [epoch_now - const.get_k(obj.when), epoch_now - const.get_k(obj.when) + 1]
                 except:
                     raise NotImplementedError(
                         'When value: {:s} is not implemented'.format(str(obj.when)))
@@ -739,7 +739,7 @@ class ObjectSet(object):
         # assert isinstance(space, Space)
 
         if merge_idx is None:
-            epoch_now -= const.DATA.LASTMAP[when]
+            epoch_now -= const.get_k(when)
         else:
             epoch_now = merge_idx
 
