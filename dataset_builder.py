@@ -15,4 +15,4 @@ for epoch, frame in zip(sg.render(objset, self.img_size, train=self.train), comp
             sg.add_fixation_cue(epoch)
         img = Image.fromarray(epoch, 'RGB')
         images.append(img)
-    _, data, _ = compo_info.get_examples()
+    _, data, _ = compo_info.get_task_info_dict()

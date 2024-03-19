@@ -543,17 +543,13 @@ class Object(object):
 class ObjectSet(object):
     """A collection of objects."""
 
-    def __init__(self, n_epoch, n_max_backtrack=4):
+    def __init__(self, n_epoch):
         """Initialize the collection of objects.
 
         Args:
           n_epoch: int, the number of epochs or frames in the object set
-          n_max_backtrack: int or None
-            If int, maximum number of epoch to look back when searching, at least 1.
-            If None, will search the entire history
         """
         self.n_epoch = n_epoch
-        self.n_max_backtrack = n_max_backtrack
         self.set = list()
         self.end_epoch = list()
         self.dict = defaultdict(list)  # key: epoch, value: list of obj
@@ -574,7 +570,7 @@ class ObjectSet(object):
         """
         :return: deep copy of the Objset
         """
-        objset_copy = ObjectSet(self.n_epoch, self.n_max_backtrack)
+        objset_copy = ObjectSet(self.n_epoch)
         objset_copy.set = {obj.copy() for obj in self.set}
         objset_copy.end_epoch = self.end_epoch.copy()
         objset_copy.dict = {epoch: [obj.copy() for obj in objs]
@@ -625,8 +621,6 @@ class ObjectSet(object):
         if obj is None:
             return None
 
-        # Check if already exists
-        n_backtrack = self.n_max_backtrack
         obj_subset = self.select(
             epoch_now,
             space=obj.space,
@@ -634,12 +628,11 @@ class ObjectSet(object):
             object=obj.object,
             view_angle=obj.view_angle,
             when=obj.when,
-            n_backtrack=n_backtrack,
             delete_if_can=delete_if_can,
             merge_idx=merge_idx
         )
 
-        # True if more than zero objects match the attributes based on epoch_now and backtrack
+        # True if more than zero objects match the attributes based on epoch_now
         if obj_subset and not add_if_exist:
             self.last_added_obj = obj_subset[-1]
             return self.last_added_obj
@@ -702,7 +695,6 @@ class ObjectSet(object):
                object=None,
                view_angle=None,
                when=None,
-               n_backtrack=None,
                delete_if_can=True,
                merge_idx=None
                ):
@@ -716,7 +708,6 @@ class ObjectSet(object):
             view_angle: None or an SNViewAngle instance, the ShapeNet view angle to be selected.
 
             when: None or a string, the temporal window to be selected.
-            n_backtrack: None or int, the number of epochs to backtrack
             delete_if_can: boolean, delete object found if can
 
         Returns:

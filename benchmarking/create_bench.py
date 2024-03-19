@@ -105,7 +105,7 @@ def create_tasks(track_tf, task_params, **kwargs):
                             total_not += instructions.count(' not ')
                             task_ins.append(instructions)
                             store_task(task, kwargs['tasks_dir'] + '/' + str(len(tasks)) + '.json')
-                            compo_info.write_trial_instance(
+                            compo_info.write_trial(
                                 os.path.join(kwargs['trials_dir'], 'trial' + str(len(tasks))), 224, kwargs['train'])
                             tasks.append(task)
                 else:
@@ -116,8 +116,8 @@ def create_tasks(track_tf, task_params, **kwargs):
                         total_not += instructions.count(' not ')
                         task_ins.append(instructions)
                         store_task(task, kwargs['tasks_dir'] + '/' + str(len(tasks)) + '.json')
-                        compo_info.write_trial_instance(os.path.join(kwargs['trials_dir'], 'trial' + str(len(tasks))),
-                                                        224, kwargs['train'])
+                        compo_info.write_trial(os.path.join(kwargs['trials_dir'], 'trial' + str(len(tasks))),
+                                               224, kwargs['train'])
                         tasks.append(task)
 
     return tasks, task_ins
@@ -170,7 +170,6 @@ if __name__ == '__main__':
         shutil.rmtree(args.trials_dir)
     os.makedirs(args.trials_dir)
 
-
     task_params = {
         'max_op': args.max_op,
         'max_depth': args.max_memory,
@@ -211,7 +210,8 @@ if __name__ == '__main__':
         track_tf = {'true': 0, 'false': 0, 'benches': 0, 'boats': 0, 'cars': 0, 'chairs': 0, 'couches': 0,
                     'lighting': 0, 'planes': 0, 'tables': 0, 'bottom right': 0, 'bottom left': 0, 'top left': 0,
                     'top right': 0}
-        args.n_trials = args.n_trials + (len(track_tf) - args.n_trials % len(track_tf))  # Makes sure n_trials is divisible by length of feature space
+        args.n_trials = args.n_trials + (len(track_tf) - args.n_trials % len(
+            track_tf))  # Makes sure n_trials is divisible by length of feature space
         args.n_tasks = args.n_trials
     elif args.features == 'category' and args.non_bool_actions:
         track_tf = {'true': 0, 'false': 0, 'benches': 0, 'boats': 0, 'cars': 0, 'chairs': 0, 'couches': 0,

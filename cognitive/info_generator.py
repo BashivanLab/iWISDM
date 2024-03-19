@@ -8,7 +8,7 @@ from functools import partial
 from collections import defaultdict
 import os, shutil
 import json
-from PIL import Image
+import cv2
 
 import cognitive.constants as const
 import cognitive.stim_generator as sg
@@ -22,6 +22,7 @@ class TaskInfoCompo(object):
     Storage of composition information,
     including task_frame_info, task_example, task and objset
     correct usage: init objset and frame_info first, then generate TaskInfoCompo
+
     :param frame_info: FrameInfo
     :param task: task family
     """
@@ -35,23 +36,10 @@ class TaskInfoCompo(object):
         self.changed = list()
         self.frame_info = frame_info
         self.reset()
-        # if frame_info is None:
-        #     if task.avg_mem is None:
-        #         objset = task.generate_objset()
-        #     else:
-        #         objset = task.generate_objset(task.avg_mem)
-        #     frame_info = FrameInfo(task, objset)
-
-        # self.task_objset[0] = frame_info.objset.copy()
-        # self.frame_info = frame_info
-        # self.tempo_dict = dict()
 
     def reset(self):
         if self.frame_info is None:
-            if self.task.avg_mem is None:
-                objset = self.task.generate_objset()
-            else:
-                objset = self.task.generate_objset(self.task.avg_mem)
+            objset = self.task.generate_objset()
             self.frame_info = FrameInfo(self.task, objset)
 
         self.task_objset[0] = self.frame_info.objset.copy()
@@ -72,10 +60,8 @@ class TaskInfoCompo(object):
         new_task_idx = len(self.tasks)
         start_frame_idx = self.frame_info.get_start_frame(new_task_info, relative_tasks={new_task_idx})
 
-        # init new ObjSet
-        # print("n_epoch:", new_task_copy.n_frames)
-        objset = sg.ObjectSet(n_epoch=new_task_copy.n_frames, n_max_backtrack=(int(new_task_copy.avg_mem) * 3))
-        # print("XLEI: what is the objset:", type(objset))
+        # init new ObjSet to combine new and old
+        objset = sg.ObjectSet(n_epoch=new_task_copy.n_frames)
         changed = False
         # change the necessary selects first
         for i, (old_frame, new_frame) in enumerate(zip(self.frame_info[start_frame_idx:], new_task_info.frame_info)):
@@ -118,9 +104,9 @@ class TaskInfoCompo(object):
         if any(task.is_bool_output() for task in [self.tasks[-1], task_info1.tasks[-1], task_info2.tasks[-1]]):
             raise ValueError('Switch tasks must have boolean outputs')
 
-        self.tempo_dict['self'] = self.get_examples()[1]
-        self.tempo_dict['task1'] = task_info1.get_examples()[1]
-        self.tempo_dict['task2'] = task_info2.get_examples()[1]
+        self.tempo_dict['self'] = self.get_task_info_dict()[1]
+        self.tempo_dict['task1'] = task_info1.get_task_info_dict()[1]
+        self.tempo_dict['task2'] = task_info2.get_task_info_dict()[1]
         # current implementation of compo_task is by combining pre-generated objsets
         # so have to rely on main.py to generate both branches
         if not switch_first:
@@ -179,12 +165,9 @@ class TaskInfoCompo(object):
                         i = epoch - k
                         relative_i = frame.relative_task_epoch_idx[task_idx] - k
                         match = self.compare_objs(obj_info[i], self.task_objset[task_idx].dict[relative_i])
-                        # print("lxx first appearance of match:", match)
                         if match:
                             task_q = re.sub(f'last{k}.*?object', f'object {match["count"]}', task_q)
                             match['tasks'].add(task_idx)
-                            # print("lxx what is the task_idx:", task_idx)
-                            # print("lxx what is match:", match)
                             match['attended_attr'][task_idx] = match['attended_attr'][task_idx].union(
                                 self.tasks[task_idx].get_relevant_attribute(f'last{k}'))
                             cur += 1
@@ -206,7 +189,6 @@ class TaskInfoCompo(object):
                 compo_instruction += 'delay, '
                 was_delay = True
         return compo_instruction, obj_info
-        # return obj_info
 
     def get_target_value(self, examples: List[Dict]) -> List[str]:
         """
@@ -226,16 +208,15 @@ class TaskInfoCompo(object):
                 answers.append('null')
         return answers
 
-    def get_examples(self, is_instruction=True, external_instruction=None):
+    def get_task_info_dict(self, is_instruction=True, external_instruction=None) -> Tuple[List[Dict], Dict]:
         """
         get task examples
         :return: tuple of list of dictionaries containing information about the requested tasks
-        and compo task
+        and dictionary of the compositional task
         """
-        # TODO: stimuli relevant attribute and relevant tasks
-        examples = list()
+        per_task_info = list()
         for i, task in enumerate(self.tasks):
-            examples.append({
+            per_task_info.append({
                 'family': str(task.__class__.__name__),
                 # saving an epoch explicitly is needed because
                 # there might be no objects in the last epoch.
@@ -251,61 +232,58 @@ class TaskInfoCompo(object):
         else:
             comp_instruction = external_instruction
 
-        compo = {
+        compo_info = {
             'epochs': int(len(self.frame_info)),
             'objects': [o.dump() for o in self.frame_info.objset],
             'instruction': comp_instruction,
-            'answers': self.get_target_value(examples)
+            'answers': self.get_target_value(per_task_info)
         }
-        return examples, compo
+        return per_task_info, compo_info
 
-    def generate_trial(self, img_size=224, fixation_cue=True) -> None:
+    def generate_trial(self, img_size: int, fixation_cue: bool) -> Tuple[List[np.ndarray], List[Dict], Dict]:
+        # add fixation cues to all frames except for task ending frames
+
         objset = self.frame_info.objset
 
         imgs = []
         for i, (epoch, frame) in enumerate(zip(sg.render(objset, img_size), self.frame_info)):
-            # print("lxx what is i:", i)
             if fixation_cue:
                 if not any('ending' in description for description in frame.description):
                     sg.add_fixation_cue(epoch)
-            img = Image.fromarray(epoch, 'RGB')
-            # imgs.append(np.asarray(img))
-            imgs.append(img)
-            # print("what is the generated image:", np.asarray(img).shape)
-        examples, compo_example = self.get_examples()
-        # examples, compo_example = self.get_examples()
-        # print("examples:", examples)
-        # print("compo_examples:", compo_example)
-        # todo: solve slow instruction generation probel
-        # return imgs, compo_example["instruction"], compo_example["answers"], 
-        return imgs, compo_example["instruction"], compo_example["answers"]
+            imgs.append(epoch)
+        per_task_info_dict, compo_info_dict = self.get_task_info_dict()
+        return imgs, per_task_info_dict, compo_info_dict
 
-    def write_trial_instance(self, write_fp: str, img_size=224, fixation_cue=False) -> None:
-        # generate trial information and save it locally
-        frames_fp = os.path.join(write_fp, 'frames')
+    def write_trial(self, trial_fp: str, img_size: int = 224, fixation_cue: bool = False) -> None:
+        """
+        write the trial images, and save the task information in task_info.json
+
+        @param trial_fp: the directory to write the frames, usually folder name is trial_i
+        @param img_size: default 224x224 image size
+        @param fixation_cue: if we add a cross in the middle of the image
+        @return:
+        """
+
+        frames_fp = os.path.join(trial_fp, 'frames')
         if os.path.exists(frames_fp):
             shutil.rmtree(frames_fp)
         os.makedirs(frames_fp)
 
-        objset = self.frame_info.objset
-        for i, (epoch, frame) in enumerate(zip(sg.render(objset, img_size), self.frame_info)):
-            if fixation_cue:
-                if not any('ending' in description for description in frame.description):
-                    sg.add_fixation_cue(epoch)
-            img = Image.fromarray(epoch, 'RGB')
+        imgs, per_task_info_dict, compo_info_dict = self.generate_trial(img_size, fixation_cue)
+        for i, img_arr in enumerate(imgs):
             filename = os.path.join(frames_fp, f'epoch{i}.png')
-            img.save(filename)
+            cv2.imwrite(filename, img_arr)
 
-        examples, compo_example = self.get_examples()
+        per_task_info_dict, compo_info_dict = self.get_task_info_dict()
 
         filename = os.path.join(frames_fp, 'task_info.json')
         with open(filename, 'w') as f:
-            json.dump(compo_example, f, indent=4)
+            json.dump(compo_info_dict, f, indent=4)
 
         """
         Commenting these out for faster data gen - LG, Sat Nov 25
         """
-        # for i, task_example in enumerate(examples):
+        # for i, task_example in enumerate(per_task_info_dict):
         #     filename = os.path.join(frames_fp, f'task{i} example')
         #     with open(filename, 'w') as f:
         #         json.dump(task_example, f, indent=4)
@@ -313,6 +291,7 @@ class TaskInfoCompo(object):
         # filename = os.path.join(frames_fp, 'frame_info')
         # with open(filename, 'w') as f:
         #     json.dump(self.frame_info.dump(), f, indent=4)
+        return
 
     def get_changed_task_objset(self, changed_task: tg.TemporalTask) -> sg.ObjectSet:
         """
@@ -320,7 +299,7 @@ class TaskInfoCompo(object):
         :param changed_task: the modified temporal task
         :return: new ObjSet according to the modified task graph
         """
-        objset = changed_task.generate_objset(changed_task.avg_mem)
+        objset = changed_task.generate_objset()
 
         obj: sg.Object
         for obj in objset:
@@ -341,8 +320,6 @@ class TaskInfoCompo(object):
 
     @staticmethod
     def compare_objs(info_dicts, l2):
-        # print("lxx info_dicts:", info_dicts)
-        # print("lxx l2:", l2)
         for info_dict in info_dicts:
             obj1 = info_dict['obj']
             for obj2 in l2:

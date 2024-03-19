@@ -17,10 +17,6 @@ import pandas as pd
 from PIL import Image
 from collections import OrderedDict
 
-# average memory duration: how many frames each object can be retained in the memory
-AVG_MEM = 3
-# TODO: if only 1 stim per frame, then number of selects is limited by max_memory
-
 # define all available operators for constructing graphs
 LOGIC_OPS = ['And', 'Or', 'Xor', 'IsSame', "NotSame"]
 BOOLEAN_OUT_OPS = ['IsSame', 'Exist', 'And', 'Or', 'Xor', 'NotSame']

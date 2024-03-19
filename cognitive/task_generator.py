@@ -1117,7 +1117,6 @@ class TemporalTask(Task):
         self.n_frames = n_frames
 
         self._first_shareable = first_shareable
-        self.avg_mem = None
         self.whens = whens
 
     def copy(self):
@@ -1125,7 +1124,6 @@ class TemporalTask(Task):
         new_task = TemporalTask()
         new_task.n_frames = self.n_frames
         new_task._first_shareable = self.first_shareable
-        new_task.avg_mem = self.avg_mem
         nodes = self.topological_sort()
         new_task._operator = self._operator.copy()
         return new_task
@@ -1218,30 +1216,20 @@ class TemporalTask(Task):
         # print("after updating, what is filter_objs:", filter_objs)
         return filter_objs
 
-    def generate_objset(self, average_memory_span=3, *args, **kwargs):
+    def generate_objset(self, *args, **kwargs):
         """Guess objset for all n_epoch. this is 1 trial
-
-        Mathematically, the average_memory_span is n_max_backtrack/3
-
-        Args:
-          average_memory_span: int, the average number of epochs by which an object
-            need to be held in working memory, if needed at all
 
         Returns:
           objset: full objset for all n_epoch
         """
 
-        self.avg_mem = average_memory_span
         n_epoch = self.n_frames
         const.DATA.MAX_MEMORY = n_epoch
-        # update n_max_backtrack to average_memory space instead of times 3
-        n_max_backtrack = int(average_memory_span)  # why do this conversion? waste of time?
-        objset = sg.ObjectSet(n_epoch=n_epoch, n_max_backtrack=n_max_backtrack)
+        objset = sg.ObjectSet(n_epoch=n_epoch)
 
         # Guess objects
         # Importantly, we generate objset backward in time
         ## xlei: only update the last epoch
-
         epoch_now = n_epoch - 1
 
         objset = self.guess_objset(objset, epoch_now, *args, **kwargs)
@@ -1251,7 +1239,6 @@ class TemporalTask(Task):
         info = dict()
         info['n_frames'] = int(self.n_frames)
         info['first_shareable'] = int(self.first_shareable)
-        info['avg_mem'] = int(self.avg_mem) if self.avg_mem else self.avg_mem
         info['whens'] = self.whens
         info['operator'] = self._operator.to_json()
 
