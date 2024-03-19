@@ -23,7 +23,7 @@ import random
 from typing import List
 
 import numpy as np
-import cv2 as cv2
+import cv2
 
 from cognitive import constants as const
 
@@ -60,6 +60,7 @@ class Attribute(object):
             value = int(value)
         elif isinstance(value, list):
             value = tuple(value)
+
         self.value = value
         self.parent = list()
 
