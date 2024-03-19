@@ -13,8 +13,6 @@ from cognitive import task_generator as tg
 from cognitive.task_generator import TemporalTask
 from cognitive import constants as const
 
-GLOBAL_SEED = None
-
 
 class ExistCategoryOfTemporal(TemporalTask):
     """Check if  object on given frame has the same category with the object on another frame."""
