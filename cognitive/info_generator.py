@@ -2,19 +2,20 @@
 Classes for building temporal composite tasks
 """
 
-import re
-import numpy as np
-from functools import partial
-from collections import defaultdict
-import os, shutil
 import json
+import os
+import re
+import shutil
+from collections import defaultdict
+from functools import partial
+from typing import Tuple, Dict, List, Set
+
 import cv2
+import numpy as np
 
 import cognitive.constants as const
 import cognitive.stim_generator as sg
 import cognitive.task_generator as tg
-
-from typing import Tuple, Dict, List, Set
 
 
 class TaskInfoCompo(object):

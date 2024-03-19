@@ -12,7 +12,6 @@ from collections import defaultdict
 from cognitive.auto_task.arguments import get_args
 from cognitive import task_generator as tg
 from cognitive import stim_generator as sg
-from cognitive import info_generator as ig
 from cognitive import constants as const
 
 import numpy as np

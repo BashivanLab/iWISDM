@@ -22,8 +22,8 @@ from collections import defaultdict
 import random
 from typing import List
 
-import numpy as np
 import cv2
+import numpy as np
 
 from cognitive import constants as const
 

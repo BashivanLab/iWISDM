@@ -11,15 +11,14 @@ from __future__ import print_function
 
 import json
 from collections import defaultdict, OrderedDict
+from typing import Tuple, Union, Dict, Callable, List
 
+import networkx as nx
 import numpy as np
 import random
-import networkx as nx
 
 from cognitive import constants as const
 from cognitive import stim_generator as sg
-
-from typing import Tuple, Union, Dict, Callable, List
 
 
 def obj_str(location=None, obj=None, category=None, view_angle=None,
