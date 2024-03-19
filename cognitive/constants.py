@@ -168,7 +168,7 @@ class Data:
 
     def get_grid_key(self, space):
         # convert from space to grid coordinate
-        return list(self.grid.keys())[list(self.grid.values()).index(list(space._value))]
+        return list(self.grid.keys())[list(self.grid.values()).index(list(space.value))]
 
     @property
     def ALLWHENS(self):

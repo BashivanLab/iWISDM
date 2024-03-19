@@ -22,11 +22,11 @@ from cognitive import stim_generator as sg
 from typing import Tuple, Union, Dict, Callable, List
 
 
-def obj_str(loc=None, obj=None, category=None, view_angle=None,
-            when=None, space_type=None):
+def obj_str(location=None, obj=None, category=None, view_angle=None,
+            when=None):
     """Get a string describing an object with attributes."""
 
-    loc = loc or sg.Loc(space=sg.random_grid_space(), value=None)
+    location = location or sg.Location(space=sg.random_grid_space(), value=None)
     category = category or sg.SNCategory(None)
     obj = obj or sg.SNObject(category=category, value=None)
     view_angle = view_angle or sg.SNViewAngle(sn_object=obj, value=None)
@@ -34,14 +34,14 @@ def obj_str(loc=None, obj=None, category=None, view_angle=None,
     sentence = []
     if when is not None:
         sentence.append(when)
-    if isinstance(category, sg.Attribute) and category.has_value:
+    if isinstance(category, sg.Attribute) and category.has_value():
         sentence.append(str(category))
-    if isinstance(view_angle, sg.Attribute) and view_angle.has_value:
+    if isinstance(view_angle, sg.Attribute) and view_angle.has_value():
         sentence.append(str(view_angle))
-    if isinstance(obj, sg.Attribute) and obj.has_value:
+    if isinstance(obj, sg.Attribute) and obj.has_value():
         sentence.append(str(obj))
-    if isinstance(loc, sg.Attribute) and loc.has_value:
-        sentence.append(str(loc))
+    if isinstance(location, sg.Attribute) and location.has_value():
+        sentence.append(str(location))
     else:
         sentence.append('object')
 
@@ -49,8 +49,8 @@ def obj_str(loc=None, obj=None, category=None, view_angle=None,
         sentence += ['with', str(category)]
     if isinstance(view_angle, Operator):
         sentence += ['with', str(view_angle)]
-    if isinstance(loc, Operator):
-        sentence += ['with', str(loc)]
+    if isinstance(location, Operator):
+        sentence += ['with', str(location)]
     if isinstance(obj, Operator):
         sentence += ['with', str(category)]
     return ' '.join(sentence)
@@ -138,7 +138,7 @@ class Select(Operator):
 
         if attrs:
             for attr in attrs:
-                if isinstance(attr, sg.Loc):
+                if isinstance(attr, sg.Location):
                     location = attr
                 elif isinstance(attr, sg.SNCategory):
                     category = attr
@@ -146,7 +146,7 @@ class Select(Operator):
                     object = attr
                 elif isinstance(attr, sg.SNViewAngle):
                     view_angle = attr
-        location = location or sg.Loc(space=sg.random_grid_space(), value=None)
+        location = location or sg.Location(space=sg.random_grid_space(), value=None)
         category = category or sg.SNCategory(None)
         object = object or sg.SNObject(category, None)
         view_angle = view_angle or sg.SNViewAngle(object, None)
@@ -159,7 +159,12 @@ class Select(Operator):
 
     def __str__(self):
         return obj_str(
-            self.location, self.category, self.object, self.view_angle, self.when, self.space_type)
+            self.location,
+            self.category,
+            self.object,
+            self.view_angle,
+            self.when
+        )
 
     def __call__(self, objset, epoch_now):
         """Return subset of objset."""
@@ -214,10 +219,10 @@ class Select(Operator):
         """
         assert obj.check_attrs()
 
-        self.category = obj.category if self.category.has_value else self.category
-        self.object = obj.object if self.object.has_value else self.object
-        self.view_angle = obj.view_angle if self.view_angle.has_value else self.view_angle
-        self.location = obj.location if self.location.has_value else self.location
+        self.category = obj.category if self.category.has_value() else self.category
+        self.object = obj.object if self.object.has_value() else self.object
+        self.view_angle = obj.view_angle if self.view_angle.has_value() else self.view_angle
+        self.location = obj.location if self.location.has_value() else self.location
         return True
 
     def get_expected_input(self, should_be, objset, epoch_now):
@@ -303,7 +308,7 @@ class Select(Operator):
                 a = getattr(self, attr_type)
                 attr = a(objset, epoch_now)
                 # If the input is successfully evaluated
-                if attr is not const.DATA.INVALID and attr.has_value:
+                if attr is not const.DATA.INVALID and attr.has_value():
                     if attr_type == 'location' and self.space_type is not None:
                         attr = attr.get_space_to(self.space_type)
                         print('space type is not none')
@@ -323,7 +328,7 @@ class Select(Operator):
             # change the attributes in obj based on should_be
             for attr_type in attr_type_not_fixed:
                 a = getattr(obj_should_be, attr_type)
-                if a.has_value:
+                if a.has_value():
                     if attr_type in ['category', 'object', 'view_angle']:
                         obj.change_attr(a)
                     else:
@@ -353,7 +358,7 @@ class Select(Operator):
             for attr_type in ['location', 'category', 'object', 'view_angle']:
                 a = getattr(self, attr_type)
                 # If attribute is operator or is a specified value
-                if isinstance(a, Operator) or a.has_value:
+                if isinstance(a, Operator) or a.has_value():
                     attr_type_to_flip.append(attr_type)
 
             # Now generate expected input attributes
@@ -704,7 +709,7 @@ class IsSame(Operator):
         attr2_fixed = attr2_value is not const.DATA.INVALID
 
         if attr1_fixed:
-            assert attr1_value.has_value
+            assert attr1_value.has_value()
 
         if attr1_fixed and attr2_fixed:
             # do nothing
@@ -796,7 +801,7 @@ class NotSame(Operator):
         attr2_fixed = attr2_value is not const.DATA.INVALID
 
         if attr1_fixed:
-            assert attr1_value.has_value
+            assert attr1_value.has_value()
 
         if attr1_fixed and attr2_fixed:
             # do nothing

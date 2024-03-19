@@ -193,7 +193,7 @@ if __name__ == '__main__':
         # op_dict['IsSame']['sample_dist'] = [4 / 15, 4 / 15, 4 / 15, 1 / 5]
         # op_dict['NotSame']['sample_dist'] = [4 / 15, 4 / 15, 4 / 15, 1 / 5]
 
-        # For loc or cat features only
+        # For location or category features only
         op_dict['IsSame']['sample_dist'] = [0.9, 0.1]
         op_dict['NotSame']['sample_dist'] = [0.9, 0.1]
 

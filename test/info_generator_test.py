@@ -84,8 +84,8 @@ class InfoGeneratorTest(unittest.TestCase):
             task = tb.random_task(families)
         _ = task.generate_objset()
 
-        loc1 = sg.Loc((0.111, 0.111))
-        loc2 = sg.Loc((0.001, 0.001))
+        loc1 = sg.Location((0.111, 0.111))
+        loc2 = sg.Location((0.001, 0.001))
         object1 = sg.Object(attrs=[colors[2], shapes[2], loc1], when=f'last{task.n_frames - 1}')
         object2 = sg.Object(attrs=[colors[0], shapes[0], loc2], when=f'last{task.n_frames - 2}')
         objset = sg.ObjectSet(task.n_frames)

@@ -359,8 +359,8 @@ class FrameInfo(object):
         self.n_epochs = n_epochs
         self.first_shareable = task.first_shareable
         # TODO: decide if task_question needs to be kept
-        task_question = str(task)
-        task_answers = [const.get_target_value(t) for t in task.get_target(objset)]
+        # task_question = str(task)
+        # task_answers = [const.get_target_value(t) for t in task.get_target(objset)]
 
         for i in range(n_epochs):
             # keep track of which frames are the ending and starting of which tasks
