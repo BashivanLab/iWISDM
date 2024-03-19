@@ -804,7 +804,7 @@ def render_static_obj(canvas, obj, img_size):
     x_offset, x_end = center[0] - radius, center[0] + radius
     y_offset, y_end = center[1] - radius, center[1] + radius
     shape_net_obj = const.DATA.get_shapenet_object(obj, [radius * 2, radius * 2])
-    assert shape_net_obj.size == (x_end - x_offset, y_end - y_offset)
+    assert shape_net_obj.shape[:2] == (x_end - x_offset, y_end - y_offset)
     canvas[x_offset:x_end, y_offset:y_end] = shape_net_obj
 
 

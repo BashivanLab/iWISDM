@@ -11,11 +11,11 @@ import os
 from typing import Tuple
 import re
 import sys
+from collections import OrderedDict
 
 import numpy as np
 import pandas as pd
-from PIL import Image
-from collections import OrderedDict
+import cv2
 
 # define all available operators for constructing graphs
 LOGIC_OPS = ['And', 'Or', 'Xor', 'IsSame', "NotSame"]
@@ -161,10 +161,10 @@ class Data:
 
         obj_ref = int(obj_cat.iloc[0]['ref'])
         obj_path = os.path.join(image_path, f'{obj_ref}/image.png')
-        # TODO：this is very slow, find better library for resizing and convert
-        img = Image.open(obj_path).convert('RGB').resize(obj_size)
 
-        return img
+        image = cv2.imread(obj_path)
+        object_arr = cv2.resize(cv2.cvtColor(image, cv2.COLOR_BGR2RGB), obj_size)
+        return object_arr
 
     def get_grid_key(self, space):
         # convert from space to grid coordinate
