@@ -1,5 +1,5 @@
 """
-Code based on 'A Dataset and Architecture for Visual Reasoning with a Working Memory', Guangyu Robert Yang, et al.
+Code adapted from 'A Dataset and Architecture for Visual Reasoning with a Working Memory', Guangyu Robert Yang, et al.
 Paper: https://arxiv.org/abs/1803.06092
 Code: https://github.com/google/cog
 """
