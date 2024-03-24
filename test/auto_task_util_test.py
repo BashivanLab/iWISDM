@@ -184,10 +184,11 @@ class UtilTest(unittest.TestCase):
                 first_shareable=task_dict['first_shareable'],
                 whens=task_dict['whens']
             )
-            fi = ig.FrameInfo(loaded_task, loaded_task.generate_objset())
-            compo_info = ig.TaskInfoCompo(loaded_task, fi)
-            _, per_task_info, compo_info_dict = compo_info.generate_trial(224, True)
-            compo_info.write_trial('/Users/markbai/Documents/COG_v3_shapenet/test/trial')
+            for _ in range(5):
+                fi = ig.FrameInfo(loaded_task, loaded_task.generate_objset())
+                compo_info = ig.TaskInfoCompo(loaded_task, fi)
+                _, per_task_info, compo_info_dict = compo_info.generate_trial(224, True)
+                compo_info.write_trial('/Users/markbai/Documents/COG_v3_shapenet/test/trial')
         print('done')
 
 

@@ -6,13 +6,10 @@ also constructs tasks based on the generated graphs
 """
 
 import json
-import shutil
 from collections import defaultdict
 
-from cognitive.auto_task.arguments import get_args
 from cognitive import task_generator as tg
 from cognitive import stim_generator as sg
-from cognitive import constants as const
 
 import numpy as np
 import random
@@ -443,40 +440,3 @@ def write_task_instance(G_tuple: GRAPH_TUPLE, task: TASK, write_fp: str):
         json.dump(nx.to_dict_of_dicts(G), f, indent=4)
     task[1].to_json(os.path.join(write_fp, 'temporal_task.json'))
     return None
-
-
-if __name__ == '__main__':
-    args = get_args()
-    print(args)
-
-    const.DATA = const.Data(
-        dir_path=args.stim_dir
-    )
-    if args.config_json:
-        with open(args.config_json) as f:
-            config = json.load(f)
-            op_dict = config['op_dict']
-            root_ops = config['root_ops']
-            boolean_ops = config['boolean_ops']
-            op_dict = defaultdict(dict, **op_dict)
-            op_depth_limit = {k: v['min_depth'] for k, v in op_dict.items()}
-            op_operators_limit = {k: v['min_op'] for k, v in op_dict.items()}
-
-    start = timeit.default_timer()
-    for i in range(args.n_tasks):
-        # make directory for saving task information
-        fp = os.path.join(args.output_dir, str(i))
-        if os.path.exists(fp):
-            shutil.rmtree(fp)
-        os.makedirs(fp)
-
-        task_graph, task = task_generator(
-            max_switch=args.max_switch,
-            switch_threshold=args.switch_threshold,
-            max_op=args.max_op,
-            max_depth=args.max_depth,
-            select_limit=args.select_limit
-        )
-        write_task_instance(task_graph, task, fp)
-    stop = timeit.default_timer()
-    print('Time taken to generate tasks: ', stop - start)

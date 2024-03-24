@@ -2,9 +2,8 @@
 Code adapted from 'A Dataset and Architecture for Visual Reasoning with a Working Memory', Guangyu Robert Yang, et al.
 Paper: https://arxiv.org/abs/1803.06092
 Code: https://github.com/google/cog
-"""
 
-"""High-level API for generating stimuli.
+High-level API for generating stimuli.
 
 Objects are first generated abstractly, with high-level specifications
 like location='random'.
@@ -16,10 +15,6 @@ the stimuli in each trial.
 
 Rendering function generates movies based on the instantiated stimuli
 """
-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 from bisect import bisect_left
 from collections import defaultdict
@@ -968,14 +963,6 @@ def random_loc(n=1):
     return locs
 
 
-def random_space():
-    return random.choice(const.DATA.ALLSPACES)
-
-
-def n_random_space():
-    return len(const.DATA.ALLSPACES)
-
-
 def random_when():
     """Random choose a when property.
 
@@ -1029,7 +1016,8 @@ def sample_view_angle(k, obj: SNObject):
 
 
 def another_loc(loc):
-    # to make things consistent with original COG code, only sample a different grid_space
+    # to make things consistent with original COG code,
+    # only sample a different grid_space
     # another approach is keeping track of all grid_space in task class
     n_max_try = 100
     for i_try in range(n_max_try):

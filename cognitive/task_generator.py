@@ -1,13 +1,12 @@
-# code based on https://github.com/google/cog
+"""
+Code adapted from 'A Dataset and Architecture for Visual Reasoning with a Working Memory', Guangyu Robert Yang, et al.
+Paper: https://arxiv.org/abs/1803.06092
+Code: https://github.com/google/cog
 
-"""Vocabulary of functional programs.
+Vocabulary of functional programs.
 
 Contains the building blocks for permissible tasks.
 """
-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import json
 from collections import defaultdict, OrderedDict

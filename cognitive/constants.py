@@ -90,8 +90,6 @@ class Data:
                 assert len(set(labels)) == 1, f'found more than 1 label for the cateogry {cat}'
                 self.IDX2Category[cat] = set(labels).pop()
             self.mods_with_mapping['category'] = self.IDX2Category
-        # self.IDX2Object = {i: None for i in range(CATEGORIES * OBJECTPERCATEGORY)}
-        # self.IDX2ViewAngle = {i: None for i in range(VIEW_ANGLES)}
 
         self.ALLSPACES = ['left', 'right', 'top', 'bottom']
         self.ALLCATEGORIES = list(self.MOD_DICT.keys())
@@ -99,26 +97,6 @@ class Data:
         self.ALLVIEWANGLES = self.MOD_DICT
 
         self.INVALID = 'invalid'
-
-        # Allowed vocabulary, the first word is invalid
-        self.INPUTVOCABULARY = [
-                                   'invalid',
-                                   '.', ',', '?',
-                                   'object', 'color', 'shape',
-                                   'location', 'on',
-                                   'if', 'then', 'else',
-                                   'exist',
-                                   'equal', 'and',
-                                   'the', 'of', 'with',
-                                   'point',
-                               ] + self.ALLSPACES + self.ALLCATEGORIES + self.ALLWHENS
-        # For faster str -> index lookups
-        self.INPUTVOCABULARY_DICT = dict([(k, i) for i, k in enumerate(self.INPUTVOCABULARY)])
-
-        self.INPUTVOCABULARY_SIZE = len(self.INPUTVOCABULARY)
-
-        self.OUTPUTVOCABULARY = ['true', 'false'] + self.ALLCATEGORIES + [self.ALLOBJECTS[c] for c in self.ALLOBJECTS]
-
         self.train_image_path = None
         self.valid_image_path = None
 
