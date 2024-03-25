@@ -84,11 +84,11 @@ class InfoGeneratorTest(unittest.TestCase):
             task = tb.random_task(families)
         _ = task.generate_objset()
 
-        loc1 = sg.Loc((0.111, 0.111))
-        loc2 = sg.Loc((0.001, 0.001))
+        loc1 = sg.Location((0.111, 0.111))
+        loc2 = sg.Location((0.001, 0.001))
         object1 = sg.Object(attrs=[colors[2], shapes[2], loc1], when=f'last{task.n_frames - 1}')
         object2 = sg.Object(attrs=[colors[0], shapes[0], loc2], when=f'last{task.n_frames - 2}')
-        objset = sg.ObjectSet(task.n_frames, int(task.avg_mem * 3))
+        objset = sg.ObjectSet(task.n_frames)
         objset.add(object1, task.n_frames - 1)
         objset.add(object2, task.n_frames - 1)
 
@@ -132,7 +132,7 @@ class InfoGeneratorTest(unittest.TestCase):
         compo_info.merge(compo_info2)
         print(new_task1.n_frames, new_task2.n_frames, new_task1.first_shareable)
         print(compo_info.n_epochs)
-        print(compo_info.get_examples()[1]['objects'])
+        print(compo_info.get_task_info_dict()[1]['objects'])
         print(compo_info)
         print(new_task2_objset)
 
@@ -227,7 +227,7 @@ class InfoGeneratorTest(unittest.TestCase):
         compo_info3 = ig.TaskInfoCompo(new_task3, fi3)
 
         compo_info.temporal_switch(compo_info2, compo_info3)
-        print(compo_info.get_examples()[1]['instruction'])
+        print(compo_info.get_task_info_dict()[1]['instruction'])
 
     def testObjectAddOne(self):
         t = 'observe object 1, observe object 2, category of object 1 equal category of object 2 ?observe object 3, observe object 4, delay, object of object 3 equal object of object 4 ?'
@@ -247,7 +247,7 @@ class InfoGeneratorTest(unittest.TestCase):
         objset = new_task0.generate_objset()
         fi = ig.FrameInfo(new_task0, objset)
         ti = ig.TaskInfoCompo(new_task0, fi)
-        ti.get_examples()
+        ti.get_task_info_dict()
 
         print(new_task0.get_target(objset))
         new_task0.to_json('/Users/markbai/Documents/COG_v3_shapenet/data/test/test.json')
@@ -268,7 +268,7 @@ class InfoGeneratorTest(unittest.TestCase):
         )
         fi = ig.FrameInfo(updated_task, updated_task.generate_objset())
         compo_info = ig.TaskInfoCompo(updated_task, fi)
-        _, compo_examples = compo_info.get_examples()
+        _, compo_examples = compo_info.get_task_info_dict()
         _, instructions, answers = compo_info.generate_trial()
         print(compo_examples['answers'])
 
@@ -286,10 +286,10 @@ class InfoGeneratorTest(unittest.TestCase):
         for _ in range(1000):
             fi = ig.FrameInfo(updated_task, updated_task.generate_objset())
             compo_info = ig.TaskInfoCompo(updated_task, fi)
-            answer = compo_info.get_examples()[1]['answers']
+            answer = compo_info.get_task_info_dict()[1]['answers']
             if answer[-1] == 'invalid':
-                compo_info.write_trial_instance(
-                    write_fp='/Users/markbai/Documents/COG_v3_shapenet/data/bug_trial'
+                compo_info.write_trial(
+                    trial_fp='/Users/markbai/Documents/COG_v3_shapenet/data/bug_trial'
                 )
                 print()
             self.assertTrue(answer[-1] != 'invalid')

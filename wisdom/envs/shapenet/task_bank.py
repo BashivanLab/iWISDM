@@ -205,8 +205,8 @@ class DelayedCDM(TemporalTask):
             attr0 = attrs[0]
             attrs = attrs[1::]
         else:
-            attr0 = random.choice(const.ATTRS)
-            attrs = random.sample(const.ATTRS, 2)
+            attr0 = random.choice(const.DATA.ATTRS)
+            attrs = random.sample(const.DATA.ATTRS, 2)
         const_attr0 = sg.random_attr(attr0)
         const_attrs = [sg.random_attr(attr) for attr in attrs]
         condition = tg.IsSame(const_attr0, tg.get_family_dict[attr0](objs1))

@@ -9,16 +9,13 @@ from __future__ import print_function
 import glob
 import os
 from typing import Tuple
+import re
 import sys
+from collections import OrderedDict
 
 import numpy as np
 import pandas as pd
-from PIL import Image
-from collections import OrderedDict
-
-# average memory duration: how many frames each object can be retained in the memory
-AVG_MEM = 3
-# TODO: if only 1 stim per frame, then number of selects is limited by max_memory
+import cv2
 
 # define all available operators for constructing graphs
 LOGIC_OPS = ['And', 'Or', 'Xor', 'IsSame', "NotSame"]
@@ -32,7 +29,8 @@ ATTRS = ['object', 'view_angle', 'category', 'location']
 def compare_when(when_list):
     # input: a list of "last%d"%k
     # output: the maximum delay the task can take (max k)
-    return max(list(map(lambda x: DATA.LASTMAP[x], when_list)))
+    # note, n_frames = compare_when + 1; if when_list is ['last0'], then there should be 1 frame
+    return max(list(map(lambda x: get_k(x), when_list)))
 
 
 def get_target_value(t):
@@ -50,6 +48,8 @@ def get_target_value(t):
 DATA = None
 
 
+# TODO: remove this global variable, and use instances of the class Data during usage
+
 class Data:
     """
     input:
@@ -65,6 +65,7 @@ class Data:
                                     './data/min_shapenet_easy_angle')
         self.dir_path = dir_path
         self.train = train
+        # TODO: remove max_memory
         self.MAX_MEMORY = max_memory
 
         if not os.path.exists(self.dir_path):
@@ -89,8 +90,6 @@ class Data:
                 assert len(set(labels)) == 1, f'found more than 1 label for the cateogry {cat}'
                 self.IDX2Category[cat] = set(labels).pop()
             self.mods_with_mapping['category'] = self.IDX2Category
-        # self.IDX2Object = {i: None for i in range(CATEGORIES * OBJECTPERCATEGORY)}
-        # self.IDX2ViewAngle = {i: None for i in range(VIEW_ANGLES)}
 
         self.ALLSPACES = ['left', 'right', 'top', 'bottom']
         self.ALLCATEGORIES = list(self.MOD_DICT.keys())
@@ -98,26 +97,6 @@ class Data:
         self.ALLVIEWANGLES = self.MOD_DICT
 
         self.INVALID = 'invalid'
-
-        # Allowed vocabulary, the first word is invalid
-        self.INPUTVOCABULARY = [
-                                   'invalid',
-                                   '.', ',', '?',
-                                   'object', 'color', 'shape',
-                                   'location', 'on',
-                                   'if', 'then', 'else',
-                                   'exist',
-                                   'equal', 'and',
-                                   'the', 'of', 'with',
-                                   'point',
-                               ] + self.ALLSPACES + self.ALLCATEGORIES + self.ALLWHENS
-        # For faster str -> index lookups
-        self.INPUTVOCABULARY_DICT = dict([(k, i) for i, k in enumerate(self.INPUTVOCABULARY)])
-
-        self.INPUTVOCABULARY_SIZE = len(self.INPUTVOCABULARY)
-
-        self.OUTPUTVOCABULARY = ['true', 'false'] + self.ALLCATEGORIES + [self.ALLOBJECTS[c] for c in self.ALLOBJECTS]
-
         self.train_image_path = None
         self.valid_image_path = None
 
@@ -160,28 +139,23 @@ class Data:
 
         obj_ref = int(obj_cat.iloc[0]['ref'])
         obj_path = os.path.join(image_path, f'{obj_ref}/image.png')
-        # TODO：this is very slow, find better library for resizing and convert
-        img = Image.open(obj_path).convert('RGB').resize(obj_size)
 
-        return img
+        image = cv2.imread(obj_path)
+        object_arr = cv2.resize(cv2.cvtColor(image, cv2.COLOR_BGR2RGB), obj_size)
+        return object_arr
 
     def get_grid_key(self, space):
         # convert from space to grid coordinate
-        return list(self.grid.keys())[list(self.grid.values()).index(list(space._value))]
-
-    @property
-    def LASTMAP(self):
-        # all possible delays
-        return {f'last{k}': k for k in range(self.MAX_MEMORY + 1)}
+        return list(self.grid.keys())[list(self.grid.values()).index(list(space.value))]
 
     @property
     def ALLWHENS(self):
-        return [f'last{k}' for k in range(self.MAX_MEMORY + 1)]
+        return [f'last{k}' for k in range(self.MAX_MEMORY)]
 
     @property
     def ALLWHENS_PROB(self):
         # all delays have equal probability
-        return [1 / (self.MAX_MEMORY + 1)] * len(self.ALLWHENS)
+        return [1 / (self.MAX_MEMORY)] * len(self.ALLWHENS)
 
     def get_mod_dict(self):
         # return an exhausitive list of all possible feature combinations
@@ -194,6 +168,12 @@ class Data:
                     self.df[(self.df['ctg_mod'] == i) & (self.df['obj_mod'] == cat)]['ang_mod'].unique()
                 ))
         return MOD_DICT
+
+
+def get_k(last_k):
+    k_s = list(map(int, re.findall(r'\d+', last_k)))
+    assert len(k_s) == 1
+    return k_s[0]
 
 
 def get_grid(grid_size):

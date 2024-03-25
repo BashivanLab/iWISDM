@@ -1,6 +1,9 @@
-# code based on https://github.com/google/cog
+"""
+Code adapted from 'A Dataset and Architecture for Visual Reasoning with a Working Memory', Guangyu Robert Yang, et al.
+Paper: https://arxiv.org/abs/1803.06092
+Code: https://github.com/google/cog
 
-"""High-level API for generating stimuli.
+High-level API for generating stimuli.
 
 Objects are first generated abstractly, with high-level specifications
 like location='random'.
@@ -13,17 +16,13 @@ the stimuli in each trial.
 Rendering function generates movies based on the instantiated stimuli
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 from bisect import bisect_left
 from collections import defaultdict
 import random
 from typing import List
 
+import cv2
 import numpy as np
-import cv2 as cv2
 
 from cognitive import constants as const
 
@@ -56,7 +55,12 @@ class Attribute(object):
     """Base class for attributes."""
 
     def __init__(self, value):
-        self.value = value if not isinstance(value, list) else tuple(value)
+        if isinstance(value, np.int_):
+            value = int(value)
+        elif isinstance(value, list):
+            value = tuple(value)
+
+        self.value = value
         self.parent = list()
 
     def __call__(self, *args):
@@ -87,23 +91,18 @@ class Attribute(object):
     def to_json(self):
         info = dict()
         info['name'] = self.__class__.__name__
-        info['value'] = self.get_value
+        info['value'] = self.value
         info.update(self.self_json())
         return info
 
     def resample(self):
         raise NotImplementedError('Abstract method.')
 
-    @property
     def has_value(self):
         return self.value is not None
 
-    @property
-    def get_value(self):
-        return self.value
 
-
-class Loc(Attribute):
+class Location(Attribute):
     """Location class."""
 
     def __init__(self, space=None, value=None):
@@ -114,7 +113,7 @@ class Loc(Attribute):
           space: None or a tuple of tuple of floats
           If tuple of floats, then the actual
         """
-        super(Loc, self).__init__(value)
+        super(Location, self).__init__(value)
         if space is None:
             space = random_grid_space()
         self.attr_type = 'location'
@@ -156,10 +155,6 @@ class Loc(Attribute):
                           }[space_type]
         return self.get_space_to(opposite_space)
 
-    @property
-    def get_value(self):
-        return self.value if self.has_value else self.value
-
 
 class Space(Attribute):
     """Space class."""
@@ -167,9 +162,9 @@ class Space(Attribute):
     def __init__(self, value=None):
         super(Space, self).__init__(value)
         if self.value is None:
-            self._value = [(0, 1), (0, 1)]
+            self.value = [(0, 1), (0, 1)]
         else:
-            self._value = value
+            self.value = value
 
     def sample(self, avoid=None):
         """Sample a location.
@@ -192,9 +187,9 @@ class Space(Attribute):
         avoid_radius2 = 0.04  # avoid radius squared
 
         dx = 0.001  # used to be 0.125 xuan => it does not matter now
-        xrange = (self._value[0][0] + dx, self._value[0][1] - dx)
+        xrange = (self.value[0][0] + dx, self.value[0][1] - dx)
         dy = 0.001  # used to be 0.125 xuan => it does not matter now
-        yrange = (self._value[1][0] + dy, self._value[1][1] - dy)
+        yrange = (self.value[1][0] + dy, self.value[1][1] - dy)
         for i_try in range(n_max_try):
             # Round to 3 decimal places to save space in json dump
             loc_sample = (round(random.uniform(*xrange), 3),
@@ -209,17 +204,17 @@ class Space(Attribute):
                 break
         if not not_overlapping:
             raise RuntimeError('Could not sample another location')
-        return Loc(space=self, value=loc_sample)
+        return Location(space=self, value=loc_sample)
 
     def include(self, loc):
         """Check if an unsampled location (a space) includes a location."""
         x, y = loc.value
-        return ((self._value[0][0] < x < self._value[0][1]) and
-                (self._value[1][0] < y < self._value[1][1]))
+        return ((self.value[0][0] < x < self.value[0][1]) and
+                (self.value[1][0] < y < self.value[1][1]))
 
     def get_space_to(self, space_type: str):
-        x0, x1 = self._value[0]
-        y0, y1 = self._value[1]
+        x0, x1 = self.value[0]
+        y0, y1 = self.value[1]
         return _get_space_to(x0, x1, y0, y1, space_type)
 
     def get_opposite_space_to(self, space_type: str):
@@ -229,10 +224,6 @@ class Space(Attribute):
                           'bottom': 'top',
                           }[space_type]
         return self.get_space_to(opposite_space)
-
-    @property
-    def get_value(self):
-        return self._value if self.has_value else self.value
 
 
 class SNCategory(Attribute):
@@ -251,15 +242,9 @@ class SNCategory(Attribute):
             return '' + const.DATA.mods_with_mapping[self.attr_type][self.value]
         return 'category: ' + str(self.value)
 
-    @property
-    def get_value(self):
-        return int(self.value) if self.has_value else self.value
-
 
 class SNObject(Attribute):
     def __init__(self, category, value):
-        if value is not None:
-            assert isinstance(category, SNCategory)
         super(SNObject, self).__init__(value)
         self.attr_type = 'object'
         self.category = category
@@ -283,15 +268,9 @@ class SNObject(Attribute):
     def self_json(self):
         return {'category': self.category.to_json()}
 
-    @property
-    def get_value(self):
-        return int(self.value) if self.has_value else self.value
-
 
 class SNViewAngle(Attribute):
     def __init__(self, sn_object, value):
-        if value is not None:
-            assert isinstance(sn_object, SNObject)
         super(SNViewAngle, self).__init__(value)
         self.attr_type = 'view_angle'
         self.object = sn_object
@@ -310,15 +289,11 @@ class SNViewAngle(Attribute):
     def self_json(self):
         return {'sn_object': self.object.to_json()}
 
-    @property
-    def get_value(self):
-        return int(self.value) if self.has_value else self.value
-
 
 def static_objects_from_dict(d):
     epochs = d['epochs']
     epochs = epochs if isinstance(epochs, list) else [epochs]
-    return [StaticObject(loc=tuple(d['location']),
+    return [StaticObject(location=tuple(d['location']),
                          category=d['category'],
                          object=d['object'],
                          view_angle=d['view_angle'],
@@ -330,10 +305,10 @@ class StaticObject(object):
     """Object that can be loaded from dataset and rendered."""
 
     def __init__(self, loc, category, object, view_angle, epoch):
-        self.loc = loc  # 2-tuple of floats
-        self.category = category  # string
-        self.object = object  # string
-        self.view_angle = view_angle
+        self.location = loc  # 2-tuple of floats
+        self.category = category  # int
+        self.object = object  # int
+        self.view_angle = view_angle  # int
         self.epoch = epoch  # int
 
 
@@ -372,7 +347,7 @@ class Object(object):
     An object is a collection of attributes.
 
     Args:
-      attrs: list [category, object, view_angle, loc]
+      attrs: list [category, object, view_angle, location]
       when: string ('last', 'last1', 'last2')
       deletable: boolean. Whether this object is deletable. True if
         distractors.
@@ -387,7 +362,7 @@ class Object(object):
                  deletable=False):
 
         self.space = random_grid_space()
-        self.location = Loc(space=self.space, value=None)
+        self.location = Location(space=self.space, value=None)
         self.category = SNCategory(value=None)
         self.object = SNObject(self.category, value=None)
         self.view_angle = SNViewAngle(self.object, value=None)
@@ -396,7 +371,7 @@ class Object(object):
             for a in attrs:
                 if isinstance(a, Space):
                     self.space = a
-                elif isinstance(a, Loc):
+                elif isinstance(a, Location):
                     self.location = a
                     self.space = a.space
                 elif isinstance(a, SNCategory):
@@ -517,9 +492,9 @@ class Object(object):
         for attr_type in ['category', 'object', 'view_angle']:
             new_attr = getattr(obj, attr_type)
             self_attr = getattr(self, attr_type)
-            if not self_attr.has_value and new_attr.has_value:
+            if not self_attr.has_value() and new_attr.has_value():
                 self.change_attr(new_attr)
-            elif new_attr.has_value and self_attr.has_value:
+            elif new_attr.has_value() and self_attr.has_value():
                 return False
         return True
 
@@ -528,7 +503,7 @@ class Object(object):
         :return: deep copy of the object
         """
         new_obj = Object(attrs=[
-            Loc(space=Space(self.location.space.value), value=self.location.value),
+            Location(space=Space(self.location.space.value), value=self.location.value),
             Space(self.location.space.value),
             SNCategory(self.category.value),
             SNObject(self.category, self.object.value),
@@ -543,23 +518,19 @@ class Object(object):
 class ObjectSet(object):
     """A collection of objects."""
 
-    def __init__(self, n_epoch, n_max_backtrack=4):
+    def __init__(self, n_epoch):
         """Initialize the collection of objects.
 
         Args:
           n_epoch: int, the number of epochs or frames in the object set
-          n_max_backtrack: int or None
-            If int, maximum number of epoch to look back when searching, at least 1.
-            If None, will search the entire history
         """
         self.n_epoch = n_epoch
-        self.n_max_backtrack = n_max_backtrack
         self.set = list()
         self.end_epoch = list()
         self.dict = defaultdict(list)  # key: epoch, value: list of obj
 
         self.last_added_obj = None  # Last added object
-        self.loc = None
+        self.location = None
 
     def __iter__(self):
         return self.set.__iter__()
@@ -574,7 +545,7 @@ class ObjectSet(object):
         """
         :return: deep copy of the Objset
         """
-        objset_copy = ObjectSet(self.n_epoch, self.n_max_backtrack)
+        objset_copy = ObjectSet(self.n_epoch)
         objset_copy.set = {obj.copy() for obj in self.set}
         objset_copy.end_epoch = self.end_epoch.copy()
         objset_copy.dict = {epoch: [obj.copy() for obj in objs]
@@ -625,8 +596,6 @@ class ObjectSet(object):
         if obj is None:
             return None
 
-        # Check if already exists
-        n_backtrack = self.n_max_backtrack
         obj_subset = self.select(
             epoch_now,
             space=obj.space,
@@ -634,29 +603,28 @@ class ObjectSet(object):
             object=obj.object,
             view_angle=obj.view_angle,
             when=obj.when,
-            n_backtrack=n_backtrack,
             delete_if_can=delete_if_can,
             merge_idx=merge_idx
         )
 
-        # True if more than zero objects match the attributes based on epoch_now and backtrack
+        # True if more than zero objects match the attributes based on epoch_now
         if obj_subset and not add_if_exist:
             self.last_added_obj = obj_subset[-1]
             return self.last_added_obj
 
         # instantiate the object attributes
-        if not obj.location.has_value:
+        if not obj.location.has_value():
             avoid = [o.location.value for o in self.select_now(epoch_now)]
             obj.location = obj.space.sample(avoid=avoid)
 
-        if obj.view_angle.has_value:
+        if obj.view_angle.has_value():
             obj.object = obj.view_angle.object
             obj.category = obj.view_angle.object.category
         else:
-            if obj.object.has_value:
+            if obj.object.has_value():
                 obj.category = obj.object.category
             else:
-                if not obj.category.has_value:
+                if not obj.category.has_value():
                     obj.category.sample()
                 obj.object.category = obj.category
                 obj.object.sample()
@@ -669,7 +637,7 @@ class ObjectSet(object):
         else:
             if merge_idx is None:
                 try:
-                    obj.epoch = [epoch_now - const.DATA.LASTMAP[obj.when], epoch_now - const.DATA.LASTMAP[obj.when] + 1]
+                    obj.epoch = [epoch_now - const.get_k(obj.when), epoch_now - const.get_k(obj.when) + 1]
                 except:
                     raise NotImplementedError(
                         'When value: {:s} is not implemented'.format(str(obj.when)))
@@ -702,7 +670,6 @@ class ObjectSet(object):
                object=None,
                view_angle=None,
                when=None,
-               n_backtrack=None,
                delete_if_can=True,
                merge_idx=None
                ):
@@ -710,13 +677,12 @@ class ObjectSet(object):
 
         Args:
             epoch_now: int, the current epoch
-            space: None or a Loc instance, the location to be selected.
+            space: None or a Location instance, the location to be selected.
             category: None or an SNcategory instance, the ShapeNet category to be selected.
             object: None or an SNobject instance, the ShapeNet object to be selected.
             view_angle: None or an SNViewAngle instance, the ShapeNet view angle to be selected.
 
             when: None or a string, the temporal window to be selected.
-            n_backtrack: None or int, the number of epochs to backtrack
             delete_if_can: boolean, delete object found if can
 
         Returns:
@@ -739,7 +705,7 @@ class ObjectSet(object):
         # assert isinstance(space, Space)
 
         if merge_idx is None:
-            epoch_now -= const.DATA.LASTMAP[when]
+            epoch_now -= const.get_k(when)
         else:
             epoch_now = merge_idx
 
@@ -757,16 +723,16 @@ class ObjectSet(object):
         # Select only objects that have happened
         subset = self.dict[epoch_now]
 
-        if category is not None and category.has_value:
+        if category is not None and category.has_value():
             subset = [o for o in subset if o.category == category]
 
-        if object is not None and object.has_value:
+        if object is not None and object.has_value():
             subset = [o for o in subset if o.object == object]
 
-        if view_angle is not None and view_angle.has_value:
+        if view_angle is not None and view_angle.has_value():
             subset = [o for o in subset if o.view_angle == view_angle]
 
-        if space is not None and space.has_value:
+        if space is not None and space.has_value():
             subset = [o for o in subset if space.include(o.location)]
 
         if delete_if_can:
@@ -800,11 +766,11 @@ def render_static_obj(canvas, obj, img_size):
 
     # Note that OpenCV color is (Blue, Green, Red)
     center = [0, 0]
-    if obj.loc[0] < 0.5:
+    if obj.location[0] < 0.5:
         center[0] = 56
     else:
         center[0] = 168
-    if obj.loc[1] < 0.5:
+    if obj.location[1] < 0.5:
         center[1] = 56
     else:
         center[1] = 168
@@ -813,7 +779,7 @@ def render_static_obj(canvas, obj, img_size):
     x_offset, x_end = center[0] - radius, center[0] + radius
     y_offset, y_end = center[1] - radius, center[1] + radius
     shape_net_obj = const.DATA.get_shapenet_object(obj, [radius * 2, radius * 2])
-    assert shape_net_obj.size == (x_end - x_offset, y_end - y_offset)
+    assert shape_net_obj.shape[:2] == (x_end - x_offset, y_end - y_offset)
     canvas[x_offset:x_end, y_offset:y_end] = shape_net_obj
 
 
@@ -978,7 +944,7 @@ def another_attr(attr):
         return another_view_angle(attr)
     elif isinstance(attr, Space):
         return another_loc(attr)
-    elif isinstance(attr, Loc):
+    elif isinstance(attr, Location):
         return another_loc(attr)
     elif attr is const.DATA.INVALID:
         return attr
@@ -995,14 +961,6 @@ def random_loc(n=1):
             loc = random_attr('location')
         locs.append(loc)
     return locs
-
-
-def random_space():
-    return random.choice(const.DATA.ALLSPACES)
-
-
-def n_random_space():
-    return len(const.DATA.ALLSPACES)
 
 
 def random_when():
@@ -1034,6 +992,7 @@ def check_whens(whens, existing_whens: list = None):
     # added check_whens to ensure 1 stimulus per frame
     existing_whens = set() if not existing_whens else set(existing_whens)
     len_ew = len(existing_whens)
+
     while len(set(whens) | existing_whens) != (len(whens) + len_ew):
         whens = sample_when(len(whens), existing_whens)
     return whens
@@ -1058,7 +1017,8 @@ def sample_view_angle(k, obj: SNObject):
 
 
 def another_loc(loc):
-    # to make things consistent with original COG code, only sample a different grid_space
+    # to make things consistent with original COG code,
+    # only sample a different grid_space
     # another approach is keeping track of all grid_space in task class
     n_max_try = 100
     for i_try in range(n_max_try):

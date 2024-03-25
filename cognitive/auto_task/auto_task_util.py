@@ -6,20 +6,15 @@ also constructs tasks based on the generated graphs
 """
 
 import json
-import shutil
 from collections import defaultdict
 
-from cognitive.auto_task.arguments import get_args
 from cognitive import task_generator as tg
 from cognitive import stim_generator as sg
-from cognitive import info_generator as ig
-from cognitive import constants as const
 
 import numpy as np
 import random
 import timeit
 import networkx as nx
-import cv2
 import os
 
 from typing import Tuple, Union, List
@@ -445,72 +440,3 @@ def write_task_instance(G_tuple: GRAPH_TUPLE, task: TASK, write_fp: str):
         json.dump(nx.to_dict_of_dicts(G), f, indent=4)
     task[1].to_json(os.path.join(write_fp, 'temporal_task.json'))
     return None
-
-
-def write_trial_instance(
-        task: tg.TemporalTask,
-        write_fp: str,
-        img_size=224,
-        fixation_cue=True,
-        train=True,
-        is_instruction=True,
-        external_instruction=None
-) -> None:
-    # TODO: drawing the frames is slow!
-    # save the actual generated frames into another folder
-    if os.path.exists(write_fp):
-        shutil.rmtree(write_fp)
-    os.makedirs(write_fp)
-    frame_info = ig.FrameInfo(task, task.generate_objset())
-    compo_info = ig.TaskInfoCompo(task, frame_info)
-    objset = compo_info.frame_info.objset
-    for i, (epoch, frame) in enumerate(zip(sg.render(objset, img_size), compo_info.frame_info)):
-        # add cross in the center of the image
-        if fixation_cue:
-            if not any('ending' in description for description in frame.description):
-                sg.add_fixation_cue(epoch)
-        filename = os.path.join(write_fp, f'epoch{i}.png')
-        # this is fast!
-        cv2.imwrite(filename, epoch)
-    _, compo_example = compo_info.get_examples(is_instruction=is_instruction,
-                                               external_instruction=external_instruction)  # xlei: orginally have three outputs
-    filename = os.path.join(write_fp, 'trial_info')
-    with open(filename, 'w') as f:
-        json.dump(compo_example, f, indent=4)
-    return
-
-if __name__ == '__main__':
-    args = get_args()
-    print(args)
-
-    const.DATA = const.Data(
-        dir_path=args.stim_dir
-    )
-    if args.config_json:
-        with open(args.config_json) as f:
-            config = json.load(f)
-            op_dict = config['op_dict']
-            root_ops = config['root_ops']
-            boolean_ops = config['boolean_ops']
-            op_dict = defaultdict(dict, **op_dict)
-            op_depth_limit = {k: v['min_depth'] for k, v in op_dict.items()}
-            op_operators_limit = {k: v['min_op'] for k, v in op_dict.items()}
-
-    start = timeit.default_timer()
-    for i in range(args.n_tasks):
-        # make directory for saving task information
-        fp = os.path.join(args.output_dir, str(i))
-        if os.path.exists(fp):
-            shutil.rmtree(fp)
-        os.makedirs(fp)
-
-        task_graph, task = task_generator(
-            max_switch=args.max_switch,
-            switch_threshold=args.switch_threshold,
-            max_op=args.max_op,
-            max_depth=args.max_depth,
-            select_limit=args.select_limit
-        )
-        write_task_instance(task_graph, task, fp)
-    stop = timeit.default_timer()
-    print('Time taken to generate tasks: ', stop - start)

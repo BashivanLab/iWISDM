@@ -59,10 +59,7 @@ def generate_temporal_example(max_memory: int, task_family: List[str],
     task = task_bank.random_task(task_family, whens, first_shareable)
     assert isinstance(task, tg.TemporalTask)
 
-    # To get maximum memory duration, we need to specify the following average
-    # memory value
-    avg_mem = round(max_memory / 3.0 + 0.01, 2)
-    objset = task.generate_objset(average_memory_span=avg_mem, *args, **kwargs)
+    objset = task.generate_objset(*args, **kwargs)
     # Getting targets can remove some objects from objset.
     # Create example fields after this call.
     frame_info = ig.FrameInfo(task, objset)
@@ -168,7 +165,7 @@ def generate_dataset(
                 validation_examples -= 1
                 fname = os.path.join(validation_fname, f'{i}')
 
-            info.write_trial_instance(fname, img_size, fixation_cue)
+            info.write_trial(fname, img_size, fixation_cue)
             i += 1
     else:
         i = 0
@@ -199,7 +196,7 @@ def generate_dataset(
                 validation_examples -= 1
                 fname = os.path.join(validation_fname, f'{i}')
 
-            info.write_trial_instance(fname, img_size, fixation_cue)
+            info.write_trial(fname, img_size, fixation_cue)
             i += 1
     return families_count
 

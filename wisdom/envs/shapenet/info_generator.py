@@ -13,9 +13,10 @@ from typing import Tuple, Dict, List, Set
 import cv2
 import numpy as np
 
-import cognitive.constants as const
-import cognitive.stim_generator as sg
-import cognitive.task_generator as tg
+import wisdom.envs.shapenet.registration as const
+import wisdom.envs.shapenet.stim_generator as sg
+import wisdom.envs.shapenet.task_generator as tg
+from wisdom.utils.read_write import add_cross, write_trial, render_stimset
 
 
 class TaskInfoCompo(object):
@@ -247,10 +248,10 @@ class TaskInfoCompo(object):
         objset = self.frame_info.objset
 
         imgs = []
-        for i, (epoch, frame) in enumerate(zip(sg.render(objset, img_size), self.frame_info)):
+        for i, (epoch, frame) in enumerate(zip(render_stimset(objset, img_size), self.frame_info)):
             if fixation_cue:
                 if not any('ending' in description for description in frame.description):
-                    sg.add_fixation_cue(epoch)
+                    epoch = add_cross(epoch)
             imgs.append(epoch)
         per_task_info_dict, compo_info_dict = self.get_task_info_dict()
         return imgs, per_task_info_dict, compo_info_dict

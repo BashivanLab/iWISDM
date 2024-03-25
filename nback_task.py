@@ -103,8 +103,8 @@ class ParallelGen_NBACK_Task(Dataset):
         # imgs = torch.stack(imgs)
 
         fp = os.path.join(self.output_dir, 'trial' + str(idx))
-        info.write_trial_instance(fp, self.img_size, self.fixation_cue)
-        # self.write_trial_instance(fp, self.fixation_cue)
+        info.write_trial(fp, self.img_size, self.fixation_cue)
+        # self.write_trial(fp, self.fixation_cue)
         # return imgs, ins, torch.tensor(actions)
 
     # Spawns the generation of n trials of the task into seperate cores 

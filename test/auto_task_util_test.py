@@ -126,10 +126,6 @@ class UtilTest(unittest.TestCase):
         G = G.reverse()
         A = nx.nx_agraph.to_agraph(G)
         A.draw('RandomTask1.png', prog='dot')
-        util.write_trial_instance(
-            task[1],
-            write_fp='/Users/markbai/Documents/COG_v3_shapenet/test/trial'
-        )
 
     def test_subtask_complexity(self):
         op_name = 'And'
@@ -163,37 +159,36 @@ class UtilTest(unittest.TestCase):
     def test_full(self):
         max_op, max_depth = 100, 9
         tasks = [util.task_generator(
-            max_switch=1,
-            switch_threshold=1.0,
+            max_switch=0,
+            switch_threshold=0,
             max_op=max_op,
             max_depth=max_depth,
             select_limit=True
         )[1]
-                 for _ in range(100)]
+                 for _ in range(50)]
         op_count = [util.count_depth_and_op(t[0])[0] for t in tasks]
         depth_count = [util.count_depth_and_op(t[0])[1] for t in tasks]
         self.assertTrue(max(depth_count) <= max_depth)
         # depth upper bound is tight, not operator bound
-        # for i, t in enumerate(tasks):
-        #     print('task', i)
-        #     task = t[1]
-        #     task.to_json('/Users/markbai/Documents/COG_v3_shapenet/data/test/test.json')
-        #
-        #     f = open('/Users/markbai/Documents/COG_v3_shapenet/data/test/test.json')
-        #     task_dict = json.load(f)
-        #     task_dict['operator'] = tg.load_operator_json(task_dict['operator'])
-        #     loaded_task = tg.TemporalTask(
-        #         operator=task_dict['operator'],
-        #         n_frames=task_dict['n_frames'],
-        #         first_shareable=task_dict['first_shareable'],
-        #         whens=task_dict['whens']
-        #     )
-        #     print(task_dict['n_frames'], task_dict['whens'].values())
-            # for _ in range(1):
-            #     fi = ig.FrameInfo(loaded_task, loaded_task.generate_objset())
-            #     compo_info = ig.TaskInfoCompo(loaded_task, fi)
-            #     _, instructions, answers = compo_info.generate_trial()
-            #     self.assertTrue(answers[-1] != 'invalid')
+        for i, t in enumerate(tasks):
+            print('task', i)
+            task = t[1]
+            task.to_json('/Users/markbai/Documents/COG_v3_shapenet/data/test/test.json')
+
+            f = open('/Users/markbai/Documents/COG_v3_shapenet/data/test/test.json')
+            task_dict = json.load(f)
+            task_dict['operator'] = tg.load_operator_json(task_dict['operator'])
+            loaded_task = tg.TemporalTask(
+                operator=task_dict['operator'],
+                n_frames=task_dict['n_frames'],
+                first_shareable=task_dict['first_shareable'],
+                whens=task_dict['whens']
+            )
+            for _ in range(5):
+                fi = ig.FrameInfo(loaded_task, loaded_task.generate_objset())
+                compo_info = ig.TaskInfoCompo(loaded_task, fi)
+                _, per_task_info, compo_info_dict = compo_info.generate_trial(224, True)
+                compo_info.write_trial('/Users/markbai/Documents/COG_v3_shapenet/test/trial')
         print('done')
 
 

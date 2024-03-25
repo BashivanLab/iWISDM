@@ -1,11 +1,19 @@
 """
-Code adapted from 'A Dataset and Architecture for Visual Reasoning with a Working Memory', Guangyu Robert Yang, et al.
+Code based on 'A Dataset and Architecture for Visual Reasoning with a Working Memory', Guangyu Robert Yang, et al.
 Paper: https://arxiv.org/abs/1803.06092
 Code: https://github.com/google/cog
 
-Vocabulary of functional programs.
+High-level API for generating stimuli.
 
-Contains the building blocks for permissible tasks.
+Objects are first generated abstractly, with high-level specifications
+like location='random'.
+Abstract relationships between objects can also be specified.
+
+All objects and relationships are then collected into a ObjectSet.
+The ObjectSet object can interpret the abstract specifications and instantiate
+the stimuli in each trial.
+
+Rendering function generates movies based on the instantiated stimuli
 """
 
 import json
@@ -16,15 +24,25 @@ import networkx as nx
 import numpy as np
 import random
 
-from cognitive import constants as const
-from cognitive import stim_generator as sg
+from wisdom.core import (
+    Task,
+    Operator
+)
+from wisdom.envs.shapenet.registration import SNStimData, SNEnvSpec
+import wisdom.envs.shapenet.stim_generator as sg
+import wisdom.envs.shapenet.registration as env_reg
 
 
-def obj_str(location=None, obj=None, category=None, view_angle=None,
-            when=None):
+def obj_str(
+        location=None,
+        obj=None,
+        category=None,
+        view_angle=None,
+        when=None
+):
     """Get a string describing an object with attributes."""
 
-    location = location or sg.Location(space=sg.random_grid_space(), value=None)
+    location = location or sg.Location(space=sg.random_grid_space())
     category = category or sg.SNCategory(None)
     obj = obj or sg.SNObject(category=category, value=None)
     view_angle = view_angle or sg.SNViewAngle(sn_object=obj, value=None)
@@ -32,13 +50,13 @@ def obj_str(location=None, obj=None, category=None, view_angle=None,
     sentence = []
     if when is not None:
         sentence.append(when)
-    if isinstance(category, sg.Attribute) and category.has_value():
+    if isinstance(category, sg.SNAttribute) and category.has_value():
         sentence.append(str(category))
-    if isinstance(view_angle, sg.Attribute) and view_angle.has_value():
+    if isinstance(view_angle, sg.SNAttribute) and view_angle.has_value():
         sentence.append(str(view_angle))
-    if isinstance(obj, sg.Attribute) and obj.has_value():
+    if isinstance(obj, sg.SNAttribute) and obj.has_value():
         sentence.append(str(obj))
-    if isinstance(location, sg.Attribute) and location.has_value():
+    if isinstance(location, sg.SNAttribute) and location.has_value():
         sentence.append(str(location))
     else:
         sentence.append('object')
@@ -61,67 +79,21 @@ class Skip(object):
         pass
 
 
-class Operator(object):
-    """Base class for task constructors."""
+class SNOperator(Operator):
+    constants = env_reg.DATA
+    _stim_data: SNStimData = None
+    env_spec: SNEnvSpec = None
 
-    def __init__(self):
-        # Whether or not this operator is the final operator
-        self.child = list()
-        self.parent = list()
+    @property
+    def stim_data(self):
+        return self._stim_data
 
-    def __str__(self):
-        pass
-
-    def __call__(self, objset, epoch_now):
-        del objset
-        del epoch_now
-
-    def copy(self):
-        raise NotImplementedError
-
-    def set_child(self, child):
-        """Set operators as children."""
-        try:
-            child.parent.append(self)
-            self.child.append(child)
-        except AttributeError:
-            for c in child:
-                self.set_child(c)
-
-    def get_expected_input(self, should_be=None):
-        """Guess and update the objset at this epoch.
-
-        Args:
-          should_be: the supposed output
-        """
-        raise NotImplementedError('get_expected_input method is not defined.')
-
-    def child_json(self):
-        return [c.to_json() for c in self.child]
-
-    def self_json(self):
-        return {}
-
-    def to_json(self):
-        # return the dictionary for storing into json
-        info = dict()
-        info['name'] = self.__class__.__name__
-        info['child'] = self.child_json()
-        info.update(self.self_json())
-        return info
-
-    def check_attrs(self):
-        """
-        check if any children are operators
-        :return: True if children contain no operators
-        """
-        for c in self.child:
-            if isinstance(c, Operator):
-                return False
-        return True
+    @stim_data.setter
+    def stim_data(self, value):
+        self._stim_data = value
 
 
-class Select(Operator):
+class Select(SNOperator):
     """Selecting the objects that satisfy properties."""
 
     def __init__(self,
@@ -144,7 +116,7 @@ class Select(Operator):
                     object = attr
                 elif isinstance(attr, sg.SNViewAngle):
                     view_angle = attr
-        location = location or sg.Location(space=sg.random_grid_space(), value=None)
+        location = location or sg.Location(space=sg.random_attr('space'), value=None)
         category = category or sg.SNCategory(None)
         object = object or sg.SNObject(category, None)
         view_angle = view_angle or sg.SNViewAngle(object, None)
@@ -171,13 +143,13 @@ class Select(Operator):
         object = self.object(objset, epoch_now)
         view_angle = self.view_angle(object, epoch_now)
 
-        if const.DATA.INVALID in (location, category, object, view_angle):
-            return const.DATA.INVALID
+        if self.constants.INVALID in (location, category, object, view_angle):
+            return self.constants.INVALID
 
         if self.space_type is not None:
             space = location.get_space_to(self.space_type)
         else:
-            space = sg.Space(None)
+            space = sg.Space()
 
         subset = objset.select(
             epoch_now,
@@ -306,7 +278,7 @@ class Select(Operator):
                 a = getattr(self, attr_type)
                 attr = a(objset, epoch_now)
                 # If the input is successfully evaluated
-                if attr is not const.DATA.INVALID and attr.has_value():
+                if attr is not self.constants.INVALID and attr.has_value():
                     if attr_type == 'location' and self.space_type is not None:
                         attr = attr.get_space_to(self.space_type)
                         print('space type is not none')
@@ -366,7 +338,7 @@ class Select(Operator):
                 a = getattr(self, attr_type)
                 attr = a(objset, epoch_now)
                 if isinstance(a, Operator):
-                    if attr is const.DATA.INVALID:
+                    if attr is self.constants.INVALID:
                         # Can not be evaluated yet, then randomly choose one
                         attr = sg.random_attr(attr_type)
                     attr_expected_in.append(attr)
@@ -408,7 +380,7 @@ class Select(Operator):
         return {'when': self.when}
 
 
-class Get(Operator):
+class Get(SNOperator):
     """Get attribute of an object."""
 
     def __init__(self, attr_type, objs):
@@ -449,11 +421,11 @@ class Get(Operator):
         else:
             objs = self.objs
 
-        if objs is const.DATA.INVALID:
-            return const.DATA.INVALID
+        if objs is self.constants.INVALID:
+            return self.constants.INVALID
         elif len(objs) != 1:
             # Ambiguous or non-existent
-            return const.DATA.INVALID
+            return self.constants.INVALID
         else:
             attr = getattr(objs[0], self.attr_type)
             return attr
@@ -497,7 +469,7 @@ class GetLoc(Get):
         super(GetLoc, self).__init__('location', objs)
 
 
-class Exist(Operator):
+class Exist(SNOperator):
     """Check if object with property exists."""
 
     def __init__(self, objs):
@@ -514,8 +486,8 @@ class Exist(Operator):
 
     def __call__(self, objset, epoch_now):
         subset = self.objs(objset, epoch_now)
-        if subset == const.DATA.INVALID:
-            return const.DATA.INVALID
+        if subset == self.constants.INVALID:
+            return self.constants.INVALID
         elif subset:
             # If subset is not empty
             return True
@@ -539,7 +511,7 @@ class Exist(Operator):
         return should_be
 
 
-class Switch(Operator):
+class Switch(SNOperator):
     """Switch behaviors based on trueness of statement.
 
     Args:
@@ -584,11 +556,11 @@ class Switch(Operator):
 
     def __call__(self, objset, epoch_now):
         statement_true = self.statement(objset, epoch_now)
-        if statement_true is const.DATA.INVALID:
+        if statement_true is self.constants.INVALID:
             if self.invalid_as_false:
                 statement_true = False
             else:
-                return const.DATA.INVALID
+                return self.constants.INVALID
         if statement_true:
             return self.do_if_true(objset, epoch_now)
         else:
@@ -634,8 +606,7 @@ class Switch(Operator):
         information.
 
         Args:
-          objset: objset
-          epoch_now: current epoch
+          should_be: the expected output
 
         Returns:
           objset: updated objset
@@ -646,7 +617,7 @@ class Switch(Operator):
         return should_be, None, None
 
 
-class IsSame(Operator):
+class IsSame(SNOperator):
     """Check if two attributes are the same."""
 
     def __init__(self, attr1, attr2):
@@ -685,8 +656,8 @@ class IsSame(Operator):
         attr1 = self.attr1(objset, epoch_now)
         attr2 = self.attr2(objset, epoch_now)
 
-        if (attr1 is const.DATA.INVALID) or (attr2 is const.DATA.INVALID):
-            return const.DATA.INVALID
+        if (attr1 is self.constants.INVALID) or (attr2 is self.constants.INVALID):
+            return self.constants.INVALID
         else:
             return attr1 == attr2
 
@@ -703,8 +674,8 @@ class IsSame(Operator):
         attr1_value = self.attr1(objset, epoch_now)
         attr2_value = self.attr2(objset, epoch_now)
 
-        attr1_fixed = attr1_value is not const.DATA.INVALID
-        attr2_fixed = attr2_value is not const.DATA.INVALID
+        attr1_fixed = attr1_value is not self.constants.INVALID
+        attr2_fixed = attr2_value is not self.constants.INVALID
 
         if attr1_fixed:
             assert attr1_value.has_value()
@@ -723,15 +694,15 @@ class IsSame(Operator):
                 # if sample another view_angle if not should be
                 # check for how many view_angles exist for the object first
                 obj = sg.random_attr('object')
-                while len(const.DATA.ALLVIEWANGLES[obj.category.value][obj.value]) < 2:
+                while len(self.stim_data.ALLVIEWANGLES[obj.category.value][obj.value]) < 2:
                     obj = sg.random_attr('object')
-                attr = sg.random_view_angle(obj)
+                attr = sg.random_attr('view_angle')
                 attr1_assign = attr
                 attr2_assign = attr if should_be else sg.another_attr(attr)
             elif self.attr_type == 'location':
                 attr = sg.random_attr('location')
                 attr1_assign = attr
-                attr2_assign = attr.space.sample() if should_be else sg.another_attr(attr)
+                attr2_assign = attr.space.sample_loc() if should_be else sg.another_attr(attr)
             else:
                 attr = sg.random_attr(self.attr_type)
                 attr1_assign = attr
@@ -739,7 +710,7 @@ class IsSame(Operator):
         return attr1_assign, attr2_assign
 
 
-class NotSame(Operator):
+class NotSame(SNOperator):
     """Check if two attributes are not the same."""
 
     def __init__(self, attr1, attr2):
@@ -778,8 +749,8 @@ class NotSame(Operator):
         attr1 = self.attr1(objset, epoch_now)
         attr2 = self.attr2(objset, epoch_now)
 
-        if (attr1 is const.DATA.INVALID) or (attr2 is const.DATA.INVALID):
-            return const.DATA.INVALID
+        if (attr1 is self.constants.INVALID) or (attr2 is self.constants.INVALID):
+            return self.constants.INVALID
         else:
             return attr1 != attr2
 
@@ -795,8 +766,8 @@ class NotSame(Operator):
         attr1_value = self.attr1(objset, epoch_now)
         attr2_value = self.attr2(objset, epoch_now)
 
-        attr1_fixed = attr1_value is not const.DATA.INVALID
-        attr2_fixed = attr2_value is not const.DATA.INVALID
+        attr1_fixed = attr1_value is not self.constants.INVALID
+        attr2_fixed = attr2_value is not self.constants.INVALID
 
         if attr1_fixed:
             assert attr1_value.has_value()
@@ -814,16 +785,16 @@ class NotSame(Operator):
             if self.attr_type == 'view_angle':
                 # if sample another view_angle if should be
                 # check for how many view_angles exist for the object first
-                obj = sg.random_attr('object')
-                while len(const.DATA.ALLVIEWANGLES[obj.category.value][obj.value]) < 2:
-                    obj = sg.random_attr('object')
-                attr = sg.random_view_angle(obj)
+
+                attr = sg.random_attr('view_angle')
+                while len(self.stim_data.ALLVIEWANGLES[attr.category.value][attr.value]) < 2:
+                    attr = sg.random_attr('view_angle')
                 attr1_assign = attr
                 attr2_assign = sg.another_attr(attr) if should_be else attr
             elif self.attr_type == 'location':
                 attr = sg.random_attr('location')
                 attr1_assign = attr
-                attr2_assign = sg.another_attr(attr) if should_be else attr.space.sample()
+                attr2_assign = sg.another_attr(attr) if should_be else attr.space.sample_loc()
             else:
                 attr = sg.random_attr(self.attr_type)
                 attr1_assign = attr
@@ -831,7 +802,7 @@ class NotSame(Operator):
         return attr1_assign, attr2_assign
 
 
-class And(Operator):
+class And(SNOperator):
     """And operator."""
 
     def __init__(self, op1, op2):
@@ -874,7 +845,7 @@ class And(Operator):
         return op1_assign, op2_assign
 
 
-class Or(Operator):
+class Or(SNOperator):
     """Or operator."""
 
     def __init__(self, op1, op2):
@@ -916,26 +887,8 @@ class Or(Operator):
         return op1_assign, op2_assign
 
 
-class Task(object):
-    """Base class for tasks."""
-
-    def __init__(self, operator=None):
-        if operator is None:
-            self._operator = Operator()
-        else:
-            if not isinstance(operator, Operator):
-                raise TypeError('operator is the wrong type ' + str(type(operator)))
-            self._operator = operator
-
-    def __call__(self, objset, epoch_now):
-        # when you want to get the answer to the ask
-        return self._operator(objset, epoch_now)
-
-    def __str__(self):
-
-        return str(self._operator)
-
-    def _add_all_nodes(self, op: Union[Operator, sg.Attribute], visited: dict, G: nx.DiGraph, count: int):
+class SNTask(Task):
+    def _add_all_nodes(self, op: Union[Operator, sg.SNAttribute], visited: dict, G: nx.DiGraph, count: int):
         visited[op] = True
         parent = count
         node_label = type(op).__name__
@@ -964,59 +917,13 @@ class Task(object):
                         count += 1
         return G, count
 
-    def _get_all_nodes(self, op, visited):
-        # used for topological sort, not need to read
-        """Get the total number of operators in the graph starting with op."""
-        visited[op] = True
-        all_nodes = [op]
-        for c in op.child:
-            if isinstance(c, Operator) and not visited[c]:
-                all_nodes.extend(self._get_all_nodes(c, visited))
-        return all_nodes
-
-    @property
-    def _all_nodes(self):
-        """Return all nodes in a list."""
-        visited = defaultdict(lambda: False)
-        return self._get_all_nodes(self._operator, visited)
-
-    @property
-    def operator_size(self):
-        """Return the number of unique operators."""
-        return len(self._all_nodes)
-
-    def topological_sort_visit(self, node, visited, stack):
-        """Recursive function that visits a root."""
-
-        # Mark the current root as visited.
-        visited[node] = True
-
-        # Recur for all the vertices adjacent to this vertex
-        for child in node.child:
-            if isinstance(child, Operator) and not visited[child]:
-                self.topological_sort_visit(child, visited, stack)
-
-        # Push current vertex to stack which stores result
-        stack.insert(0, node)
-
-    def topological_sort(self):
-        """Perform a topological sort."""
-        nodes = self._all_nodes
-
-        # Mark all the vertices as not visited
-        visited = defaultdict(lambda: False)
-        stack = []
-
-        # Call the recursive helper function to store Topological
-        # Sort starting from all vertices one by one
-        for node in nodes:
-            if not visited[node]:
-                self.topological_sort_visit(node, visited, stack)
-
-        # Print contents of stack
-        return stack
-
-    def guess_objset(self, objset: sg.ObjectSet, epoch_now: int, should_be=None, temporal_switch=False):
+    def guess_objset(
+            self,
+            objset: sg.ObjectSet,
+            epoch_now: int,
+            should_be: Dict = None,
+            temporal_switch: bool = False
+    ):
         """
         main function for generating frames based on task graph structure
         iterate through each node in topological order, and propagate the expected inputs from
@@ -1049,9 +956,9 @@ class Task(object):
             # e.g. node = IsSame, should_be = True,
             # expected_input is the output of the children operators
 
-            # outputs is a list, if node is select, then get_expected_input adds object to objset
+            # makes sure outputs is a list, if node is select, then get_expected_input adds object to objset
             if len(node.child) == 1:
-                outputs = [inputs]  ## xl:for later interation
+                outputs = [inputs]
             else:
                 outputs = inputs
 
@@ -1098,23 +1005,8 @@ class Task(object):
                         raise NotImplementedError()
         return objset
 
-    @property
-    def instance_size(self):
-        """Return the total number of possible instantiated tasks."""
-        raise NotImplementedError('instance_size is not defined for this task.')
 
-    def get_target(self, objset):
-        return [self(objset, objset.n_epoch - 1)]
-
-    def is_bool_output(self):
-        if self._operator in BOOL_OP:
-            return True
-        return False
-
-
-class TemporalTask(Task):
-    # goal: combine multiple tasks together
-    # xlei: n_frames set to 6 todo: it does not work!
+class TemporalTask(SNTask):
     def __init__(self, operator=None, n_frames=None, first_shareable=None, whens=None):
         super(TemporalTask, self).__init__(operator)
         self.n_frames = n_frames
@@ -1127,7 +1019,6 @@ class TemporalTask(Task):
         new_task = TemporalTask()
         new_task.n_frames = self.n_frames
         new_task._first_shareable = self.first_shareable
-        nodes = self.topological_sort()
         new_task._operator = self._operator.copy()
         return new_task
 
@@ -1174,7 +1065,7 @@ class TemporalTask(Task):
                 if isinstance(parent_op, Get):
                     attrs.add(parent_op.attr_type)
                 elif isinstance(parent_op, Exist):
-                    for attr in const.ATTRS:
+                    for attr in env_reg.DATA.ATTRS:
                         if getattr(lastk_select, attr).value:
                             attrs.add(attr)
                 elif isinstance(parent_op, IsSame):
@@ -1207,7 +1098,7 @@ class TemporalTask(Task):
         if filter_selects:
             if len(objs) < len(filter_selects):
                 print('Not enough objects for select')
-                return None
+                return list()
             # match objs on that frame with the number of selects
             filter_objs = random.sample(objs, k=len(filter_selects))
             # print("what is filter_objs:", filter_objs)
@@ -1227,7 +1118,7 @@ class TemporalTask(Task):
         """
 
         n_epoch = self.n_frames
-        const.DATA.MAX_MEMORY = n_epoch
+        env_reg.DATA.MAX_MEMORY = n_epoch
         objset = sg.ObjectSet(n_epoch=n_epoch)
 
         # Guess objects
@@ -1264,60 +1155,34 @@ class TemporalTask(Task):
         return
 
 
-TASK = Tuple[Union[Operator, sg.Attribute], TemporalTask]
+TASK = Tuple[Union[Operator, sg.SNAttribute], TemporalTask]
 GRAPH_TUPLE = Tuple[nx.DiGraph, int, int]
 
 
 def all_subclasses(cls):
+    """
+    function to retrieve all subclasses of a class
+    @param cls: class
+    @return:
+    """
     return set(cls.__subclasses__()).union(
         [s for c in cls.__subclasses__() for s in all_subclasses(c)])
 
 
-def get_operator_dict() -> Dict[str, Operator]:
+def get_operator_dict() -> Dict[str, Callable]:
+    """
+    retrieve operator class names and their classes
+    @return: dictionary of format {str: SNOperator class}
+    """
     # function to retrieve class names and their classes
-    return {cls.__name__: cls for cls in all_subclasses(Operator)}
-
-
-def get_attr_dict() -> Dict[str, Operator]:
-    # function to retrieve class names and their classes
-    return {cls.__name__: cls for cls in all_subclasses(sg.Attribute)}
-
-
-def classify_operators(ops):
-    counts = defaultdict(list)
-    for i, op in enumerate(ops):
-        if op == 'Select':
-            counts['select'].append((i, op))
-        elif op == 'Exist':
-            counts['exist'].append((i, op))
-        elif op == 'IsSame':
-            counts['is_same'].append((i, op))
-        elif op == 'NotSame':
-            counts['not_same'].append((i, op))
-        elif op == 'And' or op == 'Or' or op == 'Xor':
-            counts['logic'].append((i, op))
-        elif op == 'Switch':
-            counts['switch'].append((i, op))
-        elif 'Get' in op:
-            counts['get'].append((i, op))
-    return counts
-
-
-def get_roots(G: nx.DiGraph):
-    return [n for n, d in G.in_degree() if d == 0]
-
-
-def get_leafs(G: nx.DiGraph):
-    leafs = [x for x in G.nodes() if G.out_degree(x) == 0 and G.in_degree(x) == 1]
-    assert all(leaf == 'Select' or leaf == 'CONST' for leaf in [G.nodes[node]['label'] for node in leafs])
-    return leafs
+    return {cls.__name__: cls for cls in all_subclasses(SNOperator)}
 
 
 def graph_to_operators(
         G: nx.DiGraph,
         root: int,
         operators: Dict[int, str],
-        operator_families: Dict[str, Callable], whens) -> Union[Operator, sg.Attribute]:
+        operator_families: Dict[str, Callable], whens) -> Union[Operator, sg.SNAttribute]:
     """
     given a task graph G, convert it into an operator that is already nested with its successors
     this is done by traversing the graph
@@ -1332,7 +1197,7 @@ def graph_to_operators(
     if children:
         # check the root's type of operator
         if operators[root] == 'Select':
-            attr_dict = {attr: None for attr in const.ATTRS}
+            attr_dict = {attr: None for attr in env_reg.DATA.ATTRS}
             for child in children:
                 # each child is an int indicating the node number
                 if 'Get' in operators[child]:
@@ -1348,12 +1213,12 @@ def graph_to_operators(
             # init a Get operator
             return operator_families[operators[root]](
                 graph_to_operators(G, children[0], operators, operator_families, whens))
-        elif operators[root] in const.LOGIC_OPS:
+        elif operators[root] in env_reg.DATA.LOGIC_OPS:
             # init a boolean operator
             assert len(children) > 1
             ops = [graph_to_operators(G, c, operators, operator_families, whens) for c in children]
-            if isinstance(ops[0], sg.Attribute) or isinstance(ops[1], sg.Attribute):
-                if isinstance(ops[0], sg.Attribute):
+            if isinstance(ops[0], sg.SNAttribute) or isinstance(ops[1], sg.SNAttribute):
+                if isinstance(ops[0], sg.SNAttribute):
                     attr = ops[0]
                     op = ops[1]
                     attr_i = 0
@@ -1370,31 +1235,31 @@ def graph_to_operators(
         if operators[root] == 'Select':
             return Select(when=whens[root])
         else:
-            return sg.random_attr(random.choice(const.ATTRS))
+            return sg.random_attr(random.choice(env_reg.DATA.ATTRS))
 
 
 def load_operator_json(
         op_dict: dict,
         operator_families: Dict[str, Callable] = None,
         attr_families: Dict[str, Callable] = None,
-) -> Union[Operator, sg.Attribute]:
+) -> Union[Operator, sg.SNAttribute]:
     """
     given json dictionary, convert it into an operator that is already nested with its successors
     :param op_dict: the operator dictionary
-    :param operator_families:
-    :param attr_families
-    :return:
+    :param operator_families: dict of operator class names and their class init functions
+    :param attr_families: dict of attribute class names and their class init functions
+    :return: initialized Operator
     """
     if operator_families is None:
         operator_families = get_operator_dict()
     if attr_families is None:
-        attr_families = get_attr_dict()
+        attr_families = sg.get_attr_dict()
     name = op_dict['name']
     if not 'value' in op_dict:
         children: List[dict] = op_dict['child']
         # check the type of operator
         if name == 'Select':
-            attr_dict = {attr: None for attr in const.ATTRS}
+            attr_dict = {attr: None for attr in env_reg.DATA.ATTRS}
             for d in children:
                 if not 'value' in d:
                     if 'Get' in d['name']:
@@ -1409,13 +1274,14 @@ def load_operator_json(
         elif 'Get' in name:
             # init a Get operator
             return operator_families[name](
-                load_operator_json(children[0], operator_families, attr_families))
-        elif name in const.LOGIC_OPS:
+                load_operator_json(children[0], operator_families, attr_families)
+            )
+        elif name in env_reg.DATA.LOGIC_OPS:
             # init a boolean operator
             assert len(children) > 1
             ops = [load_operator_json(c, operator_families, attr_families) for c in children]
-            if isinstance(ops[0], sg.Attribute) or isinstance(ops[1], sg.Attribute):
-                if isinstance(ops[0], sg.Attribute):
+            if isinstance(ops[0], sg.SNAttribute) or isinstance(ops[1], sg.SNAttribute):
+                if isinstance(ops[0], sg.SNAttribute):
                     attr = ops[0]
                     op = ops[1]
                     attr_i = 0
@@ -1429,8 +1295,9 @@ def load_operator_json(
             return operator_families[name](ops[0], ops[1])
         elif name == 'Switch':
             assert len(children) == 3
-            statement, do_if_true, do_if_false = [load_operator_json(d, operator_families, attr_families) for d in
-                                                  children]
+            statement, do_if_true, do_if_false = [
+                load_operator_json(d, operator_families, attr_families)
+                for d in children]
             return Switch(statement, do_if_true, do_if_false)
         else:
             raise ValueError(f"Unknown Operator {name}")
@@ -1445,28 +1312,36 @@ def load_operator_json(
         return attr_families[name](value=op_dict['value'], **init)
 
 
-def subtask_generation(subtask_graph: GRAPH_TUPLE, op_dict: dict = None, existing_whens: dict = None) \
-        -> Tuple[TASK, dict]:
+def subtask_generation(
+        env_spec: SNEnvSpec,
+        subtask_graph: GRAPH_TUPLE,
+        node_label_dict: dict = None,
+        existing_whens: dict = None
+) -> Tuple[TASK, dict]:
+    """
+    generate a TemporalTask from a subtask graph
+    @param env_spec: data class used to specify number of delay frames
+    @param subtask_graph: the task graph
+    @param node_label_dict:
+    @param existing_whens:
+    @return:
+    """
     existing_whens = dict() if not existing_whens else existing_whens
     # avoid duplicate whens across subtasks during switch generation
     subtask_G, root, _ = subtask_graph
     operator_families = get_operator_dict()
 
-    if op_dict is None:
-        op_dict = {node[0]: node[1]['label'] for node in subtask_G.nodes(data=True)}
-    selects = [op for op in subtask_G.nodes() if 'Select' == op_dict[op]]
+    if node_label_dict is None:
+        node_label_dict = {node[0]: node[1]['label'] for node in subtask_G.nodes(data=True)}
+    selects = [op for op in subtask_G.nodes() if 'Select' == node_label_dict[op]]
 
-    # if max_mem = 7 (const.LASTMAP = [last6, ..., last0]), len(selects) = 4,
-    # then there's no delay only if sample_when = [last3, last2, last1, last0]
-    const.DATA.MAX_MEMORY = len(selects) + len(existing_whens.values())
-    # resample whens so that every select is assigned to a different lastk
-    whens = sg.check_whens(sg.sample_when(len(selects)), list(existing_whens.values()))
-    n_frames = const.compare_when(whens) + 1  # find highest lastk to determine task number of frames
+    whens = env_spec.check_whens(env_spec.sample_when(len(selects)), list(existing_whens.values()))
+    n_frames = env_reg.compare_when(whens) + 1  # find highest lastk to determine number of frames in task
 
     whens = {select: when for select, when in zip(selects, whens)}
     existing_whens.update(whens)
     assert len(existing_whens.values()) == len(set(existing_whens.values())), 'whens are duplicated'
-    op = graph_to_operators(subtask_G, root, op_dict, operator_families, whens)
+    op = graph_to_operators(subtask_G, root, node_label_dict, operator_families, whens)
     return (op, TemporalTask(operator=op, n_frames=n_frames, whens=whens)), existing_whens
 
 
@@ -1479,9 +1354,9 @@ def switch_generation(conditional: TASK, do_if: TASK, do_else: TASK, existing_wh
     else_op, else_task = do_else
 
     op = Switch(conditional_op, if_op, else_op, **kwargs)
-    n_frames = const.compare_when(existing_whens.values()) + 1
+    n_frames = env_reg.compare_when(existing_whens.values()) + 1
 
-    # const.DATA.MAX_MEMORY = n_frames
+    # env_reg.DATA.MAX_MEMORY = n_frames
     return op, TemporalTask(operator=op, n_frames=n_frames, whens=existing_whens)
 
 
@@ -1491,5 +1366,3 @@ get_family_dict = OrderedDict([
     ('view_angle', GetViewAngle),
     ('location', GetLoc)
 ])
-
-BOOL_OP = [IsSame, NotSame, Exist, And, Or]
