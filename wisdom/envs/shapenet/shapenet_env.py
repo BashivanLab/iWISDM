@@ -14,6 +14,7 @@ from wisdom.envs.shapenet.registration import SNEnvSpec, SNStimData
 
 class ShapeNetEnv(Env):
     def __init__(self, stim_data: SNStimData, env_spec: SNEnvSpec):
+        super().__init__()
         self.base_classes = [sg.SNAttribute, sg.SNStimulus, sg.ObjectSet, tg.SNTask, tg.SNOperator]
 
         self.stim_data = stim_data

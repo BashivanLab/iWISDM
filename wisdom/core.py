@@ -24,7 +24,7 @@ class Env:
     stim_data: StimData = None
 
     def __init__(self):
-        return
+        raise NotImplementedError
 
     def generate_tasks(self, *args):
         raise NotImplementedError
