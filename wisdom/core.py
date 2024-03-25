@@ -138,6 +138,12 @@ class Stimulus(object):
     def copy(self):
         raise NotImplementedError
 
+    def render(self, *args):
+        """
+        return the rendered image of the stimulus
+        """
+        raise NotImplementedError
+
 
 class StimuliSet(object):
     """A collection of objects."""
@@ -234,7 +240,11 @@ class StimuliSet(object):
     def select(self, *args):
         raise NotImplementedError
 
-    def select_now(self):
+    def select_now(self, epoch_now: int, *args) -> Iterable[Stimulus]:
+        """
+        return a subset of the stimuli that are present at the current epoch,
+        filter the stimuli based on the provided attributes
+        """
         raise NotImplementedError
 
 

@@ -7,10 +7,10 @@ from copy import deepcopy
 import pandas as pd
 import numpy as np
 from numpy.typing import NDArray
-import cv2
 
 from wisdom.core import Stimulus, Attribute, Task, Operator
 from wisdom.envs.registration import Constant, EnvSpec, StimData
+from wisdom.utils.read_write import read_img
 
 
 def compare_when(when_list):
@@ -62,6 +62,7 @@ def get_target_value(t):
     if t is False or t == 'False':
         return 'false'
     return t
+
 
 def all_subclasses(cls):
     return set(cls.__subclasses__()).union(
@@ -273,9 +274,8 @@ class SNStimData(StimData):
 
         obj_ref = int(obj_pd.iloc[0]['ref'])
         obj_path = os.path.join(image_path, f'{obj_ref}/image.png')
-        image = cv2.imread(obj_path)
-        object_arr = cv2.resize(cv2.cvtColor(image, cv2.COLOR_BGR2RGB), obj_size)
-        return object_arr
+
+        return read_img(obj_path, obj_size, color_format='RGB')
 
     def get_all_attributes(self):
         """

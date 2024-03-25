@@ -750,23 +750,6 @@ def _get_space_to(x0: float, x1: float, y0: float, y1: float, space_type: str) -
     return Space(space)
 
 
-def add_fixation_cue(canvas, cue_size=0.05):
-    """
-
-    :param canvas: numpy array of shape: (img_size, img_size, 3)
-    :param cue_size: size of the fixation cue
-    :return:
-    """
-    img_size = canvas.shape[0]
-    radius = int(cue_size * img_size)
-    center = (canvas.shape[0] // 2, canvas.shape[1] // 2)
-    thickness = int(0.02 * img_size)
-    cv2.line(canvas, (center[0] - radius, center[1]),
-             (center[0] + radius, center[1]), (255, 255, 255), thickness)
-    cv2.line(canvas, (center[0], center[1] - radius),
-             (center[0], center[1] + radius), (255, 255, 255), thickness)
-
-
 def random_attr(attr_type: str) -> Attribute:
     """
     sample a random attribute

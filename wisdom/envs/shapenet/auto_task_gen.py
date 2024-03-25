@@ -12,7 +12,7 @@ import numpy as np
 import networkx as nx
 
 from wisdom.core import Operator, Attribute, Task
-from wisdom.envs.utils.auto_task_gen import TaskGenerator
+from wisdom.utils.auto_task_gen import TaskGenerator
 import wisdom.envs.shapenet.task_generator as tg
 from wisdom.envs.shapenet.registration import SNEnvSpec
 

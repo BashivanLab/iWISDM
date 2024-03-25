@@ -23,7 +23,7 @@ class ShapeNetEnv(Env):
         self.constants = const.DATA
         self.task_gen = atg.SNTaskGenerator(env_spec)
         self.reset_env()
-
+        
         return
 
     def generate_tasks(self, n: int = 1, save_fp: str = None):
