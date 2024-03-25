@@ -992,6 +992,7 @@ def check_whens(whens, existing_whens: list = None):
     # added check_whens to ensure 1 stimulus per frame
     existing_whens = set() if not existing_whens else set(existing_whens)
     len_ew = len(existing_whens)
+
     while len(set(whens) | existing_whens) != (len(whens) + len_ew):
         whens = sample_when(len(whens), existing_whens)
     return whens
