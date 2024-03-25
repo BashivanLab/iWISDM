@@ -10,7 +10,6 @@ import glob
 import os
 from typing import Tuple
 import re
-import sys
 from collections import OrderedDict
 
 import numpy as np
