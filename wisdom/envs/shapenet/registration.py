@@ -96,7 +96,7 @@ class SNEnvSpec(EnvSpec):
             self,
             grid_size: Tuple[int, int] = (2, 2),
             max_delay: int = 5,
-            delay_prob=None,
+            delay_prob: float = 0.5,
             auto_gen_config: Dict = None,
             **kwargs
     ):

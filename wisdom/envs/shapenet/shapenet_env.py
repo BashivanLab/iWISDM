@@ -23,8 +23,18 @@ class ShapeNetEnv(Env):
         self.constants = const.DATA
         self.task_gen = atg.SNTaskGenerator(env_spec)
         self.reset_env()
-        
+
         return
+
+    @staticmethod
+    def init_stim_data(dataset_fp: str):
+        stim_data = SNStimData(dataset_fp)
+        return stim_data
+
+    @staticmethod
+    def init_env_spec(**kwargs):
+        env_spec = SNEnvSpec(**kwargs)
+        return env_spec
 
     def generate_tasks(self, n: int = 1, save_fp: str = None):
         self.reset_env()
@@ -45,6 +55,11 @@ class ShapeNetEnv(Env):
         return
 
     def reset_env(self) -> None:
+        """
+        Reset the environment by resetting stim_data and env_spec in base classes
+        so that when env.generate_tasks(), env.generate_trials() is called,
+        the tasks are generated based on self.stim_data and self.env_spec
+        """
         for base_class in self.base_classes:
             base_class.stim_data = self.stim_data
             base_class.env_spec = self.env_spec

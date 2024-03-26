@@ -1,12 +1,13 @@
 from wisdom.core import Env
 from wisdom.envs.registration import StimData, EnvSpec
 from wisdom.envs.shapenet.shapenet_env import ShapeNetEnv
-
+from wisdom.utils.read_write import find_data_folder
 
 def make(
         env_id: str = 'ShapeNet',
         stim_data: StimData = None,
         env_spec: EnvSpec = None,
+        dataset_fp: str = None,
 ) -> Env:
     """
     create an environment instance with
@@ -21,7 +22,14 @@ def make(
     @return:
     """
     assert env_id in env_dict, f"environment {env_id} not found in env_dict"
-    env = env_dict[env_id](stim_data, env_spec)
+    env = env_dict[env_id]
+    if stim_data is None:
+        if dataset_fp is None:
+            dataset_fp = find_data_folder()
+        stim_data = env.init_stim_data(dataset_fp)
+    if env_spec is None:
+        env_spec = env.init_env_spec()
+    env = env(stim_data, env_spec)
     return env
 
 

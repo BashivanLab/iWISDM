@@ -9,7 +9,6 @@ from collections import OrderedDict
 
 import numpy as np
 import pandas as pd
-import cv2
 
 
 class Constant:
@@ -22,7 +21,7 @@ class Constant:
     ATTRS: Iterable = None
 
     def __init__(self, **kwargs):
-        raise NotImplementedError
+        return
 
 
 class EnvSpec:
@@ -72,9 +71,6 @@ class StimData:
     """
     input:
         dir_path: file path to the dataset
-        max_memory: maximum frames an object can be used to solve a task
-        grid_size: configuration of the canvas
-        train: boolean for whether constant is for a train or val stim set
     """
 
     def __init__(self, dir_path: str = None):

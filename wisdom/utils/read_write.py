@@ -1,7 +1,12 @@
+import os
+from typing import Tuple, List, Union
+import shutil
+from pathlib import Path
+
+import json
 import cv2
 import numpy as np
 from numpy.typing import NDArray
-from typing import Tuple, List, Union
 
 from wisdom.core import StimuliSet
 
@@ -62,5 +67,50 @@ def render_stimset(stim_set: Union[List[StimuliSet], StimuliSet], canvas_size=22
     return movie
 
 
-def write_trial():
+def write_trial(imgs, compo_info_dict, trial_fp: str) -> None:
+    """
+    write the trial images, and save the task information in task_info.json
+
+    @param imgs: a list of numpy arrays, each array is an image
+    @param compo_info_dict: a dictionary containing task information
+    @param trial_fp: the directory to write the frames, usually folder name is trial_i
+    @return:
+    """
+
+    frames_fp = os.path.join(trial_fp, 'frames')
+    if os.path.exists(frames_fp):
+        shutil.rmtree(frames_fp)
+    os.makedirs(frames_fp)
+
+    for i, img_arr in enumerate(imgs):
+        filename = os.path.join(frames_fp, f'epoch{i}.png')
+        cv2.imwrite(filename, img_arr)
+
+    filename = os.path.join(frames_fp, 'task_info.json')
+    with open(filename, 'w') as f:
+        json.dump(compo_info_dict, f, indent=4)
     return
+
+
+def find_data_folder():
+    """
+    In the project director data folder,
+    find a subdirectory with stimuli images and csv file containing stimuli information.
+    The subdirectory should have format:
+    data/
+        dataset_name/
+            {train, val, test}/
+                ...
+            meta.{csv, pkl}
+    @return: the path to the data folder
+    """
+    data_folder = os.path.join(os.getcwd(), 'data')
+    if os.path.isdir(data_folder):
+        for sub_dir in os.listdir(data_folder):
+            dir_path = os.path.join(data_folder, sub_dir)
+            if os.path.isdir(dir_path):
+                if list(Path(dir_path).rglob('*.csv')) or list(Path(dir_path).rglob('*.pkl')):
+                    if (os.path.isdir(os.path.join(dir_path, 'train')) or os.path.isdir(
+                            os.path.join(dir_path, 'validation')) or os.path.isdir(os.path.join(dir_path, 'test'))):
+                        return dir_path
+    raise ValueError(f'No dataset found in data folder {data_folder}. Specify the dataset path.')

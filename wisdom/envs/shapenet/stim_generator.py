@@ -20,9 +20,6 @@ from collections import defaultdict
 import random
 from typing import List, Dict, Callable
 
-import cv2
-import numpy as np
-
 from wisdom.core import (
     Attribute,
     Stimulus,
@@ -58,7 +55,7 @@ class Space(SNAttribute):
         self.attr_type = 'space'
 
     def sample(self):
-        return Space(random.choice(self.env_spec.grid.values()))
+        return Space(random.choice(list(self.env_spec.grid.values())))
 
     def resample(self, attr):
         keys = list(self.env_spec.grid.keys()).copy()
@@ -245,14 +242,16 @@ class SNObject(SNAttribute):
     def sample(self, category=None):
         if category is None:
             category = random.choice(self.stim_data.ALLCATEGORIES)
-        obj = random.choice(self.stim_data.ALLOBJECTS[category.value])
-        return SNObject(category=category, value=obj)
+        else:
+            category = category.value
+        obj = random.choice(self.stim_data.ALLOBJECTS[category])
+        return SNObject(category=SNCategory(category), value=obj)
 
     def resample(self, old_obj):
         all_cats = self.stim_data.ALLCATEGORIES.copy()
         new_category = random.choice(all_cats)
         all_cats.remove(new_category)
-        all_objects = list(self.stim_data.ALLOBJECTS[new_category.value])
+        all_objects = list(self.stim_data.ALLOBJECTS[new_category])
 
         if new_category == old_obj.category.value:
             all_objects.remove(old_obj.value)
@@ -261,11 +260,11 @@ class SNObject(SNAttribute):
             if not all_objects:
                 all_cats.remove(old_obj.category.value)
                 new_category = random.choice(all_cats)
-                all_objects = list(self.stim_data.ALLOBJECTS[new_category.value])
-                return SNObject(category=new_category, value=random.choice(all_objects))
-            return SNObject(category=new_category, value=random.choice(all_objects))
+                all_objects = list(self.stim_data.ALLOBJECTS[new_category])
+                return SNObject(category=SNCategory(new_category), value=random.choice(all_objects))
+            return SNObject(category=SNCategory(new_category), value=random.choice(all_objects))
         else:
-            return SNObject(category=new_category, value=random.choice(all_objects))
+            return SNObject(category=SNCategory(new_category), value=random.choice(all_objects))
 
     def self_json(self):
         return {'category': self.category.to_json()}
@@ -285,11 +284,14 @@ class SNViewAngle(SNAttribute):
     def sample(self, obj=None):
         if obj is None:
             category = random.choice(self.stim_data.ALLCATEGORIES)
-            obj = random.choice(self.stim_data.ALLOBJECTS[category.value])
+            obj = random.choice(self.stim_data.ALLOBJECTS[category])
         else:
-            category = obj.category
-        va = random.choice(self.stim_data.ALLVIEWANGLES[category.value][obj.value])
-        return SNViewAngle(sn_object=SNObject(category=category, value=obj), value=va)
+            category = obj.category.value
+            obj = obj.value
+        va = random.choice(self.stim_data.ALLVIEWANGLES[category][obj])
+        return SNViewAngle(
+            sn_object=SNObject(category=SNCategory(category), value=obj),
+            value=va)
 
     def resample(self, old_va):
         obj = old_va.object
@@ -612,7 +614,7 @@ class ObjectSet(StimuliSet):
         else:
             if merge_idx is None:
                 try:
-                    obj.epoch = [epoch_now - env_reg.DATA.get_k(obj.when), epoch_now - env_reg.DATA.get_k(obj.when) + 1]
+                    obj.epoch = [epoch_now - env_reg.get_k(obj.when), epoch_now - env_reg.get_k(obj.when) + 1]
                 except Exception:
                     raise NotImplementedError(
                         'When value: {:s} is not implemented'.format(str(obj.when)))
@@ -672,7 +674,7 @@ class ObjectSet(StimuliSet):
         # assert isinstance(space, Space)
 
         if merge_idx is None:
-            epoch_now -= env_reg.DATA.get_k(when)
+            epoch_now -= env_reg.get_k(when)
         else:
             epoch_now = merge_idx
 

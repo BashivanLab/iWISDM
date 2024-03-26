@@ -10,13 +10,12 @@ from collections import defaultdict
 from functools import partial
 from typing import Tuple, Dict, List, Set
 
-import cv2
 import numpy as np
 
 import wisdom.envs.shapenet.registration as const
 import wisdom.envs.shapenet.stim_generator as sg
 import wisdom.envs.shapenet.task_generator as tg
-from wisdom.utils.read_write import add_cross, write_trial, render_stimset
+from wisdom.utils.read_write import add_cross, render_stimset
 
 
 class TaskInfoCompo(object):
@@ -255,62 +254,6 @@ class TaskInfoCompo(object):
             imgs.append(epoch)
         per_task_info_dict, compo_info_dict = self.get_task_info_dict()
         return imgs, per_task_info_dict, compo_info_dict
-
-    def write_trial(self, trial_fp: str, img_size: int = 224, fixation_cue: bool = False) -> None:
-        """
-        write the trial images, and save the task information in task_info.json
-
-        @param trial_fp: the directory to write the frames, usually folder name is trial_i
-        @param img_size: default 224x224 image size
-        @param fixation_cue: if we add a cross in the middle of the image
-        @return:
-        """
-
-        frames_fp = os.path.join(trial_fp, 'frames')
-        if os.path.exists(frames_fp):
-            shutil.rmtree(frames_fp)
-        os.makedirs(frames_fp)
-
-        imgs, per_task_info_dict, compo_info_dict = self.generate_trial(img_size, fixation_cue)
-        for i, img_arr in enumerate(imgs):
-            filename = os.path.join(frames_fp, f'epoch{i}.png')
-            cv2.imwrite(filename, img_arr)
-
-        per_task_info_dict, compo_info_dict = self.get_task_info_dict()
-
-        filename = os.path.join(frames_fp, 'task_info.json')
-        with open(filename, 'w') as f:
-            json.dump(compo_info_dict, f, indent=4)
-
-        """
-        Commenting these out for faster data gen - LG, Sat Nov 25
-        """
-        # for i, task_example in enumerate(per_task_info_dict):
-        #     filename = os.path.join(frames_fp, f'task{i} example')
-        #     with open(filename, 'w') as f:
-        #         json.dump(task_example, f, indent=4)
-
-        # filename = os.path.join(frames_fp, 'frame_info')
-        # with open(filename, 'w') as f:
-        #     json.dump(self.frame_info.dump(), f, indent=4)
-        return
-
-    def get_changed_task_objset(self, changed_task: tg.TemporalTask) -> sg.ObjectSet:
-        """
-        reinitialize the ObjSet of the new ask after changing the task structure
-        :param changed_task: the modified temporal task
-        :return: new ObjSet according to the modified task graph
-        """
-        objset = changed_task.generate_objset()
-
-        obj: sg.Object
-        for obj in objset:
-            for frame in self.frame_info:
-                frame_obj: sg.Object
-                for frame_obj in frame.objs:
-                    if frame_obj.compare_attrs(obj, ['object', 'view_angle', 'category']):
-                        obj.location = frame_obj.location
-        return objset
 
     def __len__(self):
         # return number of tasks involved

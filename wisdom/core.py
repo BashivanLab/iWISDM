@@ -11,7 +11,7 @@ import numpy as np
 from wisdom.envs.registration import EnvSpec, StimData, Constant
 
 
-class Env:
+class Env(object):
     """
     Base class for any environment.
 
@@ -23,10 +23,15 @@ class Env:
     constants: Constant = None
     stim_data: StimData = None
 
-    def __init__(self):
+    @staticmethod
+    def init_stim_data(dataset_fp: str, *args):
         raise NotImplementedError
 
-    def generate_tasks(self, *args):
+    @staticmethod
+    def init_env_spec(self, *args):
+        raise NotImplementedError
+
+    def generate_tasks(self, n: int = 1, *args):
         raise NotImplementedError
 
     def generate_trials(self, *args):
