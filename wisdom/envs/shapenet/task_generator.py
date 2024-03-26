@@ -1118,7 +1118,6 @@ class TemporalTask(SNTask):
         """
 
         n_epoch = self.n_frames
-        env_reg.DATA.MAX_MEMORY = n_epoch
         objset = sg.ObjectSet(n_epoch=n_epoch)
 
         # Guess objects
@@ -1129,15 +1128,12 @@ class TemporalTask(SNTask):
         objset = self.guess_objset(objset, epoch_now, *args, **kwargs)
         return objset
 
-    def to_json(self, fp):
+    def to_json(self):
         info = dict()
         info['n_frames'] = int(self.n_frames)
         info['first_shareable'] = int(self.first_shareable)
         info['whens'] = self.whens
         info['operator'] = self._operator.to_json()
-
-        with open(fp, 'w') as f:
-            json.dump(info, f, indent=4)
         return info
 
     def to_graph(self):
@@ -1322,8 +1318,8 @@ def subtask_generation(
     generate a TemporalTask from a subtask graph
     @param env_spec: data class used to specify number of delay frames
     @param subtask_graph: the task graph
-    @param node_label_dict:
-    @param existing_whens:
+    @param node_label_dict: dictionary of node number to node label e.g. 1: 'Select'
+    @param existing_whens: for combining multiple tasks together, a dictionary of the format {select: 'lastk'}
     @return:
     """
     existing_whens = dict() if not existing_whens else existing_whens

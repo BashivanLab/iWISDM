@@ -1,5 +1,6 @@
-from typing import Tuple, List, Dict
+from typing import Tuple, List, Dict, Iterable
 
+import os
 import numpy as np
 
 from wisdom.core import Env
@@ -24,6 +25,7 @@ class ShapeNetEnv(Env):
         self.task_gen = atg.SNTaskGenerator(env_spec)
         self.reset_env()
 
+        self.cached_tasks = set()
         return
 
     @staticmethod
@@ -36,7 +38,7 @@ class ShapeNetEnv(Env):
         env_spec = SNEnvSpec(**kwargs)
         return env_spec
 
-    def generate_tasks(self, n: int = 1, save_fp: str = None):
+    def generate_tasks(self, n: int = 1):
         self.reset_env()
         tasks = [
             self.task_gen.generate_task()
@@ -44,10 +46,36 @@ class ShapeNetEnv(Env):
         ]
         return tasks
 
-    def generate_trials(self, tasks) -> Tuple[List[np.ndarray], List[Dict], Dict]:
-        self.reset_env()
-
+    def cache_tasks(self, tasks: Iterable[tg.TemporalTask]):
+        self.cached_tasks.update(tasks)
         return
+
+    def generate_trials(
+            self,
+            tasks: Iterable[tg.TemporalTask] = None,
+            task_objsets: Iterable[sg.StimuliSet] = None,
+            **kwargs
+    ) -> List[Tuple[List[np.ndarray], List[Dict], Dict]]:
+        self.reset_env()
+        if tasks is None:
+            tasks = self.tasks
+
+        if task_objsets is not None:
+            assert len(tasks) == len(task_objsets)
+        else:
+            task_objsets = [t.generate_objset() for t in tasks]
+
+        trials = list()
+        for task, objset in zip(tasks, task_objsets):
+            fi = ig.FrameInfo(task, objset)
+            compo_info = ig.TaskInfoCompo(task, fi)
+            imgs, per_task_info, compo_info_dict = compo_info.generate_trial(
+                self.env_spec.add_fixation_cue,
+                self.env_spec.canvas_size,
+                **kwargs
+            )
+            trials.append((imgs, per_task_info, compo_info_dict))
+        return trials
 
     def render_trials(self):
         self.reset_env()

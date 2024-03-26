@@ -98,6 +98,8 @@ class SNEnvSpec(EnvSpec):
             max_delay: int = 5,
             delay_prob: float = 0.5,
             auto_gen_config: Dict = None,
+            add_fixation_cue: True = False,
+            canvas_size: int = 224,
             **kwargs
     ):
         if auto_gen_config is None:
@@ -189,6 +191,8 @@ class SNEnvSpec(EnvSpec):
                 'switch_threshold': 0,
                 'select_limit': False,
             }
+        self.add_fixation_cue = add_fixation_cue
+        self.canvas_size = canvas_size
         super().__init__(
             grid_size,
             max_delay,

@@ -67,6 +67,21 @@ def render_stimset(stim_set: Union[List[StimuliSet], StimuliSet], canvas_size=22
     return movie
 
 
+def write_task(task, save_dir_fp):
+    """
+    Write the task to a json file
+
+    @param task: a TemporalTask instance
+    @param save_dir_fp: the directory to save the task
+    @return:
+    """
+    save_fp = os.path.join(save_dir_fp, f'task_{task.task_id}.json')
+    info = task.to_json()
+    with open(save_fp, 'w') as f:
+        json.dump(info, f, indent=4)
+    return
+
+
 def write_trial(imgs, compo_info_dict, trial_fp: str) -> None:
     """
     write the trial images, and save the task information in task_info.json
@@ -92,19 +107,22 @@ def write_trial(imgs, compo_info_dict, trial_fp: str) -> None:
     return
 
 
-def find_data_folder():
+def find_data_folder(data_folder: str = None):
     """
     In the project director data folder,
     find a subdirectory with stimuli images and csv file containing stimuli information.
     The subdirectory should have format:
-    data/
-        dataset_name/
-            {train, val, test}/
-                ...
-            meta.{csv, pkl}
+    project/
+        data/
+            dataset_name/
+                {train, val, test}/
+                    ...
+                meta.{csv, pkl}
+    @param data_folder: the path to the data folder
     @return: the path to the data folder
     """
-    data_folder = os.path.join(os.getcwd(), 'data')
+    if not data_folder:
+        data_folder = os.path.join(os.getcwd(), 'data')
     if os.path.isdir(data_folder):
         for sub_dir in os.listdir(data_folder):
             dir_path = os.path.join(data_folder, sub_dir)

@@ -268,16 +268,25 @@ class SNTaskGenerator(TaskGenerator):
                     G.add_edge(parent, child)
             return op_count
 
-    def subtask_graph_generator(self, count=0, max_op=20, max_depth=10, select_limit=False, root_op=None) -> \
-            GRAPH_TUPLE:
+    def subtask_graph_generator(
+            self,
+            count=0,
+            max_op=20,
+            max_depth=10,
+            select_limit=False,
+            root_op=None
+    ) -> GRAPH_TUPLE:
         """
         function for generating subtask graphs
         uses networkx to compose the task graphs
-        :param count: the root_op number of the root
-        :param select_limit: whether to add operator after selects. if True, then constants are sampled.
+        @param count: the root_op number of the root
+        @param max_op: the maximum number of operators allowed in the task graph
+        @param max_depth: the maximum depth of the task graph
+        @param select_limit: whether to add operator after selects. if True, then constants are sampled.
         If false, then operators could be sampled
-        :param root_op: the root operator
-        :return: GRAPH_TUPLE of (nx.DiGraph(), node number of the graph root, operator count)
+        @param root_op: the root operator
+
+        @return: GRAPH_TUPLE of (nx.DiGraph(), node number of the graph root, operator count)
         """
         # initialize the graph and save the root_op number of the root
         G = nx.DiGraph()

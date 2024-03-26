@@ -56,6 +56,8 @@ class EnvSpec:
         self.delay_prob = delay_prob
         self.auto_gen_config = auto_gen_config
         self.grid = get_grid(grid_size)
+        for key, value in kwargs.items():
+            setattr(self, key, value)
 
     def get_grid_key(self, space):
         """
