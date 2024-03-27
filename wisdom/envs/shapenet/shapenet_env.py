@@ -56,7 +56,7 @@ class ShapeNetEnv(Env):
             task_objsets: Iterable[sg.ObjectSet] = None,
             mode='train'
     ) -> List[Tuple[List[np.ndarray], List[Dict], Dict]]:
-        self.reset_env()
+        self.reset_env(mode)
         if tasks is None:
             tasks = self.cached_tasks
 
@@ -82,7 +82,7 @@ class ShapeNetEnv(Env):
 
         return
 
-    def reset_env(self) -> None:
+    def reset_env(self, mode: str) -> None:
         """
         Reset the environment by resetting stim_data and env_spec in base classes
         so that when env.generate_tasks(), env.generate_trials() is called,
