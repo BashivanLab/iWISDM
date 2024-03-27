@@ -58,7 +58,7 @@ class ShapeNetEnv(Env):
     ) -> List[Tuple[List[np.ndarray], List[Dict], Dict]]:
         self.reset_env()
         if tasks is None:
-            tasks = self.tasks
+            tasks = self.cached_tasks
 
         if task_objsets is not None:
             assert len(tasks) == len(task_objsets)
@@ -70,8 +70,8 @@ class ShapeNetEnv(Env):
             fi = ig.FrameInfo(task, objset)
             compo_info = ig.TaskInfoCompo(task, fi)
             imgs, per_task_info, compo_info_dict = compo_info.generate_trial(
-                self.env_spec.add_fixation_cue,
                 self.env_spec.canvas_size,
+                self.env_spec.add_fixation_cue,
                 **kwargs
             )
             trials.append((imgs, per_task_info, compo_info_dict))
