@@ -326,6 +326,16 @@ class SNStimulus(Stimulus):
     def stim_data(self, value):
         self._stim_data = value
 
+    def compare_attrs(self, other, attrs: List[str] = None):
+        assert isinstance(other, SNStimulus)
+
+        if attrs is None:
+            attrs = env_reg.DATA.ATTRS
+        for attr in attrs:
+            if getattr(self, attr) != getattr(other, attr):
+                return False
+        return True
+
 
 class Object(SNStimulus):
     """A ShapeNet object on the screen.
@@ -602,11 +612,9 @@ class ObjectSet(StimuliSet):
                 obj.category = obj.object.category
             else:
                 if not obj.category.has_value():
-                    obj.category.sample()
-                obj.object.category = obj.category
-                obj.object.sample()
-            obj.view_angle.object = obj.object
-            obj.view_angle.sample()
+                    obj.category = obj.category.sample()
+                obj.object = obj.object.sample(category=obj.category)
+            obj.view_angle = obj.view_angle.sample(obj=obj.object)
 
         if obj.when is None:
             # If when is None, then object is always presented
@@ -727,6 +735,18 @@ class ObjectSet(StimuliSet):
 
         return subset
 
+    def copy(self):
+        """
+        :return: deep copy of the Objset
+        """
+        objset_copy = ObjectSet(self.n_epoch)
+        objset_copy.set = {obj.copy() for obj in self.set}
+        objset_copy.end_epoch = self.end_epoch.copy()
+        objset_copy.dict = {epoch: [obj.copy() for obj in objs]
+                            for epoch, objs in self.dict.items()}
+        objset_copy.last_added_obj = self.last_added_obj.copy() if self.last_added_obj is not None else None
+        return objset_copy
+
 
 def _get_space_to(x0: float, x1: float, y0: float, y1: float, space_type: str) -> Space:
     """
@@ -752,7 +772,7 @@ def _get_space_to(x0: float, x1: float, y0: float, y1: float, space_type: str) -
     return Space(space)
 
 
-def random_attr(attr_type: str) -> Attribute:
+def random_attr(attr_type: str) -> SNAttribute:
     """
     sample a random attribute
     @param attr_type: a ShapeNet attribute type

@@ -76,9 +76,6 @@ class StimData:
     """
 
     def __init__(self, dir_path: str = None):
-        if dir_path is None:
-            dir_path = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))),
-                                    './data/min_shapenet_easy_angle')
         self.dir_path = dir_path
 
         if not os.path.exists(self.dir_path):
@@ -96,7 +93,7 @@ class StimData:
 
         splits = {
             'train': '',
-            'val': '',
+            'validation': '',
             'test': ''
         }
         for split in splits.keys():
@@ -106,7 +103,7 @@ class StimData:
                 if os.path.isdir(dirs[0]):
                     splits[split] = dirs[0]
         self.train_image_path = splits['train']
-        self.valid_image_path = splits['val']
+        self.valid_image_path = splits['validation']
         self.test_image_path = splits['test']
 
     def get_object(self, obj, obj_size):

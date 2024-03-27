@@ -241,13 +241,13 @@ class TaskInfoCompo(object):
         }
         return per_task_info, compo_info
 
-    def generate_trial(self, canvas_size: int, fixation_cue: bool, **kwargs) -> Tuple[List[np.ndarray], List[Dict], Dict]:
+    def generate_trial(self, canvas_size: int, fixation_cue: bool, mode='train') -> Tuple[List[np.ndarray], List[Dict], Dict]:
         # add fixation cues to all frames except for task ending frames
 
         objset = self.frame_info.objset
 
         imgs = []
-        for i, (epoch, frame) in enumerate(zip(render_stimset(objset, canvas_size, **kwargs), self.frame_info)):
+        for i, (epoch, frame) in enumerate(zip(render_stimset(objset, canvas_size, mode), self.frame_info)):
             if fixation_cue:
                 if not any('ending' in description for description in frame.description):
                     epoch = add_cross(epoch)

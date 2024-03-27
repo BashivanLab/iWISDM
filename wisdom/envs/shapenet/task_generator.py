@@ -136,15 +136,15 @@ class Select(SNOperator):
             self.when
         )
 
-    def __call__(self, objset, epoch_now):
+    def __call__(self, objset: sg.ObjectSet, epoch_now: int):
         """Return subset of objset."""
         location = self.location(objset, epoch_now)
         category = self.category(objset, epoch_now)
         object = self.object(objset, epoch_now)
         view_angle = self.view_angle(object, epoch_now)
 
-        if self.constants.INVALID in (location, category, object, view_angle):
-            return self.constants.INVALID
+        if env_reg.DATA.INVALID in (location, category, object, view_angle):
+            return env_reg.DATA.INVALID
 
         if self.space_type is not None:
             space = location.get_space_to(self.space_type)
@@ -153,11 +153,11 @@ class Select(SNOperator):
 
         subset = objset.select(
             epoch_now,
-            space=space,
-            category=category,
-            object=object,
-            view_angle=view_angle,
-            when=self.when,
+            space,
+            category,
+            object,
+            view_angle,
+            self.when,
         )
         return subset
 
@@ -278,7 +278,7 @@ class Select(SNOperator):
                 a = getattr(self, attr_type)
                 attr = a(objset, epoch_now)
                 # If the input is successfully evaluated
-                if attr is not self.constants.INVALID and attr.has_value():
+                if attr is not env_reg.DATA.INVALID and attr.has_value():
                     if attr_type == 'location' and self.space_type is not None:
                         attr = attr.get_space_to(self.space_type)
                         print('space type is not none')
@@ -338,7 +338,7 @@ class Select(SNOperator):
                 a = getattr(self, attr_type)
                 attr = a(objset, epoch_now)
                 if isinstance(a, Operator):
-                    if attr is self.constants.INVALID:
+                    if attr is env_reg.DATA.INVALID:
                         # Can not be evaluated yet, then randomly choose one
                         attr = sg.random_attr(attr_type)
                     attr_expected_in.append(attr)
@@ -421,11 +421,11 @@ class Get(SNOperator):
         else:
             objs = self.objs
 
-        if objs is self.constants.INVALID:
-            return self.constants.INVALID
+        if objs is env_reg.DATA.INVALID:
+            return env_reg.DATA.INVALID
         elif len(objs) != 1:
             # Ambiguous or non-existent
-            return self.constants.INVALID
+            return env_reg.DATA.INVALID
         else:
             attr = getattr(objs[0], self.attr_type)
             return attr
@@ -486,8 +486,8 @@ class Exist(SNOperator):
 
     def __call__(self, objset, epoch_now):
         subset = self.objs(objset, epoch_now)
-        if subset == self.constants.INVALID:
-            return self.constants.INVALID
+        if subset == env_reg.DATA.INVALID:
+            return env_reg.DATA.INVALID
         elif subset:
             # If subset is not empty
             return True
@@ -556,11 +556,11 @@ class Switch(SNOperator):
 
     def __call__(self, objset, epoch_now):
         statement_true = self.statement(objset, epoch_now)
-        if statement_true is self.constants.INVALID:
+        if statement_true is env_reg.DATA.INVALID:
             if self.invalid_as_false:
                 statement_true = False
             else:
-                return self.constants.INVALID
+                return env_reg.DATA.INVALID
         if statement_true:
             return self.do_if_true(objset, epoch_now)
         else:
@@ -656,8 +656,8 @@ class IsSame(SNOperator):
         attr1 = self.attr1(objset, epoch_now)
         attr2 = self.attr2(objset, epoch_now)
 
-        if (attr1 is self.constants.INVALID) or (attr2 is self.constants.INVALID):
-            return self.constants.INVALID
+        if (attr1 is env_reg.DATA.INVALID) or (attr2 is env_reg.DATA.INVALID):
+            return env_reg.DATA.INVALID
         else:
             return attr1 == attr2
 
@@ -674,8 +674,8 @@ class IsSame(SNOperator):
         attr1_value = self.attr1(objset, epoch_now)
         attr2_value = self.attr2(objset, epoch_now)
 
-        attr1_fixed = attr1_value is not self.constants.INVALID
-        attr2_fixed = attr2_value is not self.constants.INVALID
+        attr1_fixed = attr1_value is not env_reg.DATA.INVALID
+        attr2_fixed = attr2_value is not env_reg.DATA.INVALID
 
         if attr1_fixed:
             assert attr1_value.has_value()
@@ -749,8 +749,8 @@ class NotSame(SNOperator):
         attr1 = self.attr1(objset, epoch_now)
         attr2 = self.attr2(objset, epoch_now)
 
-        if (attr1 is self.constants.INVALID) or (attr2 is self.constants.INVALID):
-            return self.constants.INVALID
+        if (attr1 is env_reg.DATA.INVALID) or (attr2 is env_reg.DATA.INVALID):
+            return env_reg.DATA.INVALID
         else:
             return attr1 != attr2
 
@@ -766,8 +766,8 @@ class NotSame(SNOperator):
         attr1_value = self.attr1(objset, epoch_now)
         attr2_value = self.attr2(objset, epoch_now)
 
-        attr1_fixed = attr1_value is not self.constants.INVALID
-        attr2_fixed = attr2_value is not self.constants.INVALID
+        attr1_fixed = attr1_value is not env_reg.DATA.INVALID
+        attr2_fixed = attr2_value is not env_reg.DATA.INVALID
 
         if attr1_fixed:
             assert attr1_value.has_value()
@@ -1178,7 +1178,9 @@ def graph_to_operators(
         G: nx.DiGraph,
         root: int,
         operators: Dict[int, str],
-        operator_families: Dict[str, Callable], whens) -> Union[Operator, sg.SNAttribute]:
+        operator_families: Dict[str, Callable],
+        whens: List[str],
+) -> Union[Operator, sg.SNAttribute]:
     """
     given a task graph G, convert it into an operator that is already nested with its successors
     this is done by traversing the graph

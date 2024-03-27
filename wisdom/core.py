@@ -120,14 +120,7 @@ class Stimulus(object):
         raise NotImplementedError()
 
     def compare_attrs(self, other, attrs: List[str] = None):
-        assert isinstance(other, Stimulus)
-
-        if attrs is None:
-            attrs = self.constants.ATTRS
-        for attr in attrs:
-            if getattr(self, attr) != getattr(other, attr):
-                return False
-        return True
+        raise NotImplementedError
 
     def dump(self):
         """Returns representation of self suitable for dumping as json."""
@@ -180,16 +173,7 @@ class StimuliSet(object):
         return len(self.set)
 
     def copy(self):
-        """
-        :return: deep copy of the Objset
-        """
-        objset_copy = StimuliSet(self.n_epoch)
-        objset_copy.set = {obj.copy() for obj in self.set}
-        objset_copy.end_epoch = self.end_epoch.copy()
-        objset_copy.dict = {epoch: [obj.copy() for obj in objs]
-                            for epoch, objs in self.dict.items()}
-        objset_copy.last_added_obj = self.last_added_obj.copy() if self.last_added_obj is not None else None
-        return objset_copy
+        raise NotImplementedError
 
     def increase_epoch(self, new_n_epoch):
         """
@@ -407,7 +391,5 @@ class Task(object):
     def get_target(self, objset):
         return [self(objset, objset.n_epoch - 1)]
 
-    def is_bool_output(self):
-        if self._operator in self.constants.BOOL_OP:
-            return True
-        return False
+    def is_bool_output(self) -> bool:
+        raise NotImplementedError

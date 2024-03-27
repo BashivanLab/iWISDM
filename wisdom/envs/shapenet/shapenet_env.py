@@ -53,8 +53,8 @@ class ShapeNetEnv(Env):
     def generate_trials(
             self,
             tasks: Iterable[tg.TemporalTask] = None,
-            task_objsets: Iterable[sg.StimuliSet] = None,
-            **kwargs
+            task_objsets: Iterable[sg.ObjectSet] = None,
+            mode='train'
     ) -> List[Tuple[List[np.ndarray], List[Dict], Dict]]:
         self.reset_env()
         if tasks is None:
@@ -72,7 +72,7 @@ class ShapeNetEnv(Env):
             imgs, per_task_info, compo_info_dict = compo_info.generate_trial(
                 self.env_spec.canvas_size,
                 self.env_spec.add_fixation_cue,
-                **kwargs
+                mode
             )
             trials.append((imgs, per_task_info, compo_info_dict))
         return trials
