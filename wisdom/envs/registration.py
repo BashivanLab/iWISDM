@@ -72,7 +72,7 @@ class EnvSpec:
 class StimData:
     """
     input:
-        dir_path: file path to the dataset
+        dir_path: file path to the stimuli dataset
     """
 
     def __init__(self, dir_path: str = None):

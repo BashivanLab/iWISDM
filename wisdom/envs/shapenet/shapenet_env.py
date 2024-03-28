@@ -19,6 +19,10 @@ class ShapeNetEnv(Env):
         self.base_classes = [sg.SNAttribute, sg.SNStimulus, sg.ObjectSet, tg.SNTask, tg.SNOperator]
 
         self.stim_data = stim_data
+        self.train_data = stim_data.train_data
+        self.valid_data = stim_data.valid_data
+        self.test_data = stim_data.test_data
+
         self.env_spec = env_spec
         self.task_gen_config = env_spec.auto_gen_config
         self.constants = const.DATA
@@ -82,12 +86,14 @@ class ShapeNetEnv(Env):
 
         return
 
-    def reset_env(self, mode: str) -> None:
+    def reset_env(self, mode: str = None) -> None:
         """
         Reset the environment by resetting stim_data and env_spec in base classes
         so that when env.generate_tasks(), env.generate_trials() is called,
         the tasks are generated based on self.stim_data and self.env_spec
         """
+        if mode is not None:
+            stim_data = getattr(self, f"{mode}_data")
         for base_class in self.base_classes:
-            base_class.stim_data = self.stim_data
+            base_class.stim_data = stim_data
             base_class.env_spec = self.env_spec

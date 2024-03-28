@@ -869,6 +869,7 @@ class Or(SNOperator):
 
     def get_expected_input(self, should_be, objset, epoch_now):
         # should_be is the expected output
+        # should_be is True or False
         if should_be is None:
             should_be = random.random() > 0.5
 
