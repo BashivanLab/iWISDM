@@ -360,8 +360,10 @@ class Task(object):
     def is_bool_output(self) -> bool:
         raise NotImplementedError
 
+
 GRAPH_TUPLE = Tuple[nx.DiGraph, int, int]
 TASK = Tuple[Union[Operator, Attribute], Task]
+
 
 class Env(object):
     """
@@ -384,13 +386,29 @@ class Env(object):
         raise NotImplementedError
 
     def generate_tasks(self, n: int = 1, *args) -> List[Tuple[GRAPH_TUPLE, TASK]]:
+        """
+        generate random tasks based on the environment specification
+        @param n: how many tasks to generate
+        @param args:
+        @return: List of tasks, each task is a tuple of
+        [
+        1. task graph tuple [nx.DiGraph, operator count, root operator index],
+        2. task tuple [Operator/Attribute, Task]
+        ]
+        """
         raise NotImplementedError
 
-    def generate_trials(self, tasks: List[Task], mode: str, **kwargs) -> List[Tuple[List[np.ndarray], List[Dict], Dict]]:
+    def generate_trials(self,
+                        tasks: List[Task],
+                        mode: str,
+                        **kwargs) -> List[Tuple[List[np.ndarray], List[Dict], Dict]]:
         """
+        generate trials based on the tasks and which dataset split to sample stimuli from
 
-        @return:
-
+        @param tasks: List of tasks to generate trials from
+        @param mode: the dataset split [train/valid/test]
+        @return: List of trials, each trial is a tuple of
+        [List of images, Info dictionaries per task (in case of compositional tasks), Compositional task info dict]
         """
         raise NotImplementedError
 
