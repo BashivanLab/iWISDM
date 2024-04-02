@@ -6,6 +6,7 @@ see class methods for their expected behaviours
 from collections import defaultdict
 from typing import Tuple, Dict, List, Iterable, Any, Union
 
+import networkx as nx
 import numpy as np
 
 from wisdom.envs.registration import EnvSpec, StimData, Constant
@@ -359,6 +360,8 @@ class Task(object):
     def is_bool_output(self) -> bool:
         raise NotImplementedError
 
+GRAPH_TUPLE = Tuple[nx.DiGraph, int, int]
+TASK = Tuple[Union[Operator, Attribute], Task]
 
 class Env(object):
     """
@@ -380,10 +383,10 @@ class Env(object):
     def init_env_spec(self, *args):
         raise NotImplementedError
 
-    def generate_tasks(self, n: int = 1, *args):
+    def generate_tasks(self, n: int = 1, *args) -> List[Tuple[GRAPH_TUPLE, TASK]]:
         raise NotImplementedError
 
-    def generate_trials(self, *args) -> List[Tuple[List[np.ndarray], List[Dict], Dict]]:
+    def generate_trials(self, tasks: List[Task], mode: str, **kwargs) -> List[Tuple[List[np.ndarray], List[Dict], Dict]]:
         """
 
         @return:

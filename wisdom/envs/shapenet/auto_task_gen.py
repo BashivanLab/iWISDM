@@ -329,8 +329,7 @@ class SNTaskGenerator(TaskGenerator):
         G.add_edge(switch_count, conditional_root)
         return G, switch_count, switch_count
 
-    def generate_task(self) -> Tuple[
-        GRAPH_TUPLE, TASK]:
+    def generate_task(self) -> Tuple[GRAPH_TUPLE, TASK]:
         """
         function to generate a random task graph and corresponding task
         :param max_switch: the maximum number of switch operators allowed
