@@ -19,6 +19,7 @@ def make(
     @param env_id: the name of the environment
     @param stim_data: Data class that contains the stimuli dataset directory
     @param env_spec: Data class that contains the environment specification
+    @param dataset_fp: the file path to the stimuli dataset
     @return:
     """
     assert env_id in env_dict, f"environment {env_id} not found in env_dict"
