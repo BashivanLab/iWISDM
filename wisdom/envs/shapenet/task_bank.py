@@ -27,8 +27,7 @@ class ExistCategoryOfTemporal(TemporalTask):
         category1 = tg.GetCategory(objs1)
         objs2 = tg.Select(category=category1, when=when2)
         self._operator = tg.Exist(objs2)
-        self.n_frames = const.compare_when([when1, when2]) + 1
-
+        self.n_frames = env_reg.compare_when([when1, when2]) + 1
 
 
 class ExistViewAngleOfTemporal(TemporalTask):
@@ -43,7 +42,7 @@ class ExistViewAngleOfTemporal(TemporalTask):
         view_angle = tg.GetViewAngle(objs1)
         objs2 = tg.Select(view_angle=view_angle, when=when2)
         self._operator = tg.Exist(objs2)
-        self.n_frames = const.compare_when([when1, when2]) + 1
+        self.n_frames = env_reg.compare_when([when1, when2]) + 1
 
 
 class ExistObjectOfTemporal(TemporalTask):
@@ -56,7 +55,8 @@ class ExistObjectOfTemporal(TemporalTask):
         obj = tg.GetObject(objs1)
         objs2 = tg.Select(object=obj, when=when2)
         self._operator = tg.Exist(objs2)
-        self.n_frames = const.compare_when([when1, when2]) + 1
+        self.n_frames = env_reg.compare_when([when1, when2]) + 1
+
 
 class CompareCategoryTemporal(TemporalTask):
     """Compare objects on chosen frames are of the same category or not."""
@@ -69,7 +69,7 @@ class CompareCategoryTemporal(TemporalTask):
         a1 = tg.GetCategory(objs1)
         a2 = tg.GetCategory(objs2)
         self._operator = tg.IsSame(a1, a2)
-        self.n_frames = const.compare_when([when1, when2]) + 1
+        self.n_frames = env_reg.compare_when([when1, when2]) + 1
 
 
 class CompareViewAngleTemporal(TemporalTask):
@@ -83,7 +83,8 @@ class CompareViewAngleTemporal(TemporalTask):
         a1 = tg.GetViewAngle(objs1)
         a2 = tg.GetViewAngle(objs2)
         self._operator = tg.IsSame(a1, a2)
-        self.n_frames = const.compare_when([when1, when2]) + 1
+        self.n_frames = env_reg.compare_when([when1, when2]) + 1
+
 
 class CompareLocTemporal(TemporalTask):
     """Compare objects on chosen frames are of the same location or not"""
@@ -96,8 +97,7 @@ class CompareLocTemporal(TemporalTask):
         a1 = tg.GetLoc(objs1)
         a2 = tg.GetLoc(objs2)
         self._operator = tg.IsSame(a1, a2)
-        self.n_frames = const.compare_when([when1, when2]) + 1
-
+        self.n_frames = env_reg.compare_when([when1, when2]) + 1
 
 
 class CompareObjectTemporal(TemporalTask):
@@ -111,7 +111,7 @@ class CompareObjectTemporal(TemporalTask):
         a1 = tg.GetObject(objs1)
         a2 = tg.GetObject(objs2)
         self._operator = tg.IsSame(a1, a2)
-        self.n_frames = const.compare_when([when1, when2]) + 1
+        self.n_frames = env_reg.compare_when([when1, when2]) + 1
 
 
 class SequentialCategoryMatch(TemporalTask):
@@ -135,16 +135,12 @@ class SequentialCategoryMatch(TemporalTask):
         self.n_frames = total_frames
 
 
-
 class DelayedCDM(TemporalTask):
     # contextual decision making
 
     def __init__(self, whens=None, first_shareable=None, attrs=None):
         super(DelayedCDM, self).__init__(whens=whens, first_shareable=first_shareable)
-        if self.whens is None:
-            when1, when2 = reversed(sorted(sg.check_whens(sg.sample_when(2))))
-        else:
-            when1, when2 = self.whens[0], self.whens[1]
+        when1, when2 = self.whens[0], self.whens[1]
 
         objs1 = tg.Select(when=when1)
         objs2 = tg.Select(when=when2)
@@ -154,15 +150,15 @@ class DelayedCDM(TemporalTask):
             attr0 = attrs[0]
             attrs = attrs[1::]
         else:
-            attr0 = random.choice(const.DATA.ATTRS)
-            attrs = random.sample(const.DATA.ATTRS, 2)
+            attr0 = random.choice(env_reg.DATA.ATTRS)
+            attrs = random.sample(env_reg.DATA.ATTRS, 2)
         const_attr0 = sg.random_attr(attr0)
         const_attrs = [sg.random_attr(attr) for attr in attrs]
         condition = tg.IsSame(const_attr0, tg.get_family_dict[attr0](objs1))
         do_if = tg.IsSame(const_attrs[0], tg.get_family_dict[attrs[0]](objs2))
         do_else = tg.IsSame(const_attrs[1], tg.get_family_dict[attrs[1]](objs2))
         self._operator = tg.Switch(condition, do_if, do_else, both_options_avail=False)
-        self.n_frames = const.compare_when([when1, when2]) + 1
+        self.n_frames = env_reg.compare_when([when1, when2]) + 1
 
 
 task_family_dict = OrderedDict([

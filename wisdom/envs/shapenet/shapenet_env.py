@@ -10,7 +10,7 @@ import wisdom.envs.shapenet.stim_generator as sg
 import wisdom.envs.shapenet.task_generator as tg
 import wisdom.envs.shapenet.info_generator as ig
 
-import wisdom.envs.shapenet.registration as const
+import wisdom.envs.shapenet.registration as env_reg
 from wisdom.envs.shapenet.registration import SNEnvSpec, SNStimData
 from wisdom.envs.shapenet.task_bank import task_family_dict
 
@@ -27,7 +27,7 @@ class ShapeNetEnv(Env):
 
         self.env_spec = env_spec
         self.task_gen_config = env_spec.auto_gen_config
-        self.constants = const.DATA
+        self.constants = env_reg.DATA
         self.task_gen = atg.SNTaskGenerator(env_spec)
         self.reset_env()
 
@@ -107,5 +107,5 @@ class ShapeNetEnv(Env):
         if task_family is None:
             task_family = list(task_family_dict.keys())
         random_task = random.choice(task_family)
-        whens = self.env_spec.
+        whens = self.env_spec.sample_when(2)
         return task_family_dict[random_task](whens=whens, **kwargs)
