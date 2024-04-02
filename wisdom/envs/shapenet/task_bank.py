@@ -12,7 +12,6 @@ from wisdom.envs.shapenet.task_generator import TemporalTask
 from wisdom.envs.shapenet import task_generator as tg
 from wisdom.envs.shapenet import stim_generator as sg
 
-from wisdom.envs.shapenet.registration import SNStimData, SNEnvSpec
 import wisdom.envs.shapenet.stim_generator as sg
 import wisdom.envs.shapenet.registration as env_reg
 
@@ -35,8 +34,7 @@ class ExistViewAngleOfTemporal(TemporalTask):
 
     def __init__(self, whens, first_shareable=None):
         super(ExistViewAngleOfTemporal, self).__init__(whens=whens, first_shareable=first_shareable)
-        when1 = sg.random_when()
-        when2 = 'last0'
+        when1, when2 = whens[0], whens[1]
 
         objs1 = tg.Select(when=when1)
         view_angle = tg.GetViewAngle(objs1)
@@ -49,7 +47,7 @@ class ExistObjectOfTemporal(TemporalTask):
     """Check if on given frame has the same object with another frame"""
 
     def __init__(self, whens, first_shareable=None):
-        super(ExistViewAngleOfTemporal, self).__init__(whens=whens, first_shareable=first_shareable)
+        super(ExistObjectOfTemporal, self).__init__(whens=whens, first_shareable=first_shareable)
         when1, when2 = self.whens[0], self.whens[1]
         objs1 = tg.Select(when=when1)
         obj = tg.GetObject(objs1)
@@ -116,16 +114,20 @@ class CompareObjectTemporal(TemporalTask):
 
 class SequentialCategoryMatch(TemporalTask):
     # nback category
-    def __init__(self, whens, first_shareable=None, n_frames=1):
+    def __init__(self, whens, first_shareable=None, n_compare=1):
         super(SequentialCategoryMatch, self).__init__(whens=whens, first_shareable=first_shareable)
-        total_frames = n_frames * 2 + random.randint(0, const.MAX_MEMORY - (n_frames * 2) + 1)
+        when1, when2 = self.whens[0], self.whens[1]
+        max_k = env_reg.compare_when([when1, when2])
+        if n_compare * 2 + 1 > max_k:
+            n_compare = max_k // 2
+        total_frames = n_compare * 2 + random.randint(0, max_k - (n_compare * 2) + 1)
 
-        sample_objs = [tg.Select(when=f'last{total_frames - i - 1}') for i in range(n_frames)]
-        response_objs = [tg.Select(when=f'last{i}') for i in range(n_frames)]
+        sample_objs = [tg.Select(when=f'last{total_frames - i - 1}') for i in range(n_compare)]
+        response_objs = [tg.Select(when=f'last{i}') for i in range(n_compare)]
         sample_cats = [tg.GetCategory(obj) for obj in sample_objs]
         response_cats = [tg.GetCategory(obj) for obj in response_objs]
         is_sames = [tg.IsSame(sample, response) for sample, response in zip(sample_cats, response_cats)]
-        if n_frames == 1:
+        if n_compare == 1:
             self._operator = is_sames[0]
         else:
             ands = tg.And(is_sames[0], is_sames[1])

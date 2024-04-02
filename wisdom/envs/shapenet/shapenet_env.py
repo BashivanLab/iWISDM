@@ -60,9 +60,11 @@ class ShapeNetEnv(Env):
             self,
             tasks: Iterable[tg.TemporalTask] = None,
             task_objsets: Iterable[sg.ObjectSet] = None,
-            mode='train'
+            mode: str = 'train',
     ) -> List[Tuple[List[np.ndarray], List[Dict], Dict]]:
-        self.reset_env(mode)
+        # TODO: stimuli sampled from dataset splits, have 3 separate df files?
+        #  self.stim_data.train = SNStimData(), etc
+        self.reset_env(None)
         if tasks is None:
             tasks = self.cached_tasks
 
