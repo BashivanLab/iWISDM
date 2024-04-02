@@ -1,3 +1,4 @@
+import random
 from typing import Tuple, List, Dict, Iterable
 
 import os
@@ -11,6 +12,7 @@ import wisdom.envs.shapenet.info_generator as ig
 
 import wisdom.envs.shapenet.registration as const
 from wisdom.envs.shapenet.registration import SNEnvSpec, SNStimData
+from wisdom.envs.shapenet.task_bank import task_family_dict
 
 
 class ShapeNetEnv(Env):
@@ -33,7 +35,7 @@ class ShapeNetEnv(Env):
         return
 
     @staticmethod
-    def init_stim_data(dataset_fp: str):
+    def init_stim_data(dataset_fp: str, **kwargs):
         stim_data = SNStimData(dataset_fp)
         return stim_data
 
@@ -42,7 +44,7 @@ class ShapeNetEnv(Env):
         env_spec = SNEnvSpec(**kwargs)
         return env_spec
 
-    def generate_tasks(self, n: int = 1):
+    def generate_tasks(self, n: int = 1, **kwargs):
         self.reset_env()
         tasks = [
             self.task_gen.generate_task()
@@ -94,6 +96,16 @@ class ShapeNetEnv(Env):
         """
         if mode is not None:
             stim_data = getattr(self, f"{mode}_data")
+        else:
+            stim_data = self.stim_data
         for base_class in self.base_classes:
             base_class.stim_data = stim_data
             base_class.env_spec = self.env_spec
+
+    def get_premade_task(self, task_family: List[str] = None, **kwargs) -> tg.TemporalTask:
+        """Return a random question from the task family."""
+        if task_family is None:
+            task_family = list(task_family_dict.keys())
+        random_task = random.choice(task_family)
+        whens = self.env_spec.
+        return task_family_dict[random_task](whens=whens, **kwargs)
