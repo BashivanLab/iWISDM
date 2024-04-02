@@ -114,16 +114,20 @@ class CompareObjectTemporal(TemporalTask):
 
 class SequentialCategoryMatch(TemporalTask):
     # nback category
-    def __init__(self, whens, first_shareable=None, n_frames=1):
+    def __init__(self, whens, first_shareable=None, n_compare=1):
         super(SequentialCategoryMatch, self).__init__(whens=whens, first_shareable=first_shareable)
-        total_frames = n_frames * 2 + random.randint(0, const.MAX_MEMORY - (n_frames * 2) + 1)
+        when1, when2 = self.whens[0], self.whens[1]
+        max_k = env_reg.compare_when([when1, when2])
+        if n_compare * 2 + 1 > max_k:
+            n_compare = max_k // 2
+        total_frames = n_compare * 2 + random.randint(0, max_k - (n_compare * 2) + 1)
 
-        sample_objs = [tg.Select(when=f'last{total_frames - i - 1}') for i in range(n_frames)]
-        response_objs = [tg.Select(when=f'last{i}') for i in range(n_frames)]
+        sample_objs = [tg.Select(when=f'last{total_frames - i - 1}') for i in range(n_compare)]
+        response_objs = [tg.Select(when=f'last{i}') for i in range(n_compare)]
         sample_cats = [tg.GetCategory(obj) for obj in sample_objs]
         response_cats = [tg.GetCategory(obj) for obj in response_objs]
         is_sames = [tg.IsSame(sample, response) for sample, response in zip(sample_cats, response_cats)]
-        if n_frames == 1:
+        if n_compare == 1:
             self._operator = is_sames[0]
         else:
             ands = tg.And(is_sames[0], is_sames[1])
