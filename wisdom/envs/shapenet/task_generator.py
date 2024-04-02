@@ -889,6 +889,7 @@ class Or(SNOperator):
 
 
 class SNTask(Task):
+
     def _add_all_nodes(self, op: Union[Operator, sg.SNAttribute], visited: dict, G: nx.DiGraph, count: int):
         visited[op] = True
         parent = count
@@ -1039,7 +1040,7 @@ class TemporalTask(SNTask):
     def instance_size(self):
         # depending on the number of stimuli to sample from,
         # instance size determines the number of variations of the task
-        pass
+        raise NotImplementedError
 
     @staticmethod
     def filter_selects(self, lastk=None) -> List[Select]:

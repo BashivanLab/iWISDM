@@ -8,36 +8,32 @@ from __future__ import print_function
 from collections import OrderedDict
 import random
 
-from cognitive import stim_generator as sg
-from cognitive import task_generator as tg
-from cognitive.task_generator import TemporalTask
-from cognitive import constants as const
+from wisdom.envs.shapenet.task_generator import TemporalTask
+from wisdom.envs.shapenet import task_generator as tg
+from wisdom.envs.shapenet import stim_generator as sg
+
+from wisdom.envs.shapenet.registration import SNStimData, SNEnvSpec
+import wisdom.envs.shapenet.stim_generator as sg
+import wisdom.envs.shapenet.registration as env_reg
 
 
 class ExistCategoryOfTemporal(TemporalTask):
     """Check if  object on given frame has the same category with the object on another frame."""
 
-    def __init__(self, whens=None, first_shareable=None):
+    def __init__(self, whens, first_shareable=None):
         super(ExistCategoryOfTemporal, self).__init__(whens=whens, first_shareable=first_shareable)
-        if self.whens is None:
-            when1, when2 = sg.check_whens(sg.sample_when(2))
-        else:
-            when1, when2 = self.whens[0], self.whens[1]
+        when1, when2 = self.whens[0], self.whens[1]
         objs1 = tg.Select(when=when1)
         category1 = tg.GetCategory(objs1)
         objs2 = tg.Select(category=category1, when=when2)
         self._operator = tg.Exist(objs2)
-        self.n_frames = const.compare_when([when1, when2]) + 1
-
-    @property
-    def instance_size(self):
-        return sg.n_sample_color(2) * sg.n_random_when()
+        self.n_frames = env_reg.compare_when([when1, when2]) + 1
 
 
 class ExistViewAngleOfTemporal(TemporalTask):
     """Check if  object on given frame has the same view angle with the object on another frame."""
 
-    def __init__(self, whens=None, first_shareable=None):
+    def __init__(self, whens, first_shareable=None):
         super(ExistViewAngleOfTemporal, self).__init__(whens=whens, first_shareable=first_shareable)
         when1 = sg.random_when()
         when2 = 'last0'
@@ -46,124 +42,81 @@ class ExistViewAngleOfTemporal(TemporalTask):
         view_angle = tg.GetViewAngle(objs1)
         objs2 = tg.Select(view_angle=view_angle, when=when2)
         self._operator = tg.Exist(objs2)
-        self.n_frames = const.compare_when([when1, when2]) + 1
-
-    @property
-    def instance_size(self):
-        return sg.n_sample_color(2) * sg.n_random_when()
+        self.n_frames = env_reg.compare_when([when1, when2]) + 1
 
 
 class ExistObjectOfTemporal(TemporalTask):
     """Check if on given frame has the same object with another frame"""
 
-    def __init__(self, whens=None, first_shareable=None):
+    def __init__(self, whens, first_shareable=None):
         super(ExistViewAngleOfTemporal, self).__init__(whens=whens, first_shareable=first_shareable)
-        if self.whens is None:
-            when1, when2 = sg.check_whens(sg.sample_when(2))
-        else:
-            when1, when2 = self.whens[0], self.whens[1]
+        when1, when2 = self.whens[0], self.whens[1]
         objs1 = tg.Select(when=when1)
         obj = tg.GetObject(objs1)
         objs2 = tg.Select(object=obj, when=when2)
         self._operator = tg.Exist(objs2)
-        self.n_frames = const.compare_when([when1, when2]) + 1
-
-    @property
-    def instance_size(self):
-
-        return sg.n_sample_color(2) * sg.n_random_when()
+        self.n_frames = env_reg.compare_when([when1, when2]) + 1
 
 
 class CompareCategoryTemporal(TemporalTask):
     """Compare objects on chosen frames are of the same category or not."""
 
-    def __init__(self, whens=None, first_shareable=None):
+    def __init__(self, whens, first_shareable=None):
         super(CompareCategoryTemporal, self).__init__(whens=whens, first_shareable=first_shareable)
-        if self.whens is None:
-            when1, when2 = sg.check_whens(sg.sample_when(2))
-        else:
-            when1, when2 = self.whens[0], self.whens[1]
+        when1, when2 = self.whens[0], self.whens[1]
         objs1 = tg.Select(when=when1)
         objs2 = tg.Select(when=when2)
         a1 = tg.GetCategory(objs1)
         a2 = tg.GetCategory(objs2)
         self._operator = tg.IsSame(a1, a2)
-        self.n_frames = const.compare_when([when1, when2]) + 1
-
-    @property
-    def instance_size(self):
-
-        return sg.n_sample_shape(2) * (sg.n_random_when()) ** 2
+        self.n_frames = env_reg.compare_when([when1, when2]) + 1
 
 
 class CompareViewAngleTemporal(TemporalTask):
     """Compare objects on chosen frames are of the same view angle or not"""
 
-    def __init__(self, whens=None, first_shareable=None):
+    def __init__(self, whens, first_shareable=None):
         super(CompareViewAngleTemporal, self).__init__(whens=whens, first_shareable=first_shareable)
-        if self.whens is None:
-            when1, when2 = sg.check_whens(sg.sample_when(2))
-        else:
-            when1, when2 = self.whens[0], self.whens[1]
+        when1, when2 = self.whens[0], self.whens[1]
         objs1 = tg.Select(when=when1)
         objs2 = tg.Select(when=when2)
         a1 = tg.GetViewAngle(objs1)
         a2 = tg.GetViewAngle(objs2)
         self._operator = tg.IsSame(a1, a2)
-        self.n_frames = const.compare_when([when1, when2]) + 1
-
-    @property
-    def instance_size(self):
-
-        return sg.n_sample_color(2) * (sg.n_random_when()) ** 2
+        self.n_frames = env_reg.compare_when([when1, when2]) + 1
 
 
 class CompareLocTemporal(TemporalTask):
     """Compare objects on chosen frames are of the same location or not"""
 
-    def __init__(self, whens=None, first_shareable=None):
+    def __init__(self, whens, first_shareable=None):
         super(CompareLocTemporal, self).__init__(whens=whens, first_shareable=first_shareable)
-        if self.whens is None:
-            when1, when2 = sg.check_whens(sg.sample_when(2))
-        else:
-            when1, when2 = self.whens[0], self.whens[1]
+        when1, when2 = self.whens[0], self.whens[1]
         objs1 = tg.Select(when=when1)
         objs2 = tg.Select(when=when2)
         a1 = tg.GetLoc(objs1)
         a2 = tg.GetLoc(objs2)
         self._operator = tg.IsSame(a1, a2)
-        self.n_frames = const.compare_when([when1, when2]) + 1
-
-    @property
-    def instance_size(self):
-
-        return sg.n_sample_shape(2) * (sg.n_random_when()) ** 2
+        self.n_frames = env_reg.compare_when([when1, when2]) + 1
 
 
 class CompareObjectTemporal(TemporalTask):
     """Compare objects on chosen frames are of the same identity or not"""
 
-    def __init__(self, whens=None, first_shareable=None):
+    def __init__(self, whens, first_shareable=None):
         super(CompareObjectTemporal, self).__init__(whens=whens, first_shareable=first_shareable)
-        if self.whens is None:
-            when1, when2 = sg.check_whens(sg.sample_when(2))
-        else:
-            when1, when2 = self.whens[0], self.whens[1]
+        when1, when2 = self.whens[0], self.whens[1]
         objs1 = tg.Select(when=when1)
         objs2 = tg.Select(when=when2)
         a1 = tg.GetObject(objs1)
         a2 = tg.GetObject(objs2)
         self._operator = tg.IsSame(a1, a2)
-        self.n_frames = const.compare_when([when1, when2]) + 1
-
-    @property
-    def instance_size(self):
-        return sg.n_sample_shape(2) * (sg.n_random_when()) ** 2
+        self.n_frames = env_reg.compare_when([when1, when2]) + 1
 
 
 class SequentialCategoryMatch(TemporalTask):
     # nback category
-    def __init__(self, whens=None, first_shareable=None, n_frames=1):
+    def __init__(self, whens, first_shareable=None, n_frames=1):
         super(SequentialCategoryMatch, self).__init__(whens=whens, first_shareable=first_shareable)
         total_frames = n_frames * 2 + random.randint(0, const.MAX_MEMORY - (n_frames * 2) + 1)
 
@@ -181,21 +134,13 @@ class SequentialCategoryMatch(TemporalTask):
             self._operator = ands
         self.n_frames = total_frames
 
-    @property
-    def instance_size(self):
-
-        return sg.n_sample_shape(2) * (sg.n_random_when()) ** 2
-
 
 class DelayedCDM(TemporalTask):
     # contextual decision making
 
     def __init__(self, whens=None, first_shareable=None, attrs=None):
         super(DelayedCDM, self).__init__(whens=whens, first_shareable=first_shareable)
-        if self.whens is None:
-            when1, when2 = reversed(sorted(sg.check_whens(sg.sample_when(2))))
-        else:
-            when1, when2 = self.whens[0], self.whens[1]
+        when1, when2 = self.whens[0], self.whens[1]
 
         objs1 = tg.Select(when=when1)
         objs2 = tg.Select(when=when2)
@@ -205,15 +150,15 @@ class DelayedCDM(TemporalTask):
             attr0 = attrs[0]
             attrs = attrs[1::]
         else:
-            attr0 = random.choice(const.DATA.ATTRS)
-            attrs = random.sample(const.DATA.ATTRS, 2)
+            attr0 = random.choice(env_reg.DATA.ATTRS)
+            attrs = random.sample(env_reg.DATA.ATTRS, 2)
         const_attr0 = sg.random_attr(attr0)
         const_attrs = [sg.random_attr(attr) for attr in attrs]
         condition = tg.IsSame(const_attr0, tg.get_family_dict[attr0](objs1))
         do_if = tg.IsSame(const_attrs[0], tg.get_family_dict[attrs[0]](objs2))
         do_else = tg.IsSame(const_attrs[1], tg.get_family_dict[attrs[1]](objs2))
         self._operator = tg.Switch(condition, do_if, do_else, both_options_avail=False)
-        self.n_frames = const.compare_when([when1, when2]) + 1
+        self.n_frames = env_reg.compare_when([when1, when2]) + 1
 
 
 task_family_dict = OrderedDict([
@@ -227,8 +172,3 @@ task_family_dict = OrderedDict([
     ('SequentialCategory', SequentialCategoryMatch),
     ('DelayedCDM', DelayedCDM),
 ])
-
-
-def random_task(task_family, *args):
-    """Return a random question from the task family."""
-    return task_family_dict[task_family[random.randint(0, len(task_family) - 1)]](*args)

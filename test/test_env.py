@@ -2,6 +2,7 @@ import unittest
 from wisdom import make
 from wisdom import read_write
 
+
 class MyTestCase(unittest.TestCase):
     def test_env(self):
         env = make(
@@ -16,6 +17,7 @@ class MyTestCase(unittest.TestCase):
             read_write.write_trial()
         # TODO: stimuli sampled from dataset splits, have 3 separate df files?
         #  self.stim_data.train = SNStimData(), etc
+        env.get_premade_task()
         return
 
 

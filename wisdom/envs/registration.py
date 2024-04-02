@@ -106,6 +106,10 @@ class StimData:
         self.valid_image_path = splits['validation']
         self.test_image_path = splits['test']
 
+        self.train_data = None
+        self.valid_data = None
+        self.test_data = None
+
     def get_object(self, obj, obj_size):
         raise NotImplementedError
 
