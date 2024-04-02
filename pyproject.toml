@@ -13,6 +13,7 @@ opencv-python = "^4.9.0.80"
 matplotlib = "^3.8.3"
 natsort = "^8.4.0"
 pandas = "^2.2.1"
+pygraphviz = "^1.12"
 
 
 [build-system]
