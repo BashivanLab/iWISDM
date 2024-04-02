@@ -1248,10 +1248,10 @@ def read_task(task_fp: str):
     with open(task_fp, 'r') as f:
         task_info = json.load(f)
 
-    # first you have to load the operator objects
+    # first load the operator objects
     task_info['operator'] = load_operator_json(task_info['operator'])
 
-    # we must reinitialize using the parent task class. (the created task object is functionally identical)
+    # reinitialize using the parent task class. (the created task object is functionally identical)
     task = TemporalTask(
         operator=task_info['operator'],
         n_frames=task_info['n_frames'],
