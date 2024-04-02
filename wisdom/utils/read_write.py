@@ -77,6 +77,8 @@ def write_task(task, save_dir_fp, task_id=None):
     """
     if task_id:
         save_fp = os.path.join(save_dir_fp, f'task_{task_id}.json')
+    else:
+        save_fp = save_dir_fp
     info = task.to_json()
     with open(save_fp, 'w') as f:
         json.dump(info, f, indent=4)
