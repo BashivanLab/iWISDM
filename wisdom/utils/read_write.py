@@ -67,7 +67,7 @@ def render_stimset(stim_set: Union[List[StimuliSet], StimuliSet], canvas_size=22
     return movie
 
 
-def write_task(task, save_dir_fp):
+def write_task(task, save_dir_fp, task_id=None):
     """
     Write the task to a json file
 
@@ -75,7 +75,8 @@ def write_task(task, save_dir_fp):
     @param save_dir_fp: the directory to save the task
     @return:
     """
-    save_fp = os.path.join(save_dir_fp, f'task_{task.task_id}.json')
+    if task_id:
+        save_fp = os.path.join(save_dir_fp, f'task_{task_id}.json')
     info = task.to_json()
     with open(save_fp, 'w') as f:
         json.dump(info, f, indent=4)
