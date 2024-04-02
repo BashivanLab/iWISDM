@@ -1,10 +1,12 @@
 import random
-from typing import Tuple, List, Dict, Iterable
+from typing import Tuple, List, Dict, Iterable, Union
 
 import os
+
+import networkx as nx
 import numpy as np
 
-from wisdom.core import Env
+from wisdom.core import Env, Operator, Attribute, Task
 import wisdom.envs.shapenet.auto_task_gen as atg
 import wisdom.envs.shapenet.stim_generator as sg
 import wisdom.envs.shapenet.task_generator as tg
@@ -13,6 +15,9 @@ import wisdom.envs.shapenet.info_generator as ig
 import wisdom.envs.shapenet.registration as env_reg
 from wisdom.envs.shapenet.registration import SNEnvSpec, SNStimData
 from wisdom.envs.shapenet.task_bank import task_family_dict
+
+GRAPH_TUPLE = Tuple[nx.DiGraph, int, int]
+TASK = Tuple[Union[Operator, Attribute], Task]
 
 
 class ShapeNetEnv(Env):
@@ -44,7 +49,7 @@ class ShapeNetEnv(Env):
         env_spec = SNEnvSpec(**kwargs)
         return env_spec
 
-    def generate_tasks(self, n: int = 1, **kwargs):
+    def generate_tasks(self, n: int = 1, **kwargs) -> List[Tuple[GRAPH_TUPLE, TASK]]:
         self.reset_env()
         tasks = [
             self.task_gen.generate_task()
@@ -59,8 +64,8 @@ class ShapeNetEnv(Env):
     def generate_trials(
             self,
             tasks: Iterable[tg.TemporalTask] = None,
-            task_objsets: Iterable[sg.ObjectSet] = None,
             mode: str = 'train',
+            task_objsets: Iterable[sg.ObjectSet] = None,
     ) -> List[Tuple[List[np.ndarray], List[Dict], Dict]]:
         # TODO: stimuli sampled from dataset splits, have 3 separate df files?
         #  self.stim_data.train = SNStimData(), etc

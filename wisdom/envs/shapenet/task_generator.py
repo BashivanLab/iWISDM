@@ -1238,6 +1238,29 @@ def graph_to_operators(
             return sg.random_attr(random.choice(env_reg.DATA.ATTRS))
 
 
+def read_task(task_fp: str):
+    """
+    Read a task from a json file
+
+    @param task_fp: the file path to the task
+    @return: a TemporalTask instance
+    """
+    with open(task_fp, 'r') as f:
+        task_info = json.load(f)
+
+    # first load the operator objects
+    task_info['operator'] = load_operator_json(task_info['operator'])
+
+    # reinitialize using the parent task class. (the created task object is functionally identical)
+    task = TemporalTask(
+        operator=task_info['operator'],
+        n_frames=task_info['n_frames'],
+        first_shareable=task_info['first_shareable'],
+        whens=task_info['whens']
+    )
+    return task
+
+
 def load_operator_json(
         op_dict: dict,
         operator_families: Dict[str, Callable] = None,

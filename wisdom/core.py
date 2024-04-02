@@ -6,44 +6,10 @@ see class methods for their expected behaviours
 from collections import defaultdict
 from typing import Tuple, Dict, List, Iterable, Any, Union
 
+import networkx as nx
 import numpy as np
 
 from wisdom.envs.registration import EnvSpec, StimData, Constant
-
-
-class Env(object):
-    """
-    Base class for any environment.
-
-
-    """
-    metadata: Dict[str, Any] = dict()
-    env_spec: EnvSpec = None
-    task_gen_config: Dict[str, Any] = dict()
-    constants: Constant = None
-    stim_data: StimData = None
-
-    @staticmethod
-    def init_stim_data(dataset_fp: str, *args):
-        raise NotImplementedError
-
-    @staticmethod
-    def init_env_spec(self, *args):
-        raise NotImplementedError
-
-    def generate_tasks(self, n: int = 1, *args):
-        raise NotImplementedError
-
-    def generate_trials(self, *args):
-        """
-
-        @return:
-
-        """
-        raise NotImplementedError
-
-    def render_trials(self):
-        raise NotImplementedError
 
 
 class Attribute(object):
@@ -392,4 +358,41 @@ class Task(object):
         return [self(objset, objset.n_epoch - 1)]
 
     def is_bool_output(self) -> bool:
+        raise NotImplementedError
+
+GRAPH_TUPLE = Tuple[nx.DiGraph, int, int]
+TASK = Tuple[Union[Operator, Attribute], Task]
+
+class Env(object):
+    """
+    Base class for any environment.
+
+
+    """
+    metadata: Dict[str, Any] = dict()
+    env_spec: EnvSpec = None
+    task_gen_config: Dict[str, Any] = dict()
+    constants: Constant = None
+    stim_data: StimData = None
+
+    @staticmethod
+    def init_stim_data(dataset_fp: str, *args):
+        raise NotImplementedError
+
+    @staticmethod
+    def init_env_spec(self, *args):
+        raise NotImplementedError
+
+    def generate_tasks(self, n: int = 1, *args) -> List[Tuple[GRAPH_TUPLE, TASK]]:
+        raise NotImplementedError
+
+    def generate_trials(self, tasks: List[Task], mode: str, **kwargs) -> List[Tuple[List[np.ndarray], List[Dict], Dict]]:
+        """
+
+        @return:
+
+        """
+        raise NotImplementedError
+
+    def render_trials(self):
         raise NotImplementedError

@@ -13,8 +13,10 @@ class MyTestCase(unittest.TestCase):
         tasks = env.generate_tasks(100)
         for t in tasks:
             _, (_, temporal_task) = t
-            trials = env.generate_trials(tasks=[temporal_task], mode='valid')
-            # read_write.write_trial()
+            for i in range(100):
+                trials = env.generate_trials(tasks=[temporal_task], mode='valid')
+                imgs, _, info_dict = trials[0]
+                read_write.write_trial(imgs, info_dict, f'output/trial_{i}')
         # TODO: stimuli sampled from dataset splits, have 3 separate df files?
         #  self.stim_data.train = SNStimData(), etc
         env.get_premade_task()
