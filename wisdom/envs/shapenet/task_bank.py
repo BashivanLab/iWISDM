@@ -12,7 +12,6 @@ from wisdom.envs.shapenet.task_generator import TemporalTask
 from wisdom.envs.shapenet import task_generator as tg
 from wisdom.envs.shapenet import stim_generator as sg
 
-from wisdom.envs.shapenet.registration import SNStimData, SNEnvSpec
 import wisdom.envs.shapenet.stim_generator as sg
 import wisdom.envs.shapenet.registration as env_reg
 
@@ -35,8 +34,7 @@ class ExistViewAngleOfTemporal(TemporalTask):
 
     def __init__(self, whens, first_shareable=None):
         super(ExistViewAngleOfTemporal, self).__init__(whens=whens, first_shareable=first_shareable)
-        when1 = sg.random_when()
-        when2 = 'last0'
+        when1, when2 = whens[0], whens[1]
 
         objs1 = tg.Select(when=when1)
         view_angle = tg.GetViewAngle(objs1)
@@ -49,7 +47,7 @@ class ExistObjectOfTemporal(TemporalTask):
     """Check if on given frame has the same object with another frame"""
 
     def __init__(self, whens, first_shareable=None):
-        super(ExistViewAngleOfTemporal, self).__init__(whens=whens, first_shareable=first_shareable)
+        super(ExistObjectOfTemporal, self).__init__(whens=whens, first_shareable=first_shareable)
         when1, when2 = self.whens[0], self.whens[1]
         objs1 = tg.Select(when=when1)
         obj = tg.GetObject(objs1)
