@@ -9,20 +9,14 @@ import sys
 
 sys.path.append(sys.path[0] + '/../../COG_v3_shapenet')
 
-from cognitive import info_generator as ig
-from cognitive import task_generator as tg
-from cognitive import task_bank as tb
-from cognitive.auto_task import auto_task_util as auto_task
-from cognitive import constants as const
+from wisdom import make
+from wisdom import read_write
+import wisdom.envs.shapenet.task_generator as tg
 
 
 def create_task(params):
-    _, task = auto_task.task_generator(params['max_switch'],
-                                       params['switch_threshold'],
-                                       params['max_op'],
-                                       params['max_depth'],
-                                       params['select_limit'])
-    return task[1]
+    
+    return 
 
 
 def generate_trial(task, fixation_cue=False, img_size=224):
@@ -178,11 +172,13 @@ if __name__ == '__main__':
         'switch_threshold': args.switch_threshold
     }
 
-    const.DATA = const.Data(
-        dir_path=args.stim_dir,
-        max_memory=args.max_memory,
-        train=False
+    env = make(
+        env_id='ShapeNet',
+        dataset_fp=stim_dir
     )
+    print(env.env_spec.auto_gen_config)
+
+
     with open(args.config_path) as f:
         config = json.load(f)
         op_dict = config['op_dict']
