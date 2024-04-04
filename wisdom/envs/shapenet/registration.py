@@ -95,7 +95,7 @@ class SNEnvSpec(EnvSpec):
     def __init__(
             self,
             grid_size: Tuple[int, int] = (2, 2),
-            max_delay: int = 5,
+            max_delay: int = 2,
             delay_prob: float = 0.5,
             auto_gen_config: Dict = None,
             add_fixation_cue: True = False,
@@ -210,7 +210,7 @@ class SNEnvSpec(EnvSpec):
         @return: list of n 'lastk' values
         """
         whens = list()
-        i, count, n_delays = 1, 0, 0
+        i, count, n_delays = 0, 0, 0
         if existing_whens:
             max_k = compare_when(existing_whens)
             n_delays += len(find_delays(existing_whens))
