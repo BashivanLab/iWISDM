@@ -95,7 +95,7 @@ class SNEnvSpec(EnvSpec):
     def __init__(
             self,
             grid_size: Tuple[int, int] = (2, 2),
-            max_delay: int = 5,
+            max_delay: int = 2,
             delay_prob: float = 0.5,
             auto_gen_config: Dict = None,
             add_fixation_cue: True = False,
