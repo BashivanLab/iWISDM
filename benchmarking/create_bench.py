@@ -6,64 +6,48 @@ from natsort import natsorted
 from collections import defaultdict
 
 import sys
-
-sys.path.append(sys.path[0] + '/../../COG_v3_shapenet')
+sys.path.append('../')
 
 from wisdom import make
 from wisdom import read_write
 import wisdom.envs.shapenet.task_generator as tg
 
 
-def create_task(params):
-    
-    return 
+def create_task(env):
+    _, (_, task) = env.generate_tasks()[0]
+    return task
 
+def generate_trial(env, task):
+    trials = env.generate_trials(tasks=[task], mode='valid')
+    imgs, _, info_dict = trials[0]
+    print(info_dict)
+    instructions = info_dict['instruction']
+    answer = info_dict['answers']
 
-def generate_trial(task, fixation_cue=False, img_size=224):
-    # Creates FrameInfo and TaskInfo objects for the task
-    frame_info = ig.FrameInfo(task, task.generate_objset())
-    compo_info = ig.TaskInfoCompo(task, frame_info)
-
-    _, instructions, answer = compo_info.generate_trial(img_size, fixation_cue)
-
-    return instructions, answer[-1], compo_info
-
+    return imgs, instructions, answer[-1], info_dict
 
 def store_task(task, fp):
-    task.to_json(fp)
-
+    read_write.write_task(task, fp)
 
 def duplicate_check(current_instructions, instruction):
     if instruction in current_instructions:
         return True
     return False
 
-
 def load_stored_tasks(fp):
     ts = []
     ins = []
     for task_fp in os.listdir(fp):
-        with open(os.path.join(fp, task_fp), 'r') as f:
-            task_dict = json.load(f)
-            # first you have to load the operator objects
-            task_dict['operator'] = tg.load_operator_json(task_dict['operator'])
+        with open(os.path.join(fp, task_fp), 'r') as f:            
+            task = tg.read_task(f)
 
-            # we must reinitialize using the parent task class. (the created task object is functionally identical) 
-            task = tg.TemporalTask(
-                operator=task_dict['operator'],
-                n_frames=task_dict['n_frames'],
-                first_shareable=task_dict['first_shareable'],
-                whens=task_dict['whens']
-            )
-
-            instructions = generate_trial(task)
+            _, instructions, _, _ = generate_trial(env, task)
             ins.append(instructions)
             ts.append(task)
 
     return ts, ins
 
-
-def create_tasks(track_tf, task_params, **kwargs):
+def create_tasks(env, track_tf, **kwargs):
     total_and = 0
     total_or = 0
     total_not = 0
@@ -80,10 +64,11 @@ def create_tasks(track_tf, task_params, **kwargs):
     while len(tasks) < kwargs['n_tasks']:
         print(len(tasks))
         print(kwargs['n_tasks'])
-        task = create_task(task_params)
+        task = create_task(env)
+        print('task.n_frames: ', task.n_frames)
         if task.n_frames <= kwargs['max_len']:
             print('under max len')
-            instructions, answer, compo_info = generate_trial(task)
+            imgs, instructions, answer, info_dict = generate_trial(env, task)
             n_and = instructions.count(' and ')
             n_or = instructions.count(' or ')
             if kwargs['min_bool_ops'] <= (n_and + n_or) <= kwargs['max_bool_ops']:
@@ -99,8 +84,7 @@ def create_tasks(track_tf, task_params, **kwargs):
                             total_not += instructions.count(' not ')
                             task_ins.append(instructions)
                             store_task(task, kwargs['tasks_dir'] + '/' + str(len(tasks)) + '.json')
-                            compo_info.write_trial(
-                                os.path.join(kwargs['trials_dir'], 'trial' + str(len(tasks))), 224, kwargs['train'])
+                            read_write.write_trial(imgs, info_dict, os.path.join(kwargs['trials_dir'], 'trial' + str(len(tasks))))
                             tasks.append(task)
                 else:
                     if not duplicate_check(task_ins, instructions):
@@ -109,13 +93,11 @@ def create_tasks(track_tf, task_params, **kwargs):
                         total_or += n_or
                         total_not += instructions.count(' not ')
                         task_ins.append(instructions)
-                        store_task(task, kwargs['tasks_dir'] + '/' + str(len(tasks)) + '.json')
-                        compo_info.write_trial(os.path.join(kwargs['trials_dir'], 'trial' + str(len(tasks))),
-                                               224, kwargs['train'])
+                        store_task(tasks, kwargs['tasks_dir'] + '/' + str(len(tasks)) + '.json')
+                        read_write.write_trial(imgs, info_dict, os.path.join(kwargs['trials_dir'], 'trial' + str(len(tasks))))
                         tasks.append(task)
 
     return tasks, task_ins
-
 
 def delete_last_n_files(directory, n):
     files = os.listdir(directory)
@@ -129,7 +111,6 @@ def delete_last_n_files(directory, n):
         else:
             shutil.rmtree(file_path)
 
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='benchmark')
     parser.add_argument('--train', action='store_true', default=False)
@@ -137,15 +118,9 @@ if __name__ == '__main__':
     parser.add_argument('--tasks_dir', type=str, default='benchmarking/temp/low_tasks_all')
     parser.add_argument('--trials_dir', type=str, default='benchmarking/temp/low_trials_all')
     parser.add_argument('--config_path', type=str, default='benchmarking/configs/low_complexity.json')
-    parser.add_argument('--max_memory', type=int, default=5)
     parser.add_argument('--max_len', type=int, default=6)
     parser.add_argument('--n_trials', type=int, default=1000)
     parser.add_argument('--n_tasks', type=int, default=1000)
-    parser.add_argument('--max_depth', type=int, default=5)
-    parser.add_argument('--max_op', type=int, default=15)
-    parser.add_argument('--max_switch', type=int, default=0)
-    parser.add_argument('--switch_threshold', type=float, default=1.0)
-    parser.add_argument('--select_limit', action='store_true', default=False)
     parser.add_argument('--features', type=str, default='all')
     parser.add_argument('--min_bool_ops', type=int, default=1)
     parser.add_argument('--max_bool_ops', type=int, default=1)
@@ -153,51 +128,32 @@ if __name__ == '__main__':
     parser.add_argument('--non_bool_actions', action='store_true', default=False)
     args = parser.parse_args()
 
+    print(os.listdir(args.stim_dir))
+
     print(args)
 
     # Remake task directory
     if os.path.exists(args.tasks_dir):
         shutil.rmtree(args.tasks_dir)
     os.makedirs(args.tasks_dir)
+
     # Remake trials directory
     if os.path.exists(args.trials_dir):
         shutil.rmtree(args.trials_dir)
     os.makedirs(args.trials_dir)
 
-    task_params = {
-        'max_op': args.max_op,
-        'max_depth': args.max_memory,
-        'max_switch': args.max_switch,
-        'select_limit': args.select_limit,
-        'switch_threshold': args.switch_threshold
-    }
+    config = json.load(open(args.config_path))
 
     env = make(
         env_id='ShapeNet',
-        dataset_fp=stim_dir
+        dataset_fp=args.stim_dir
     )
-    print(env.env_spec.auto_gen_config)
-
-
-    with open(args.config_path) as f:
-        config = json.load(f)
-        op_dict = config['op_dict']
-        root_ops = config['root_ops']
-        boolean_ops = config['boolean_ops']
-
-        # For all features
-        # op_dict['IsSame']['sample_dist'] = [4 / 15, 4 / 15, 4 / 15, 1 / 5]
-        # op_dict['NotSame']['sample_dist'] = [4 / 15, 4 / 15, 4 / 15, 1 / 5]
-
-        # For location or category features only
-        op_dict['IsSame']['sample_dist'] = [0.9, 0.1]
-        op_dict['NotSame']['sample_dist'] = [0.9, 0.1]
-
-        auto_task.root_ops = root_ops
-        auto_task.boolean_ops = boolean_ops
-        auto_task.op_dict = defaultdict(dict, **op_dict)
-        auto_task.op_depth_limit = {k: v['min_depth'] for k, v in auto_task.op_dict.items()}
-        auto_task.op_operators_limit = {k: v['min_op'] for k, v in auto_task.op_dict.items()}
+    env.init_env_spec(
+        max_delay=0,
+        delay_prob=0.5,
+        add_fixation_cue=False,
+        auto_gen_config=config,
+        )
 
     # Set balance tracking dictionary
     # CHANGE DICTIONARIES TO MATCH FEATURE LABELS OF STIMULUS SET
@@ -228,7 +184,7 @@ if __name__ == '__main__':
     print(track_tf)
     print(args.n_trials)
     print(n_trials)
-    print('total:', len(create_tasks(track_tf, task_params, **vars(args))[0]))
+    print('total:', len(create_tasks(env, track_tf, **vars(args))[0]))
 
     if args.non_bool_actions:
         number_of_files_to_delete = args.n_trials - n_trials

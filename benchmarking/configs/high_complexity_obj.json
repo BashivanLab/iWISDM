@@ -75,5 +75,10 @@
     "root_ops": ["IsSame", "And", "Or", "NotSame"],
     "boolean_ops": ["IsSame", "And", "Or", "NotSame"],
     "leaf_op": ["Select"],
-    "mid_op": ["Switch"]
+    "mid_op": ["Switch"],
+    "max_op": 15,
+    "max_depth": 8,
+    "max_switch": 1,
+    "switch_threshold": 1,
+    "select_limit": false
 }
