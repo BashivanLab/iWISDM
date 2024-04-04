@@ -210,7 +210,7 @@ class SNEnvSpec(EnvSpec):
         @return: list of n 'lastk' values
         """
         whens = list()
-        i, count, n_delays = 1, 0, 0
+        i, count, n_delays = 0, 0, 0
         if existing_whens:
             max_k = compare_when(existing_whens)
             n_delays += len(find_delays(existing_whens))
