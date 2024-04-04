@@ -241,7 +241,7 @@ class SNTaskGenerator(TaskGenerator):
                 select_op = False
 
             parent = op_count
-            if root_op in ['IsSame', 'Or', 'NotSame']:
+            if root_op in ['IsSame', 'NotSame']:
                 if all(op == 'CONST' for op in children):
                     # make sure we are not comparing two constants in IsSame
                     downstream = self.op_dict[root_op]['downstream'].copy()

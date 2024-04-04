@@ -378,11 +378,23 @@ class Env(object):
     stim_data: StimData = None
 
     @staticmethod
-    def init_stim_data(dataset_fp: str, *args):
+    def init_stim_data(dataset_fp: str, *args) -> StimData:
+        """
+        initialize the StimData for a specific environment
+        @param dataset_fp:
+        @param args:
+        @return:
+        """
         raise NotImplementedError
 
     @staticmethod
-    def init_env_spec(self, *args):
+    def init_env_spec(*args):
+        raise NotImplementedError
+
+    def set_stim_data(self, stim_data: StimData):
+        raise NotImplementedError
+
+    def set_env_spec(self, env_spec: EnvSpec):
         raise NotImplementedError
 
     def generate_tasks(self, n: int = 1, *args) -> List[Tuple[GRAPH_TUPLE, TASK]]:

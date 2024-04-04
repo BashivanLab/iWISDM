@@ -24,6 +24,7 @@ class ShapeNetEnv(Env):
     def __init__(self, stim_data: SNStimData, env_spec: SNEnvSpec):
         super().__init__()
         self.base_classes = [sg.SNAttribute, sg.SNStimulus, sg.ObjectSet, tg.SNTask, tg.SNOperator]
+        self.constants = env_reg.DATA
 
         self.stim_data = stim_data
         self.train_data = stim_data.train_data
@@ -32,7 +33,6 @@ class ShapeNetEnv(Env):
 
         self.env_spec = env_spec
         self.task_gen_config = env_spec.auto_gen_config
-        self.constants = env_reg.DATA
         self.task_gen = atg.SNTaskGenerator(env_spec)
         self.reset_env()
 
@@ -48,6 +48,21 @@ class ShapeNetEnv(Env):
     def init_env_spec(**kwargs):
         env_spec = SNEnvSpec(**kwargs)
         return env_spec
+
+    def set_env_spec(self, env_spec: SNEnvSpec):
+        self.env_spec = env_spec
+        self.task_gen_config = env_spec.auto_gen_config
+        self.task_gen = atg.SNTaskGenerator(env_spec)
+        self.reset_env()
+        return
+
+    def set_stim_data(self, stim_data: SNStimData):
+        self.stim_data = stim_data
+        self.train_data = stim_data.train_data
+        self.valid_data = stim_data.valid_data
+        self.test_data = stim_data.test_data
+        self.reset_env()
+        return
 
     def generate_tasks(self, n: int = 1, **kwargs) -> List[Tuple[GRAPH_TUPLE, TASK]]:
         self.reset_env()
