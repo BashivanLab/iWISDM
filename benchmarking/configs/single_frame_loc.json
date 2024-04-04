@@ -3,8 +3,8 @@
         "Select":
             {
                 "n_downstream": 4,
-                "downstream": ["GetLoc"],
-                "same_children_op": true,
+                "downstream": ["GetLoc", "GetCategory", "GetObject", null],
+                "same_children_op": false,
                 "min_depth": 1,
                 "min_op": 1
             },
@@ -32,27 +32,54 @@
         "IsSame":
             {
                 "n_downstream": 2,
-                "downstream": ["GetLoc"],
-                "same_children_op": false,
+                "downstream": ["GetLoc", "CONST"],
+                "sample_dist": [0.00000000001, 0.99999999999], 
+                "same_children_op": true,
                 "min_depth": 3,
                 "min_op": 7
             },
         "NotSame":
             {
                 "n_downstream": 2,
-                "downstream": ["GetLoc"],
+                "downstream": ["GetLoc", "CONST"],
+                "sample_dist": [0.00000000001, 0.99999999999], 
                 "same_children_op": false,
                 "min_depth": 3,
                 "min_op": 7
+            },
+        "And":
+            {
+                "n_downstream": 2,
+                "downstream": ["IsSame", "NotSame", "And", "Or"],
+                "same_children_op": false,
+                "min_depth": 4,
+                "min_op": 15
+            },
+        "Or":
+            {
+                "n_downstream": 2,
+                "downstream": ["IsSame", "NotSame", "And", "Or"],
+                "same_children_op": false,
+                "min_depth": 4,
+                "min_op": 15
+            },
+        "CONST":
+            {
+                "n_downstream": 0,
+                "downstream": [],
+                "sample_dist": [],
+                "same_children_op": false,
+                "min_depth": 1,
+                "min_op": 1
             }
     },
     "root_ops": ["IsSame", "NotSame"],
-    "boolean_ops": ["IsSame", "NotSame"],
+    "boolean_ops": ["IsSame", "And", "Or", "NotSame"],
     "leaf_op": ["Select"],
     "mid_op": ["Switch"],
     "max_op": 15,
     "max_depth": 3,
     "max_switch": 0,
     "switch_threshold": 0,
-    "select_limit": false
-} 
+    "select_limit": true
+}

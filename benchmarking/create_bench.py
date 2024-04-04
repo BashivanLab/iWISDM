@@ -47,7 +47,7 @@ def load_stored_tasks(fp):
 
     return ts, ins
 
-def create_tasks(env, track_tf, **kwargs):
+def create_tasks(env, track_tf, n_trials, **kwargs):
     total_and = 0
     total_or = 0
     total_not = 0
@@ -67,7 +67,7 @@ def create_tasks(env, track_tf, **kwargs):
         task = create_task(env)
         print('task.n_frames: ', task.n_frames)
         if task.n_frames <= kwargs['max_len']:
-            print('under max len')
+            print('under max_len')
             imgs, instructions, answer, info_dict = generate_trial(env, task)
             n_and = instructions.count(' and ')
             n_or = instructions.count(' or ')
@@ -84,7 +84,14 @@ def create_tasks(env, track_tf, **kwargs):
                             total_not += instructions.count(' not ')
                             task_ins.append(instructions)
                             store_task(task, kwargs['tasks_dir'] + '/' + str(len(tasks)) + '.json')
-                            read_write.write_trial(imgs, info_dict, os.path.join(kwargs['trials_dir'], 'trial' + str(len(tasks))))
+                            
+                            info_dicts = []
+                            i = n_trials
+                            while i > 0:
+                                imgs, _, _, info_dict = generate_trial(env, task)
+                                if info_dict not in info_dicts:
+                                    read_write.write_trial(imgs, info_dict, os.path.join(kwargs['trials_dir'], 'trial' + str(len(tasks) + n_trials - i)))
+                                    info_dicts.append(info_dict)
                             tasks.append(task)
                 else:
                     if not duplicate_check(task_ins, instructions):
@@ -143,17 +150,18 @@ if __name__ == '__main__':
     os.makedirs(args.trials_dir)
 
     config = json.load(open(args.config_path))
-
+    
     env = make(
         env_id='ShapeNet',
         dataset_fp=args.stim_dir
     )
-    env.init_env_spec(
+    env_spec = env.init_env_spec(
         max_delay=0,
-        delay_prob=0.5,
+        delay_prob=0,
         add_fixation_cue=False,
         auto_gen_config=config,
-        )
+    )
+    env.set_env_spec(env_spec)
 
     # Set balance tracking dictionary
     # CHANGE DICTIONARIES TO MATCH FEATURE LABELS OF STIMULUS SET
@@ -184,7 +192,10 @@ if __name__ == '__main__':
     print(track_tf)
     print(args.n_trials)
     print(n_trials)
-    print('total:', len(create_tasks(env, track_tf, **vars(args))[0]))
+    if args.max_len == 1:
+        print('total:', len(create_tasks(env, track_tf, **vars(args))[0]))
+    else:
+        print('total:', len(create_tasks(env, track_tf, **vars(args))[0]))
 
     if args.non_bool_actions:
         number_of_files_to_delete = args.n_trials - n_trials
