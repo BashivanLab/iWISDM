@@ -252,12 +252,12 @@ class SNStimData(StimData):
         self.ALLOBJECTS = {c: list(self.ATTR_DICT[c].keys()) for c in self.ATTR_DICT}
         self.ALLVIEWANGLES = self.ATTR_DICT
 
-    def get_object(self, obj: Stimulus, obj_size: Tuple[int, int], mode: str = 'train') -> NDArray:
+    def get_object(self, obj: Stimulus, obj_size: Tuple[int, int], mode: str = None) -> NDArray:
         """
         Get the image array of the object from the provided data directory
         @param obj: a stimulus instance with attribute values
         @param obj_size: the size of the stimulus on the canvas
-        @param mode: the split, train, test, or validation
+        @param mode: the split, [train, test, validation]
         @return: image array, RGB format
         """
         obj_pd: pd.DataFrame = self.df.loc[(self.df['ctg_mod'] == obj.category) &
@@ -267,15 +267,20 @@ class SNStimData(StimData):
             raise ValueError(f'ShapeNet object with '
                              f'category {obj.category}, identity {obj.object}, view angle {obj.view_angle} not found')
 
-        if mode == 'train':
-            image_path = self.train_image_path
-        elif mode == 'valid':
-            image_path = self.valid_image_path
-        elif mode == 'test':
-            image_path = self.test_image_path
+        if mode:
+            if mode == 'train':
+                image_path = self.train_image_path
+            elif mode == 'valid':
+                image_path = self.valid_image_path
+            elif mode == 'test':
+                image_path = self.test_image_path
+            else:
+                raise ValueError(f'Invalid mode {mode}, only [train, valid, test]')
         else:
-            raise ValueError(f'Invalid mode {mode}, only [train, valid, test]')
-
+            for split, path in self.splits.items():
+                if path:
+                    image_path = path
+                    break
         obj_ref = int(obj_pd.iloc[0]['ref'])
         obj_path = os.path.join(image_path, f'{obj_ref}/image.png')
 

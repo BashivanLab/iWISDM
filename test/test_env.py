@@ -17,7 +17,7 @@ class MyTestCase(unittest.TestCase):
         for t in tasks:
             _, (_, temporal_task) = t
             for i in range(100):
-                trials = env.generate_trials(tasks=[temporal_task], mode='valid')
+                trials = env.generate_trials(tasks=[temporal_task])
                 imgs, _, info_dict = trials[0]
                 read_write.write_trial(imgs, info_dict, f'output/trial_{i}')
         # TODO: stimuli sampled from dataset splits, have 3 separate df files?
@@ -208,14 +208,14 @@ class MyTestCase(unittest.TestCase):
         for t in tasks:
             _, (_, temporal_task) = t
             for i in range(100):
-                trials = env_1.generate_trials(tasks=[temporal_task], mode='valid')
+                trials = env_1.generate_trials(tasks=[temporal_task])
                 imgs, _, info_dict = trials[0]
                 read_write.write_trial(imgs, info_dict, f'output/trial_{i}')
         tasks = env_2.generate_tasks(100)
         for t in tasks:
             _, (_, temporal_task) = t
             for i in range(100):
-                trials = env_2.generate_trials(tasks=[temporal_task], mode='valid')
+                trials = env_2.generate_trials(tasks=[temporal_task])
                 imgs, _, info_dict = trials[0]
                 read_write.write_trial(imgs, info_dict, f'output/trial_{i}')
 
@@ -324,7 +324,7 @@ class MyTestCase(unittest.TestCase):
                 shutil.rmtree(task_dir)
             os.makedirs(task_dir)
             for i in range(100):
-                trials = env_1.generate_trials(tasks=[temporal_task], mode='valid')
+                trials = env_1.generate_trials(tasks=[temporal_task])
                 imgs, _, info_dict = trials[0]
                 read_write.write_trial(imgs, info_dict, f'{task_dir}/trial_{i}')
 

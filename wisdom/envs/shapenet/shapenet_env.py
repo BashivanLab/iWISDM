@@ -79,12 +79,17 @@ class ShapeNetEnv(Env):
     def generate_trials(
             self,
             tasks: Iterable[tg.TemporalTask] = None,
-            mode: str = 'train',
+            mode: str = None,
             task_objsets: Iterable[sg.ObjectSet] = None,
     ) -> List[Tuple[List[np.ndarray], List[Dict], Dict]]:
         # TODO: stimuli sampled from dataset splits, have 3 separate df files?
         #  self.stim_data.train = SNStimData(), etc
         self.reset_env(None)
+        if mode:
+            stim_data = getattr(self, f"{mode}_data")
+        else:
+            stim_data = self.stim_data
+
         if tasks is None:
             tasks = self.cached_tasks
 
@@ -100,7 +105,7 @@ class ShapeNetEnv(Env):
             imgs, per_task_info, compo_info_dict = compo_info.generate_trial(
                 self.env_spec.canvas_size,
                 self.env_spec.add_fixation_cue,
-                mode
+                stim_data
             )
             trials.append((imgs, per_task_info, compo_info_dict))
         return trials

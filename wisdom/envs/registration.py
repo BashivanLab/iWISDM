@@ -8,6 +8,7 @@ from typing import Tuple, Iterable, Dict
 from collections import OrderedDict
 
 import numpy as np
+from numpy.typing import NDArray
 import pandas as pd
 
 
@@ -99,9 +100,10 @@ class StimData:
         for split in splits.keys():
             dirs = [fname for fname in glob.glob(f'{self.dir_path}/**/{split}', recursive=True)]
             if dirs:
-                assert len(dirs) == 1
+                assert len(dirs) == 1, f'found more than 1 folder for {split} split'
                 if os.path.isdir(dirs[0]):
                     splits[split] = dirs[0]
+        self.splits = splits
         self.train_image_path = splits['train']
         self.valid_image_path = splits['validation']
         self.test_image_path = splits['test']
@@ -110,7 +112,7 @@ class StimData:
         self.valid_data = None
         self.test_data = None
 
-    def get_object(self, obj, obj_size):
+    def get_object(self, obj, obj_size) -> NDArray:
         raise NotImplementedError
 
 
