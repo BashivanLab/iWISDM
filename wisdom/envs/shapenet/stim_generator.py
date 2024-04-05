@@ -499,55 +499,6 @@ class Object(SNStimulus):
         new_obj.deletable = self.deletable
         return new_obj
 
-    def render_static_obj(self, canvas, obj, img_size, mode):
-        """Render a static object.
-
-        Args:
-          canvas: numpy array of type int8 (img_size, img_size, 3). Modified in place.
-              Importantly, opencv default is (B, G, R) instead of (R,G,B)
-          obj: StaticObject instance
-          img_size: int, image size.
-          @param mode:
-        """
-        # Fixed specifications, see Space.sample()
-        # when sampling, the most top-left position is (0.1, 0.1),
-        # most bottom-right position is (0.9,0.9)
-        # changing scaling requires changing space.sample)
-        radius = int(0.25 * img_size)
-
-        # Note that OpenCV color is (Blue, Green, Red)
-        center = [0, 0]
-        if obj.location[0] < 0.5:
-            center[0] = 56
-        else:
-            center[0] = 168
-        if obj.location[1] < 0.5:
-            center[1] = 56
-        else:
-            center[1] = 168
-        # center = (int(obj.location[0] * img_size), int(obj.location[1] * img_size))
-
-        x_offset, x_end = center[0] - radius, center[0] + radius
-        y_offset, y_end = center[1] - radius, center[1] + radius
-        obj_size = radius * 2
-        shape_net_obj = self.stim_data.get_object(obj, (obj_size, obj_size), mode)
-        assert shape_net_obj.shape[:2] == (x_end - x_offset, y_end - y_offset)
-        canvas[x_offset:x_end, y_offset:y_end] = shape_net_obj
-        return canvas
-
-    def render(self, canvas, img_size, mode):
-        """Render a single object.
-
-        Args:
-          canvas: numpy array of type int8 (img_size, img_size, 3). Modified in place.
-              Importantly, opencv default is (B, G, R) instead of (R,G,B)
-          obj: Object or StaticObject instance, containing object information
-          img_size: int, image size.
-          @param mode: train, val, or test
-        """
-        return self.render_static_obj(canvas, self.to_static()[0], img_size, mode)
-
-
 class ObjectSet(StimuliSet):
     """A collection of ShapeNet objects."""
 

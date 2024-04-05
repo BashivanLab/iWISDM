@@ -8,12 +8,12 @@ import cv2
 import numpy as np
 from numpy.typing import NDArray
 
-from wisdom.core import StimuliSet
+from wisdom.core import StimuliSet, StimData
 
 
 def read_img(fp: str, obj_size: Tuple[int, int], color_format='RGB'):
     image = cv2.imread(fp)
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB) if color_format == 'RGB' else image
+    # image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB) if color_format == 'RGB' else image
     object_arr = cv2.resize(image, obj_size)
     return object_arr
 
@@ -36,13 +36,56 @@ def add_cross(canvas: NDArray, cue_size: float = 0.05):
     return canvas
 
 
-def render_stimset(stim_set: Union[List[StimuliSet], StimuliSet], canvas_size=224, mode: str = 'train'):
+def render_stim(canvas, obj, img_size, stim_data: StimData):
+    """Render a static object.
+
+    Args:
+        canvas: numpy array of type int8 (img_size, img_size, 3). Modified in place.
+          Importantly, opencv default is (B, G, R) instead of (R,G,B)
+        obj: StaticObject instance
+        img_size: int, image size.
+        stim_data:
+        mode:
+    Returns:
+        canvas: the modified frame, numpy array of type int8 (img_size, img_size, 3)
+    """
+    # Fixed specifications, see Space.sample()
+    # when sampling, use a 1x1 grid, the most top-left position is (0.1, 0.1),
+    # most bottom-right position is (0.9,0.9)
+    # changing scaling requires changing space.sample)
+    radius = int(0.25 * img_size)
+
+    # Note that OpenCV color is (Blue, Green, Red)
+    # TODO: change this from manual to grid_size
+    center = [0, 0]
+    if obj.location[0] < 0.5:
+        center[0] = 56
+    else:
+        center[0] = 168
+    if obj.location[1] < 0.5:
+        center[1] = 56
+    else:
+        center[1] = 168
+    # center = (int(obj.location[0] * img_size), int(obj.location[1] * img_size))
+
+    x_offset, x_end = center[0] - radius, center[0] + radius
+    y_offset, y_end = center[1] - radius, center[1] + radius
+    obj_size = radius * 2
+    shape_net_obj = stim_data.get_object(obj, (obj_size, obj_size))
+    assert shape_net_obj.shape[:2] == (y_end - y_offset, x_end - x_offset)
+
+    # note that openCV has x and y axis reversed
+    canvas[y_offset:y_end, x_offset:x_end] = shape_net_obj
+    return canvas
+
+
+def render_stimset(stim_set: Union[List[StimuliSet], StimuliSet], canvas_size=224, stim_data: StimData = None):
     """
     Render a movie by epoch.
 
     @param stim_set: a StimuliSet instance or a list of them
     @param canvas_size: overall size of the rendered image
-    @param mode: dataset split
+    @param stim_data: the stimuli dataset
     @return: numpy array (n_time, img_size, img_size, 3)
     """
     if not isinstance(stim_set, list):
@@ -62,7 +105,7 @@ def render_stimset(stim_set: Union[List[StimuliSet], StimuliSet], canvas_size=22
 
             subset = s.select_now(epoch_now)
             for obj in subset:
-                obj.render(canvas, canvas_size, mode)
+                canvas = render_stim(canvas, obj.to_static()[0], canvas_size, stim_data)
             i_frame += 1
     return movie
 
