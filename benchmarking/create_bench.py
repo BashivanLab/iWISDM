@@ -20,7 +20,6 @@ def create_task(env):
 def generate_trial(env, task):
     trials = env.generate_trials(tasks=[task], mode='valid')
     imgs, _, info_dict = trials[0]
-    print(info_dict)
     instructions = info_dict['instruction']
     answer = info_dict['answers']
 
@@ -35,19 +34,19 @@ def duplicate_check(current_instructions, instruction):
     return False
 
 def load_stored_tasks(fp):
+    print('fp: ', os.listdir(fp))
     ts = []
     ins = []
-    for task_fp in os.listdir(fp):
-        with open(os.path.join(fp, task_fp), 'r') as f:            
-            task = tg.read_task(f)
+    for task_fp in os.listdir(fp):       
+        task = tg.read_task(os.path.join(fp, task_fp))
 
-            _, instructions, _, _ = generate_trial(env, task)
-            ins.append(instructions)
-            ts.append(task)
+        _, instructions, _, _ = generate_trial(env, task)
+        ins.append(instructions)
+        ts.append(task)
 
     return ts, ins
 
-def create_tasks(env, track_tf, n_trials, **kwargs):
+def create_tasks(env, track_tf, **kwargs):
     total_and = 0
     total_or = 0
     total_not = 0
@@ -86,12 +85,14 @@ def create_tasks(env, track_tf, n_trials, **kwargs):
                             store_task(task, kwargs['tasks_dir'] + '/' + str(len(tasks)) + '.json')
                             
                             info_dicts = []
-                            i = n_trials
+                            t_per_t = kwargs['n_trials']//kwargs['n_tasks']
+                            i = t_per_t
                             while i > 0:
                                 imgs, _, _, info_dict = generate_trial(env, task)
                                 if info_dict not in info_dicts:
-                                    read_write.write_trial(imgs, info_dict, os.path.join(kwargs['trials_dir'], 'trial' + str(len(tasks) + n_trials - i)))
+                                    read_write.write_trial(imgs, info_dict, os.path.join(kwargs['trials_dir'], 'trial' + str(len(tasks)*t_per_t + t_per_t - i)))
                                     info_dicts.append(info_dict)
+                                    i -= 1
                             tasks.append(task)
                 else:
                     if not duplicate_check(task_ins, instructions):
@@ -101,7 +102,15 @@ def create_tasks(env, track_tf, n_trials, **kwargs):
                         total_not += instructions.count(' not ')
                         task_ins.append(instructions)
                         store_task(tasks, kwargs['tasks_dir'] + '/' + str(len(tasks)) + '.json')
-                        read_write.write_trial(imgs, info_dict, os.path.join(kwargs['trials_dir'], 'trial' + str(len(tasks))))
+                        info_dicts = []
+                        t_per_t = kwargs['n_trials']//kwargs['n_tasks']
+                        i = t_per_t
+                        while i > 0:
+                            imgs, _, _, info_dict = generate_trial(env, task)
+                            if info_dict not in info_dicts:
+                                read_write.write_trial(imgs, info_dict, os.path.join(kwargs['trials_dir'], 'trial' + str(len(tasks)*t_per_t + t_per_t - i)))
+                                info_dicts.append(info_dict)
+                                i -= 1
                         tasks.append(task)
 
     return tasks, task_ins
@@ -192,10 +201,8 @@ if __name__ == '__main__':
     print(track_tf)
     print(args.n_trials)
     print(n_trials)
-    if args.max_len == 1:
-        print('total:', len(create_tasks(env, track_tf, **vars(args))[0]))
-    else:
-        print('total:', len(create_tasks(env, track_tf, **vars(args))[0]))
+    print('total:', len(create_tasks(env, track_tf, **vars(args))[0]))
+    print('total:', len(create_tasks(env, track_tf, **vars(args))[0]))
 
     if args.non_bool_actions:
         number_of_files_to_delete = args.n_trials - n_trials
