@@ -18,7 +18,7 @@ def create_task(env):
     return task
 
 def generate_trial(env, task):
-    trials = env.generate_trials(tasks=[task], mode='valid')
+    trials = env.generate_trials(tasks=[task])
     imgs, _, info_dict = trials[0]
     instructions = info_dict['instruction']
     answer = info_dict['answers']
@@ -201,7 +201,6 @@ if __name__ == '__main__':
     print(track_tf)
     print(args.n_trials)
     print(n_trials)
-    print('total:', len(create_tasks(env, track_tf, **vars(args))[0]))
     print('total:', len(create_tasks(env, track_tf, **vars(args))[0]))
 
     if args.non_bool_actions:
