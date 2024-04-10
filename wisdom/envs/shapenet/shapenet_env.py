@@ -79,11 +79,10 @@ class ShapeNetEnv(Env):
         # TODO: stimuli sampled from dataset splits, have 3 separate df files?
         #  self.stim_data.train = SNStimData(), etc
         self.reset_env(mode)
-        if mode:
-            stim_data = getattr(self, f"{mode}_data")
+        if mode and self.stim_data.splits[mode]:
+            stim_data = self.stim_data.splits[mode]['data']
         else:
             stim_data = self.stim_data
-
         if tasks is None:
             tasks = self.cached_tasks
 
