@@ -17,8 +17,8 @@ def create_task(env):
     _, (_, task) = env.generate_tasks()[0]
     return task
 
-def generate_trial(env, task):
-    trials = env.generate_trials(tasks=[task])
+def generate_trial(env, task, mode):
+    trials = env.generate_trials(tasks=[task], mode=mode)
     imgs, _, info_dict = trials[0]
     instructions = info_dict['instruction']
     answer = info_dict['answers']
@@ -67,7 +67,7 @@ def create_tasks(env, track_tf, **kwargs):
         print('task.n_frames: ', task.n_frames)
         if task.n_frames <= kwargs['max_len']:
             print('under max_len')
-            imgs, instructions, answer, info_dict = generate_trial(env, task)
+            imgs, instructions, answer, info_dict = generate_trial(env, task, mode='train' if kwargs['train'] else 'val')
             n_and = instructions.count(' and ')
             n_or = instructions.count(' or ')
             if kwargs['min_bool_ops'] <= (n_and + n_or) <= kwargs['max_bool_ops']:
@@ -88,7 +88,7 @@ def create_tasks(env, track_tf, **kwargs):
                             t_per_t = kwargs['n_trials']//kwargs['n_tasks']
                             i = t_per_t
                             while i > 0:
-                                imgs, _, _, info_dict = generate_trial(env, task)
+                                imgs, _, _, info_dict = generate_trial(env, task, mode='train' if kwargs['train'] else 'val')
                                 if info_dict not in info_dicts:
                                     read_write.write_trial(imgs, info_dict, os.path.join(kwargs['trials_dir'], 'trial' + str(len(tasks)*t_per_t + t_per_t - i)))
                                     info_dicts.append(info_dict)
@@ -106,7 +106,7 @@ def create_tasks(env, track_tf, **kwargs):
                         t_per_t = kwargs['n_trials']//kwargs['n_tasks']
                         i = t_per_t
                         while i > 0:
-                            imgs, _, _, info_dict = generate_trial(env, task)
+                            imgs, _, _, info_dict = generate_trial(env, task, mode='train' if kwargs['train'] else 'val')
                             if info_dict not in info_dicts:
                                 read_write.write_trial(imgs, info_dict, os.path.join(kwargs['trials_dir'], 'trial' + str(len(tasks)*t_per_t + t_per_t - i)))
                                 info_dicts.append(info_dict)
@@ -130,7 +130,7 @@ def delete_last_n_files(directory, n):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='benchmark')
     parser.add_argument('--train', action='store_true', default=False)
-    parser.add_argument('--stim_dir', type=str, default='data/shapenet_handpicked_val')
+    parser.add_argument('--stim_dir', type=str, default='data/shapenet_handpicked')
     parser.add_argument('--tasks_dir', type=str, default='benchmarking/temp/low_tasks_all')
     parser.add_argument('--trials_dir', type=str, default='benchmarking/temp/low_trials_all')
     parser.add_argument('--config_path', type=str, default='benchmarking/configs/low_complexity.json')
@@ -165,9 +165,9 @@ if __name__ == '__main__':
         dataset_fp=args.stim_dir
     )
     env_spec = env.init_env_spec(
-        max_delay=0,
-        delay_prob=0,
-        add_fixation_cue=False,
+        max_delay=5,
+        delay_prob=0.5,
+        add_fixation_cue=True,
         auto_gen_config=config,
     )
     env.set_env_spec(env_spec)
