@@ -138,9 +138,10 @@ class StimData:
                 self.img_folder_path = img_folder_path
             else:
                 for k, v in self.splits.items():
-                    if v['path']:
-                        self.img_folder_path = v['path']
-                        break
+                    if 'path' in v:
+                        if v['path']:
+                            self.img_folder_path = v['path']
+                            break
                 if not self.img_folder_path:
                     raise ValueError('No image folder path found')
 

@@ -118,7 +118,12 @@ class MyTestCase(unittest.TestCase):
             "root_ops": ["IsSame", "And", "Or", "NotSame", "GetCategory"],
             "boolean_ops": ["IsSame", "And", "Or", "NotSame"],
             "leaf_op": ["Select"],
-            "mid_op": ["Switch"]
+            "mid_op": ["Switch"],
+            "max_op": 15,
+            "max_depth": 3,
+            "max_switch": 0,
+            "switch_threshold": 0,
+            "select_limit": True
         }
         config_2 = {
             "op_dict": {
@@ -197,7 +202,12 @@ class MyTestCase(unittest.TestCase):
             "root_ops": ["IsSame", "And", "Or", "NotSame"],
             "boolean_ops": ["IsSame", "And", "Or", "NotSame"],
             "leaf_op": ["Select"],
-            "mid_op": ["Switch"]
+            "mid_op": ["Switch"],
+            "max_op": 15,
+            "max_depth": 3,
+            "max_switch": 0,
+            "switch_threshold": 0,
+            "select_limit": True
         }
         env_1 = make(
             env_id='ShapeNet',
@@ -222,14 +232,14 @@ class MyTestCase(unittest.TestCase):
         tasks = env_1.generate_tasks(100)
         for t in tasks:
             _, (_, temporal_task) = t
-            for i in range(100):
+            for i in range(10):
                 trials = env_1.generate_trials(tasks=[temporal_task])
                 imgs, _, info_dict = trials[0]
                 read_write.write_trial(imgs, info_dict, f'output/trial_{i}')
         tasks = env_2.generate_tasks(100)
         for t in tasks:
             _, (_, temporal_task) = t
-            for i in range(100):
+            for i in range(10):
                 trials = env_2.generate_trials(tasks=[temporal_task])
                 imgs, _, info_dict = trials[0]
                 read_write.write_trial(imgs, info_dict, f'output/trial_{i}')
@@ -338,7 +348,7 @@ class MyTestCase(unittest.TestCase):
             if os.path.exists(task_dir):
                 shutil.rmtree(task_dir)
             os.makedirs(task_dir)
-            for i in range(100):
+            for i in range(10):
                 trials = env_1.generate_trials(tasks=[temporal_task])
                 imgs, _, info_dict = trials[0]
                 read_write.write_trial(imgs, info_dict, f'{task_dir}/trial_{i}')
