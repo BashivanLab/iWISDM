@@ -73,46 +73,105 @@ class EnvSpec:
 class StimData:
     """
     input:
-        dir_path: file path to the stimuli dataset
+        dir_path: file path to the stimuli dataset. the folder has subdir structure:
+            - dir_path
+                - train
+                    - imgs
+                        *
+                    - train_metadata.{csv/pkl}
+                - val
+                    - imgs
+                    - val.{csv/pkl}
+                - test
+                    - imgs
+                    - test_metadata.{csv/pkl}
+        find_subdir: boolean, if True, find the subdirectories for train, validation, test splits
+        df: pandas dataframe, the metadata for the stimuli dataset
+        img_folder_path: file path to the stimuli images
+        splits: dictionary containing information to the train, validation, test splits
     """
 
-    def __init__(self, dir_path: str = None):
+    def __init__(
+            self,
+            dir_path: str = None,
+            find_subdir: bool = True,
+            df: pd.DataFrame = None,
+            img_folder_path: str = None,
+            splits: Dict = None
+    ):
         self.dir_path = dir_path
-
-        if not os.path.exists(self.dir_path):
-            raise ValueError('Data folder does not exist.')
-        pkls = sorted([fname for fname in glob.glob(f'{dir_path}/**/*.pkl', recursive=True)])
-        csvs = sorted([fname for fname in glob.glob(f'{dir_path}/**/*.csv', recursive=True)])
-        if len(csvs) > 0:
-            self.fp = csvs[0]
-            self.df = pd.read_csv(self.fp)
-        elif len(pkls) > 0:
-            self.fp = pkls[0]
-            self.df: pd.DataFrame = pd.read_pickle(self.fp)
+        self.find_subdir = find_subdir
+        if not find_subdir:
+            assert img_folder_path is not None and df is not None, \
+                'img_folder_path and df must be specified if find_subdir is False'
+            self.img_folder_path = img_folder_path
+            self.df = df
+            self.splits = splits
         else:
-            raise ValueError(f'No dataset meta information found in {dir_path}')
+            self.pkls = sorted([fname for fname in glob.glob(f'{dir_path}/**/*.pkl', recursive=True)])
+            self.csvs = sorted([fname for fname in glob.glob(f'{dir_path}/**/*.csv', recursive=True)])
 
+            if not os.path.exists(self.dir_path):
+                raise ValueError('Data folder does not exist.')
+            if not self.csvs and not self.pkls:
+                raise ValueError(f'No dataset meta information found in {dir_path}')
+
+            if df is not None:
+                self.df = df
+            else:
+                if self.csvs:
+                    fp = self.csvs[0]
+                    self.df = pd.read_csv(fp)
+                elif self.pkls:
+                    fp = self.pkls[0]
+                    self.df: pd.DataFrame = pd.read_pickle(fp)
+                if not self.csvs and not self.pkls:
+                    raise ValueError(f'No dataset meta information found in {dir_path}')
+
+            if splits is not None:
+                self.splits = splits
+            else:
+                self.splits = self.find_dataset_splits()
+
+            self.img_folder_path = None
+            if img_folder_path is not None:
+                self.img_folder_path = img_folder_path
+            else:
+                for k, v in self.splits.items():
+                    if v['path']:
+                        self.img_folder_path = v['path']
+                        break
+                if not self.img_folder_path:
+                    raise ValueError('No image folder path found')
+
+    def find_dataset_splits(self):
+        assert self.find_subdir, 'find_subdir must be True to find dataset splits'
         splits = {
-            'train': '',
-            'validation': '',
-            'test': ''
+            'train': dict(),
+            'val': dict(),
+            'test': dict()
         }
+        no_datafolder = True
         for split in splits.keys():
             dirs = [fname for fname in glob.glob(f'{self.dir_path}/**/{split}', recursive=True)]
             if dirs:
+                no_datafolder = False
                 assert len(dirs) == 1, f'found more than 1 folder for {split} split'
                 if os.path.isdir(dirs[0]):
-                    splits[split] = dirs[0]
-        self.splits = splits
-        self.train_image_path = splits['train']
-        self.valid_image_path = splits['validation']
-        self.test_image_path = splits['test']
+                    splits[split]['path'] = dirs[0]
+            if self.csvs:
+                df_fp = [fp for fp in self.csvs if split in fp.split('/')[-1]]
+                if df_fp:
+                    splits[split]['df'] = pd.read_csv(df_fp[0])
+            elif self.pkls:
+                df_fp = [fp for fp in self.pkls if split in fp.split('/')[-1]]
+                if df_fp:
+                    splits[split]['df'] = pd.read_pickle(df_fp[0])
+        if no_datafolder:
+            raise ValueError(f'No dataset splits found in data folder {self.dir_path}')
+        return splits
 
-        self.train_data = None
-        self.valid_data = None
-        self.test_data = None
-
-    def get_object(self, obj, obj_size) -> NDArray:
+    def get_object(self, obj, obj_size: Tuple[int, int], mode: str) -> NDArray:
         raise NotImplementedError
 
 

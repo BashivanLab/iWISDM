@@ -1,6 +1,8 @@
 import shutil
 import unittest
+
 from wisdom import make
+from wisdom.envs.shapenet import stim_generator as sg
 from wisdom import read_write
 
 import os
@@ -24,6 +26,19 @@ class MyTestCase(unittest.TestCase):
         #  self.stim_data.train = SNStimData(), etc
         env.get_premade_task()
         return
+
+    def test_stim_data(self):
+        env = make(
+            env_id='ShapeNet',
+            dataset_fp='/Users/markbai/Documents/COG_v3_shapenet/data/shapenet_handpicked'
+        )
+        for _ in range(10):
+            stub_obj = sg.Object(when='last0')
+            stub_obj.epoch = [1, 2]
+            stub_obj.change_view_angle(sg.random_attr('view_angle'))
+            train_arr = env.stim_data.get_object(stub_obj.to_static()[0], obj_size=(12, 12), mode='train')
+            val_arr = env.stim_data.get_object(stub_obj.to_static()[0], obj_size=(12, 12), mode='val')
+            self.assertFalse((train_arr == val_arr).all())
 
     def test_configs(self):
         config_1 = {

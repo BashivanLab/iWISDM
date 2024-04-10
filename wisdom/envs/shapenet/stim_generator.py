@@ -499,6 +499,7 @@ class Object(SNStimulus):
         new_obj.deletable = self.deletable
         return new_obj
 
+
 class ObjectSet(StimuliSet):
     """A collection of ShapeNet objects."""
 
@@ -726,8 +727,9 @@ def _get_space_to(x0: float, x1: float, y0: float, y1: float, space_type: str) -
 def random_attr(attr_type: str) -> SNAttribute:
     """
     sample a random attribute
-    @param attr_type: a ShapeNet attribute type
-    @return:
+    @param attr_type: a ShapeNet attribute type,
+    ['category', 'object', 'view_angle', 'location', 'space']
+    @return: a random attribute of the specified type
     """
     if attr_type == 'category':
         tmp = SNCategory(None)

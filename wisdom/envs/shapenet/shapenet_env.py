@@ -27,9 +27,6 @@ class ShapeNetEnv(Env):
         self.constants = env_reg.DATA
 
         self.stim_data = stim_data
-        self.train_data = stim_data.train_data
-        self.valid_data = stim_data.valid_data
-        self.test_data = stim_data.test_data
 
         self.env_spec = env_spec
         self.task_gen_config = env_spec.auto_gen_config
@@ -58,9 +55,6 @@ class ShapeNetEnv(Env):
 
     def set_stim_data(self, stim_data: SNStimData):
         self.stim_data = stim_data
-        self.train_data = stim_data.train_data
-        self.valid_data = stim_data.valid_data
-        self.test_data = stim_data.test_data
         self.reset_env()
         return
 
@@ -84,7 +78,7 @@ class ShapeNetEnv(Env):
     ) -> List[Tuple[List[np.ndarray], List[Dict], Dict]]:
         # TODO: stimuli sampled from dataset splits, have 3 separate df files?
         #  self.stim_data.train = SNStimData(), etc
-        self.reset_env(None)
+        self.reset_env(mode)
         if mode:
             stim_data = getattr(self, f"{mode}_data")
         else:
@@ -121,10 +115,11 @@ class ShapeNetEnv(Env):
         so that when env.generate_tasks(), env.generate_trials() is called,
         the tasks are generated based on self.stim_data and self.env_spec
         """
-        if mode is not None:
-            stim_data = getattr(self, f"{mode}_data")
+        if mode is not None and self.stim_data.splits[mode]:
+            stim_data = self.stim_data.splits[mode]['data']
         else:
             stim_data = self.stim_data
+
         for base_class in self.base_classes:
             base_class.stim_data = stim_data
             base_class.env_spec = self.env_spec

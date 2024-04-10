@@ -244,8 +244,26 @@ class SNEnvSpec(EnvSpec):
 
 
 class SNStimData(StimData):
-    def __init__(self, dir_path=None):
-        super().__init__(dir_path)
+    def __init__(
+            self,
+            dir_path: str = None,
+            find_subdir: bool = True,
+            df: pd.DataFrame = None,
+            img_folder_path: str = None,
+            splits: Dict = None
+    ):
+        super().__init__(dir_path, find_subdir, df, img_folder_path, splits)
+        if self.find_subdir:
+            for k, v in self.splits.items():
+                if v:
+                    assert v['path'] and v['df'] is not None, 'missing path or data for split {k}'
+                    v['data'] = SNStimData(
+                        dir_path=v['path'],
+                        find_subdir=False,
+                        df=v['df'],
+                        img_folder_path=v['path'],
+                        splits=None
+                    )
         self.ATTR_DICT = self.get_all_attributes()
         self.attr_with_mapping = self.get_attr_str_mapping()
         self.ALLCATEGORIES = list(self.ATTR_DICT.keys())
@@ -260,27 +278,20 @@ class SNStimData(StimData):
         @param mode: the split, [train, test, validation]
         @return: image array, RGB format
         """
-        obj_pd: pd.DataFrame = self.df.loc[(self.df['ctg_mod'] == obj.category) &
-                                           (self.df['obj_mod'] == obj.object) &
-                                           (self.df['ang_mod'] == obj.view_angle)]
+        if mode:
+            image_path = self.splits[mode]['path']
+            df = self.splits[mode]['df']
+        else:
+            image_path = self.img_folder_path
+            df = self.df
+
+        obj_pd: pd.DataFrame = df.loc[(df['ctg_mod'] == obj.category) &
+                                      (df['obj_mod'] == obj.object) &
+                                      (df['ang_mod'] == obj.view_angle)]
         if len(obj_pd) <= 0:
             raise ValueError(f'ShapeNet object with '
                              f'category {obj.category}, identity {obj.object}, view angle {obj.view_angle} not found')
 
-        if mode:
-            if mode == 'train':
-                image_path = self.train_image_path
-            elif mode == 'valid':
-                image_path = self.valid_image_path
-            elif mode == 'test':
-                image_path = self.test_image_path
-            else:
-                raise ValueError(f'Invalid mode {mode}, only [train, valid, test]')
-        else:
-            for split, path in self.splits.items():
-                if path:
-                    image_path = path
-                    break
         obj_ref = int(obj_pd.iloc[0]['ref'])
         obj_path = os.path.join(image_path, f'{obj_ref}/image.png')
 
