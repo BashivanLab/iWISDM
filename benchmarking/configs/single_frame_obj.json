@@ -4,7 +4,7 @@
             {
                 "n_downstream": 4,
                 "downstream": [ "GetObject"],
-                "same_children_op": true,
+                "same_children_op": false,
                 "min_depth": 1,
                 "min_op": 1
             },
@@ -33,7 +33,6 @@
             {
                 "n_downstream": 2,
                 "downstream": ["GetObject"],
-
                 "same_children_op": true,
                 "min_depth": 3,
                 "min_op": 7
@@ -42,7 +41,7 @@
             {
                 "n_downstream": 2,
                 "downstream": ["GetObject"],
-                "same_children_op": true,
+                "same_children_op": false,
                 "min_depth": 3,
                 "min_op": 7
             },
@@ -72,13 +71,13 @@
                 "min_op": 1
             }
     },
-    "root_ops": ["IsSame", "And", "Or", "NotSame"],
+    "root_ops": ["IsSame", "NotSame"],
     "boolean_ops": ["IsSame", "And", "Or", "NotSame"],
     "leaf_op": ["Select"],
     "mid_op": ["Switch"],
     "max_op": 15,
-    "max_depth": 5,
+    "max_depth": 3,
     "max_switch": 0,
     "switch_threshold": 0,
-    "select_limit": false
+    "select_limit": true
 }

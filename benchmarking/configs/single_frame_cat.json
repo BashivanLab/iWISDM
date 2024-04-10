@@ -4,7 +4,7 @@
             {
                 "n_downstream": 4,
                 "downstream": [ "GetCategory"],
-                "same_children_op": true,
+                "same_children_op": false,
                 "min_depth": 1,
                 "min_op": 1
             },
@@ -32,8 +32,8 @@
         "IsSame":
             {
                 "n_downstream": 2,
-                "downstream": ["GetCategory",  "CONST"],
-
+                "downstream": ["GetCategory", "CONST"],
+                "sample_dist": [0.00000000001, 0.99999999999], 
                 "same_children_op": true,
                 "min_depth": 3,
                 "min_op": 7
@@ -42,7 +42,8 @@
             {
                 "n_downstream": 2,
                 "downstream": ["GetCategory", "CONST"],
-                "same_children_op": true,
+                "sample_dist": [0.00000000001, 0.99999999999], 
+                "same_children_op": false,
                 "min_depth": 3,
                 "min_op": 7
             },
@@ -72,13 +73,13 @@
                 "min_op": 1
             }
     },
-    "root_ops": ["IsSame", "And", "Or", "NotSame"],
+    "root_ops": ["IsSame", "NotSame"],
     "boolean_ops": ["IsSame", "And", "Or", "NotSame"],
     "leaf_op": ["Select"],
     "mid_op": ["Switch"],
     "max_op": 15,
-    "max_depth": 5,
+    "max_depth": 3,
     "max_switch": 0,
     "switch_threshold": 0,
-    "select_limit": false
+    "select_limit": true
 }
