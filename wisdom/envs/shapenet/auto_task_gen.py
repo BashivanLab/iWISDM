@@ -29,6 +29,7 @@ class SNTaskGenerator(TaskGenerator):
 
     def __init__(self, env_spec: SNEnvSpec):
         super().__init__(env_spec)
+        self.boolean_ops = self.config['boolean_ops']
         self.max_op = self.config['max_op']
         self.max_depth = self.config['max_depth']
         self.select_limit = self.config['select_limit']
@@ -365,7 +366,8 @@ class SNTaskGenerator(TaskGenerator):
                     count=count,
                     max_op=self.max_op,
                     max_depth=self.max_depth,
-                    select_limit=self.select_limit
+                    select_limit=self.select_limit,
+                    root_op=random.choice(self.boolean_ops)
                 )
                 conditional_task, whens = tg.subtask_generation(self.env_spec, conditional, existing_whens=whens)
                 if random.random() < 0.5:  # randomly split the do_if and do_else tasks

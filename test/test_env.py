@@ -1,3 +1,4 @@
+import json
 import shutil
 import unittest
 
@@ -353,6 +354,27 @@ class MyTestCase(unittest.TestCase):
                 imgs, _, info_dict = trials[0]
                 read_write.write_trial(imgs, info_dict, f'{task_dir}/trial_{i}')
 
+    def test_random(self):
+        with open('../benchmarking/configs/high_complexity_all.json', 'r') as f:
+            config = json.load(f)
+        env_1 = make(
+            env_id='ShapeNet',
+            dataset_fp='/Users/markbai/Documents/COG_v3_shapenet/data/shapenet_handpicked'
+        )
+        env_1.set_env_spec(env_1.init_env_spec(
+            max_delay=4,
+            delay_prob=0.5,
+            add_fixation_cue=True,
+            auto_gen_config=config,
+        ))
+        tasks = env_1.generate_tasks(10)
+        for t in tasks:
+            _, (_, temporal_task) = t
+            for i in range(10):
+                trials = env_1.generate_trials(tasks=[temporal_task])
+                imgs, _, info_dict = trials[0]
+                read_write.write_trial(imgs, info_dict, f'output/trial_{i}')
+        return
 
 if __name__ == '__main__':
     unittest.main()

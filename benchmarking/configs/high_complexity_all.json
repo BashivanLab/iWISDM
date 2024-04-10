@@ -4,7 +4,7 @@
             {
                 "n_downstream": 4,
                 "downstream": ["GetLoc", "GetCategory", "GetObject", null],
-                "same_children_op": true,
+                "same_children_op": false,
                 "min_depth": 1,
                 "min_op": 1
             },
