@@ -3,7 +3,7 @@
         "Select":
             {
                 "n_downstream": 4,
-                "downstream": ["GetLoc", "GetCategory", "GetObject"],
+                "downstream": ["GetLoc", "GetCategory", "GetObject", null],
                 "same_children_op": true,
                 "min_depth": 1,
                 "min_op": 1
