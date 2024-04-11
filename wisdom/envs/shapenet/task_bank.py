@@ -10,8 +10,6 @@ import random
 
 from wisdom.envs.shapenet.task_generator import TemporalTask
 from wisdom.envs.shapenet import task_generator as tg
-from wisdom.envs.shapenet import stim_generator as sg
-
 import wisdom.envs.shapenet.stim_generator as sg
 import wisdom.envs.shapenet.registration as env_reg
 

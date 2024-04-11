@@ -10,7 +10,7 @@ from collections import defaultdict
 import networkx as nx
 from wisdom.core import Operator, Attribute, Task
 from wisdom.envs.registration import EnvSpec
-from typing import Tuple, Union, List
+from typing import Tuple, Union
 
 # Tuples of the graph object, the root root_op number, and the number of operators,
 # needed to compose graphs in switch generation

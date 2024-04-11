@@ -2,10 +2,7 @@
 Classes for building temporal composite tasks
 """
 
-import json
-import os
 import re
-import shutil
 from collections import defaultdict
 from functools import partial
 from typing import Tuple, Dict, List, Set

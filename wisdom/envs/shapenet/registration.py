@@ -1,14 +1,13 @@
 import os
 import re
-from typing import Tuple, Dict, Iterable, List
+from typing import Tuple, Dict, List
 import random
-from copy import deepcopy
 
 import pandas as pd
 import numpy as np
 from numpy.typing import NDArray
 
-from wisdom.core import Stimulus, Attribute, Task, Operator
+from wisdom.core import Stimulus
 from wisdom.envs.registration import Constant, EnvSpec, StimData
 from wisdom.utils.read_write import read_img
 
