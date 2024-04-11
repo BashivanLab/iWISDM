@@ -222,9 +222,9 @@ class SNEnvSpec(EnvSpec):
                 i += 1
                 n_delays += 1
             else:
-                whens.append(f'last{i}')
                 count += 1
                 i += 1
+                whens.append(f'last{i}')
         return whens
 
     def check_whens(self, whens: List[str], existing_whens: List[str] = None):

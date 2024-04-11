@@ -367,7 +367,7 @@ class MyTestCase(unittest.TestCase):
             add_fixation_cue=True,
             auto_gen_config=config,
         ))
-        tasks = env_1.generate_tasks(10)
+        tasks = env_1.generate_tasks(100)
         for t in tasks:
             _, (_, temporal_task) = t
             for i in range(10):
@@ -375,6 +375,7 @@ class MyTestCase(unittest.TestCase):
                 imgs, _, info_dict = trials[0]
                 read_write.write_trial(imgs, info_dict, f'output/trial_{i}')
         return
+
 
 if __name__ == '__main__':
     unittest.main()
