@@ -14,7 +14,9 @@ import wisdom.envs.shapenet.task_generator as tg
 
 
 def create_task(env):
+    print('trying to create task')
     _, (_, task) = env.generate_tasks()[0]
+    print('created task')
     return task
 
 def generate_trial(env, task, mode):
@@ -22,16 +24,18 @@ def generate_trial(env, task, mode):
     imgs, _, info_dict = trials[0]
     instructions = info_dict['instruction']
     answer = info_dict['answers']
-
+    print('generated trial')
     return imgs, instructions, answer[-1], info_dict
 
 def store_task(task, fp):
     read_write.write_task(task, fp)
+    print('storing task')
 
 def duplicate_check(current_instructions, instruction):
     if instruction in current_instructions:
         return True
     return False
+    print('dupe check')
 
 def load_stored_tasks(fp):
     print('fp: ', os.listdir(fp))
@@ -43,7 +47,7 @@ def load_stored_tasks(fp):
         _, instructions, _, _ = generate_trial(env, task)
         ins.append(instructions)
         ts.append(task)
-
+    print('loaded tasks')
     return ts, ins
 
 def create_tasks(env, track_tf, **kwargs):
@@ -77,6 +81,7 @@ def create_tasks(env, track_tf, **kwargs):
                     if (track_tf[answer] + 1) / kwargs['n_trials'] <= 1 / len(track_tf):
                         print('balanced')
                         if not duplicate_check(task_ins, instructions):
+                            print('not duplicate')
                             track_tf[answer] += 1
                             total_and += n_and
                             total_or += n_or
@@ -86,8 +91,9 @@ def create_tasks(env, track_tf, **kwargs):
                             
                             info_dicts = []
                             t_per_t = kwargs['n_trials']//kwargs['n_tasks']
-                            i = t_per_t
+                            i = t_per_t 
                             while i > 0:
+                                print('printing: ', i)
                                 imgs, _, _, info_dict = generate_trial(env, task, mode='train' if kwargs['train'] else 'val')
                                 if info_dict not in info_dicts:
                                     read_write.write_trial(imgs, info_dict, os.path.join(kwargs['trials_dir'], 'trial' + str(len(tasks)*t_per_t + t_per_t - i)))
@@ -95,6 +101,7 @@ def create_tasks(env, track_tf, **kwargs):
                                     i -= 1
                             tasks.append(task)
                 else:
+                    print('we went here')
                     if not duplicate_check(task_ins, instructions):
                         track_tf[answer] += 1
                         total_and += n_and
@@ -106,6 +113,7 @@ def create_tasks(env, track_tf, **kwargs):
                         t_per_t = kwargs['n_trials']//kwargs['n_tasks']
                         i = t_per_t
                         while i > 0:
+                            print('printing: ', i)
                             imgs, _, _, info_dict = generate_trial(env, task, mode='train' if kwargs['train'] else 'val')
                             if info_dict not in info_dicts:
                                 read_write.write_trial(imgs, info_dict, os.path.join(kwargs['trials_dir'], 'trial' + str(len(tasks)*t_per_t + t_per_t - i)))
@@ -130,21 +138,19 @@ def delete_last_n_files(directory, n):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='benchmark')
     parser.add_argument('--train', action='store_true', default=False)
-    parser.add_argument('--stim_dir', type=str, default='data/shapenet_handpicked')
-    parser.add_argument('--tasks_dir', type=str, default='benchmarking/temp/low_tasks_all')
-    parser.add_argument('--trials_dir', type=str, default='benchmarking/temp/low_trials_all')
-    parser.add_argument('--config_path', type=str, default='benchmarking/configs/low_complexity.json')
-    parser.add_argument('--max_len', type=int, default=6)
-    parser.add_argument('--n_trials', type=int, default=1000)
-    parser.add_argument('--n_tasks', type=int, default=1000)
+    parser.add_argument('--stim_dir', type=str, default='../data/shapenet_handpicked')
+    parser.add_argument('--tasks_dir', type=str, default='temp/high_tasks_all_nn_training')
+    parser.add_argument('--trials_dir', type=str, default='temp/high_trials_all_nn_training')
+    parser.add_argument('--config_path', type=str, default='configs/high_complexity_all.json')
+    parser.add_argument('--max_len', type=int, default=9)
+    parser.add_argument('--n_trials', type=int, default=5)
+    parser.add_argument('--n_tasks', type=int, default=5)
     parser.add_argument('--features', type=str, default='all')
     parser.add_argument('--min_bool_ops', type=int, default=1)
-    parser.add_argument('--max_bool_ops', type=int, default=1)
-    parser.add_argument('--force_balance', action='store_true', default=False)
-    parser.add_argument('--non_bool_actions', action='store_true', default=False)
+    parser.add_argument('--max_bool_ops', type=int, default=2)
+    parser.add_argument('--force_balance', action='store_true', default=True)
+    parser.add_argument('--non_bool_actions', action='store_true', default=True)
     args = parser.parse_args()
-
-    print(os.listdir(args.stim_dir))
 
     print(args)
 
@@ -165,7 +171,7 @@ if __name__ == '__main__':
         dataset_fp=args.stim_dir
     )
     env_spec = env.init_env_spec(
-        max_delay=5,
+        max_delay=2,
         delay_prob=0.5,
         add_fixation_cue=True,
         auto_gen_config=config,
@@ -179,8 +185,7 @@ if __name__ == '__main__':
         track_tf = {'true': 0, 'false': 0, 'benches': 0, 'boats': 0, 'cars': 0, 'chairs': 0, 'couches': 0,
                     'lighting': 0, 'planes': 0, 'tables': 0, 'bottom right': 0, 'bottom left': 0, 'top left': 0,
                     'top right': 0}
-        args.n_trials = args.n_trials + (len(track_tf) - args.n_trials % len(
-            track_tf))  # Makes sure n_trials is divisible by length of feature space
+        args.n_trials = args.n_trials + (len(track_tf) - args.n_trials % len(track_tf))  # Makes sure n_trials is divisible by length of feature space
         args.n_tasks = args.n_trials
     elif args.features == 'category' and args.non_bool_actions:
         track_tf = {'true': 0, 'false': 0, 'benches': 0, 'boats': 0, 'cars': 0, 'chairs': 0, 'couches': 0,
@@ -198,12 +203,9 @@ if __name__ == '__main__':
     else:
         track_tf = {'true': 0, 'false': 0}
 
-    print(track_tf)
-    print(args.n_trials)
-    print(n_trials)
     print('total:', len(create_tasks(env, track_tf, **vars(args))[0]))
 
-    if args.non_bool_actions:
-        number_of_files_to_delete = args.n_trials - n_trials
-        delete_last_n_files(args.tasks_dir, number_of_files_to_delete)
-        delete_last_n_files(args.trials_dir, number_of_files_to_delete)
+    # if args.non_bool_actions:
+    #     number_of_files_to_delete = args.n_trials - n_trials
+    #     delete_last_n_files(args.tasks_dir, number_of_files_to_delete)
+    #     delete_last_n_files(args.trials_dir, number_of_files_to_delete)
