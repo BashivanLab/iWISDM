@@ -109,8 +109,7 @@ class TaskInfoCompo(object):
         self.tempo_dict['self'] = self.get_task_info_dict()[1]
         self.tempo_dict['task1'] = task_info1.get_task_info_dict()[1]
         self.tempo_dict['task2'] = task_info2.get_task_info_dict()[1]
-        # current implementation of compo_task is by combining pre-generated objsets
-        # so have to rely on main.py to generate both branches
+
         if not switch_first:
             answer = self.tempo_dict['self']['answers'][len(self.frame_info) - 1]
             if answer not in ['true', 'false']:
