@@ -6,6 +6,7 @@ from natsort import natsorted
 from collections import defaultdict
 
 import sys
+
 sys.path.append('../')
 
 from wisdom import make
@@ -19,6 +20,7 @@ def create_task(env):
     print('created task')
     return task
 
+
 def generate_trial(env, task, mode):
     trials = env.generate_trials(tasks=[task], mode=mode)
     imgs, _, info_dict = trials[0]
@@ -27,9 +29,11 @@ def generate_trial(env, task, mode):
     print('generated trial')
     return imgs, instructions, answer[-1], info_dict
 
+
 def store_task(task, fp):
     read_write.write_task(task, fp)
     print('storing task')
+
 
 def duplicate_check(current_instructions, instruction):
     if instruction in current_instructions:
@@ -37,11 +41,12 @@ def duplicate_check(current_instructions, instruction):
     return False
     print('dupe check')
 
+
 def load_stored_tasks(fp):
     print('fp: ', os.listdir(fp))
     ts = []
     ins = []
-    for task_fp in os.listdir(fp):       
+    for task_fp in os.listdir(fp):
         task = tg.read_task(os.path.join(fp, task_fp))
 
         _, instructions, _, _ = generate_trial(env, task)
@@ -49,6 +54,7 @@ def load_stored_tasks(fp):
         ts.append(task)
     print('loaded tasks')
     return ts, ins
+
 
 def create_tasks(env, track_tf, **kwargs):
     total_and = 0
@@ -71,7 +77,8 @@ def create_tasks(env, track_tf, **kwargs):
         print('task.n_frames: ', task.n_frames)
         if task.n_frames <= kwargs['max_len']:
             print('under max_len')
-            imgs, instructions, answer, info_dict = generate_trial(env, task, mode='train' if kwargs['train'] else 'val')
+            imgs, instructions, answer, info_dict = generate_trial(env, task,
+                                                                   mode='train' if kwargs['train'] else 'val')
             n_and = instructions.count(' and ')
             n_or = instructions.count(' or ')
             if kwargs['min_bool_ops'] <= (n_and + n_or) <= kwargs['max_bool_ops']:
@@ -88,7 +95,7 @@ def create_tasks(env, track_tf, **kwargs):
                             total_not += instructions.count(' not ')
                             task_ins.append(instructions)
                             store_task(task, kwargs['tasks_dir'] + '/' + str(len(tasks)) + '.json')
-                            
+
                             info_dicts = []
                             t_per_t = kwargs['n_trials']//kwargs['n_tasks']
                             i = t_per_t 
@@ -96,7 +103,9 @@ def create_tasks(env, track_tf, **kwargs):
                                 print('printing: ', i)
                                 imgs, _, _, info_dict = generate_trial(env, task, mode='train' if kwargs['train'] else 'val')
                                 if info_dict not in info_dicts:
-                                    read_write.write_trial(imgs, info_dict, os.path.join(kwargs['trials_dir'], 'trial' + str(len(tasks)*t_per_t + t_per_t - i)))
+                                    read_write.write_trial(imgs, info_dict, os.path.join(kwargs['trials_dir'],
+                                                                                         'trial' + str(
+                                                                                             len(tasks) * t_per_t + t_per_t - i)))
                                     info_dicts.append(info_dict)
                                     i -= 1
                             tasks.append(task)
@@ -110,18 +119,21 @@ def create_tasks(env, track_tf, **kwargs):
                         task_ins.append(instructions)
                         store_task(tasks, kwargs['tasks_dir'] + '/' + str(len(tasks)) + '.json')
                         info_dicts = []
-                        t_per_t = kwargs['n_trials']//kwargs['n_tasks']
+                        t_per_t = kwargs['n_trials'] // kwargs['n_tasks']
                         i = t_per_t
                         while i > 0:
                             print('printing: ', i)
                             imgs, _, _, info_dict = generate_trial(env, task, mode='train' if kwargs['train'] else 'val')
                             if info_dict not in info_dicts:
-                                read_write.write_trial(imgs, info_dict, os.path.join(kwargs['trials_dir'], 'trial' + str(len(tasks)*t_per_t + t_per_t - i)))
+                                read_write.write_trial(imgs, info_dict, os.path.join(kwargs['trials_dir'],
+                                                                                     'trial' + str(
+                                                                                         len(tasks) * t_per_t + t_per_t - i)))
                                 info_dicts.append(info_dict)
                                 i -= 1
                         tasks.append(task)
 
     return tasks, task_ins
+
 
 def delete_last_n_files(directory, n):
     files = os.listdir(directory)
@@ -134,6 +146,7 @@ def delete_last_n_files(directory, n):
             os.remove(file_path)
         else:
             shutil.rmtree(file_path)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='benchmark')
@@ -165,7 +178,7 @@ if __name__ == '__main__':
     os.makedirs(args.trials_dir)
 
     config = json.load(open(args.config_path))
-    
+
     env = make(
         env_id='ShapeNet',
         dataset_fp=args.stim_dir

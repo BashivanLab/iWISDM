@@ -16,7 +16,6 @@ the stimuli in each trial.
 Rendering function generates movies based on the instantiated stimuli
 """
 from bisect import bisect_left
-from collections import defaultdict
 import random
 from typing import List, Dict, Callable
 
