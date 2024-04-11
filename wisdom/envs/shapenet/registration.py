@@ -218,12 +218,11 @@ class SNEnvSpec(EnvSpec):
 
         while count < n:
             add_delay = np.random.random() < self.delay_prob
-            if add_delay and n_delays < self.MAX_DELAY:
-                i += 1
+            i += 1
+            if add_delay and n_delays < self.MAX_DELAY:  # delay, don't add lasti
                 n_delays += 1
             else:
                 count += 1
-                i += 1
                 whens.append(f'last{i}')
         return whens
 
@@ -264,11 +263,11 @@ class SNStimData(StimData):
                         img_folder_path=v['path'],
                         splits=None
                     )
-        self.ATTR_DICT = self.get_all_attributes()
+        self.ATTR_DICT = self.get_all_attributes(self.df)
         self.attr_with_mapping = self.get_attr_str_mapping()
         self.ALLCATEGORIES = list(self.ATTR_DICT.keys())
         self.ALLOBJECTS = {c: list(self.ATTR_DICT[c].keys()) for c in self.ATTR_DICT}
-        self.ALLVIEWANGLES = self.ATTR_DICT
+        self.ALLVIEWANGLES = {c: {obj: list(info.keys()) for obj, info in d.items()} for c, d in self.ATTR_DICT.items()}
 
     def get_object(self, obj: Stimulus, obj_size: Tuple[int, int], mode: str = None) -> NDArray:
         """
@@ -280,36 +279,43 @@ class SNStimData(StimData):
         """
         if mode:
             image_path = self.splits[mode]['path']
-            df = self.splits[mode]['df']
+            if self.splits[mode]['data']:
+                attr_dict = self.splits[mode]['data'].ATTR_DICT
+            else:
+                attr_dict = self.get_all_attributes(self.splits[mode]['df'])
         else:
             image_path = self.img_folder_path
-            df = self.df
+            attr_dict = self.ATTR_DICT
 
-        obj_pd: pd.DataFrame = df.loc[(df['ctg_mod'] == obj.category) &
-                                      (df['obj_mod'] == obj.object) &
-                                      (df['ang_mod'] == obj.view_angle)]
-        if len(obj_pd) <= 0:
+        refs = attr_dict[obj.category][obj.object][obj.view_angle]
+        if not refs:
             raise ValueError(f'ShapeNet object with '
                              f'category {obj.category}, identity {obj.object}, view angle {obj.view_angle} not found')
 
-        obj_ref = int(obj_pd.iloc[0]['ref'])
+        obj_ref = random.choice(refs)
         obj_path = os.path.join(image_path, f'{obj_ref}/image.png')
 
         return read_img(obj_path, obj_size, color_format='RGB')
 
-    def get_all_attributes(self):
+    @staticmethod
+    def get_all_attributes(df):
         """
         Get all shapenet attributes from the dataset, including the hierarchy
         @return: dictionary of the format {category: {object: [view angles]}}
         """
         ATTR_DICT = dict()
-        for i in self.df['ctg_mod'].unique():
-            ATTR_DICT[i] = dict()
-            for cat in self.df[self.df['ctg_mod'] == i]['obj_mod'].unique():
-                ATTR_DICT[i][cat] = list(map(
-                    int,
-                    self.df[(self.df['ctg_mod'] == i) & (self.df['obj_mod'] == cat)]['ang_mod'].unique()
-                ))
+
+        for cat in df['ctg_mod'].unique():
+            ATTR_DICT[cat] = dict()
+            unique_obj = df[df['ctg_mod'] == cat]['obj_mod'].unique()
+            for obj in unique_obj:
+                ATTR_DICT[cat][obj] = dict()
+                unique_va = df[(df['ctg_mod'] == cat) & (df['obj_mod'] == obj)]['ang_mod'].unique()
+                for va in unique_va:
+                    refs = df[
+                        (df['ctg_mod'] == cat) & (df['obj_mod'] == obj) & (df['ang_mod'] == va)
+                        ]['ref'].unique()
+                    ATTR_DICT[cat][obj][va] = list(map(int, refs))
         return ATTR_DICT
 
     def get_attr_str_mapping(self):
