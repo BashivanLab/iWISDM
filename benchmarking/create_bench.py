@@ -218,7 +218,7 @@ if __name__ == '__main__':
 
     print('total:', len(create_tasks(env, track_tf, **vars(args))[0]))
 
-    # if args.non_bool_actions:
-    #     number_of_files_to_delete = args.n_trials - n_trials
-    #     delete_last_n_files(args.tasks_dir, number_of_files_to_delete)
-    #     delete_last_n_files(args.trials_dir, number_of_files_to_delete)
+    if args.non_bool_actions:
+        number_of_files_to_delete = args.n_trials - n_trials
+        delete_last_n_files(args.tasks_dir, number_of_files_to_delete)
+        delete_last_n_files(args.trials_dir, number_of_files_to_delete)
