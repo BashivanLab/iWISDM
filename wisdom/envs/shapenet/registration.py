@@ -214,6 +214,10 @@ class SNEnvSpec(EnvSpec):
             max_k = compare_when(existing_whens)
             n_delays += len(find_delays(existing_whens))
             i += max_k
+        else:
+            whens.append(f'last{i}')
+            count += 1
+            i += 1
 
         while count < n:
             add_delay = np.random.random() < self.delay_prob
