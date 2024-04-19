@@ -661,6 +661,27 @@ class IsSame(SNOperator):
         else:
             return attr1 == attr2
 
+    def __eq__(self, other):
+        if not isinstance(other, IsSame):
+            return False
+        for c, o_c in zip(
+                sorted(self.child, key=lambda o: o.__class__.__name__),
+                sorted(other.child, key=lambda o: o.__class__.__name__)
+        ):
+            if c != o_c:
+                return False
+        return True
+
+    def __hash__(self):
+        if self.child:
+            c_s = sorted(self.child, key=lambda o: o.__class__.__name__)
+            return hash(tuple(
+                [self.__class__.__name__] +
+                [c for c in c_s]
+            ))
+        else:
+            return hash(self.__class__.__name__)
+
     def copy(self):
         new_attr1 = self.attr1.copy()
         new_attr2 = self.attr2.copy()
@@ -753,6 +774,27 @@ class NotSame(SNOperator):
             return env_reg.DATA.INVALID
         else:
             return attr1 != attr2
+
+    def __eq__(self, other):
+        if not isinstance(other, NotSame):
+            return False
+        for c, o_c in zip(
+                sorted(self.child, key=lambda o: o.__class__.__name__),
+                sorted(other.child, key=lambda o: o.__class__.__name__)
+        ):
+            if c != o_c:
+                return False
+        return True
+
+    def __hash__(self):
+        if self.child:
+            c_s = sorted(self.child, key=lambda o: o.__class__.__name__)
+            return hash(tuple(
+                [self.__class__.__name__] +
+                [c for c in c_s]
+            ))
+        else:
+            return hash(self.__class__.__name__)
 
     def copy(self):
         new_attr1 = self.attr1.copy()

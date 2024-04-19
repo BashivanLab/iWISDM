@@ -53,6 +53,9 @@ class Space(SNAttribute):
             self.value = value
         self.attr_type = 'space'
 
+    def __hash__(self):
+        return hash(tuple(self.value))
+
     def sample(self):
         return Space(random.choice(list(self.env_spec.grid.values())))
 
@@ -154,6 +157,9 @@ class Location(SNAttribute):
             return self.space == other.space
         return False
 
+    def __hash__(self):
+        return hash(self.space)
+
     def __str__(self):
         if len(self.env_spec.grid) == 4:
             key = self.env_spec.get_grid_key(self.space)
@@ -232,6 +238,9 @@ class SNObject(SNAttribute):
         if isinstance(other, self.__class__):
             return self.value == other.value and self.category == other.category
         return False
+
+    def __hash__(self):
+        return hash((self.category, self.value))
 
     def __str__(self):
         if self.attr_type in self.stim_data.attr_with_mapping:
