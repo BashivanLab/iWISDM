@@ -217,7 +217,6 @@ class SNEnvSpec(EnvSpec):
         else:
             whens.append(f'last{i}')
             count += 1
-            i += 1
 
         while count < n:
             add_delay = np.random.random() < self.delay_prob
