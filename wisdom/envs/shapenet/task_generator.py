@@ -161,6 +161,34 @@ class Select(SNOperator):
         )
         return subset
 
+    def __hash__(self):
+        if self.child:
+            c_s = sorted(self.child, key=lambda o: o.__class__.__name__)
+            return hash(tuple(
+                [self.__class__.__name__] +
+                [c for c in c_s if isinstance(c, Operator)] +
+                [self.when]
+            ))
+        else:
+            return hash(self.__class__.__name__)
+
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            if len(self.child) != len(other.child):
+                return False
+            else:
+                for c, o_c in zip(
+                        sorted(self.child, key=lambda o: o.__class__.__name__),
+                        sorted(other.child, key=lambda o: o.__class__.__name__)
+                ):
+                    if isinstance(c, Operator) and isinstance(o_c, Operator):
+                        if c != o_c:
+                            return False
+                if self.when != other.when:
+                    return False
+                return True
+        return False
+
     def copy(self):
         return Select(location=self.location, category=self.category, object=self.object, view_angle=self.view_angle,
                       when=self.when, space_type=self.space_type)
@@ -1006,15 +1034,12 @@ class SNTask(Task):
             else:
                 outputs = inputs
 
-            if isinstance(node, Switch):
-                if temporal_switch:
-                    children = node.child
-                    if random.random() > 0.5:
-                        children.pop(1)
-                    else:
-                        children.pop(2)
+            if isinstance(node, Switch) and temporal_switch:
+                children = node.child
+                if random.random() > 0.5:
+                    children.pop(1)
                 else:
-                    children = node.child
+                    children.pop(2)
             else:
                 children = node.child
 
@@ -1046,7 +1071,7 @@ class SNTask(Task):
                             if not merged:
                                 should_be_dict[c].append(o)
                     else:
-                        raise NotImplementedError()
+                        raise NotImplementedError(f'class {type(c)} not implemented')
         return objset
 
 

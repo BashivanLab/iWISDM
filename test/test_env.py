@@ -455,8 +455,8 @@ class MyTestCase(unittest.TestCase):
         ts = [t[1][1] for t in tasks]
         ts_set = set(ts)
         test = ts_set.pop()
-        assert(all(t != test for t in ts_set))
-        assert(all(str(t) != (test) for t in ts_set))
+        assert (all(t != test for t in ts_set))
+        assert (all(str(t) != (test) for t in ts_set))
 
     def test_random(self):
         with open('../benchmarking/configs/high_complexity_all.json', 'r') as f:
@@ -472,6 +472,11 @@ class MyTestCase(unittest.TestCase):
             auto_gen_config=config,
         ))
         tasks = env_1.generate_tasks(100)
+        ts = [t[1][1] for t in tasks]
+        ts_set = set(ts)
+        test = ts_set.pop()
+        assert (all(t != test for t in ts_set))
+        assert (all(str(t) != (test) for t in ts_set))
         for t in tasks:
             _, (_, temporal_task) = t
             for i in range(10):

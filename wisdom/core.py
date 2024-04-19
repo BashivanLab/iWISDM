@@ -318,7 +318,6 @@ class Task(object):
         return hash(self._operator)
 
     def __str__(self):
-
         return str(self._operator)
 
     def _get_all_nodes(self, op, visited):
