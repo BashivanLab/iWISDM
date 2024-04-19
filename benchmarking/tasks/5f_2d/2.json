@@ -1,0 +1,145 @@
+{
+    "n_frames": 5,
+    "first_shareable": 5,
+    "whens": {
+        "3": "last0",
+        "7": "last2",
+        "9": "last4"
+    },
+    "operator": {
+        "name": "And",
+        "child": [
+            {
+                "name": "NotSame",
+                "child": [
+                    {
+                        "name": "GetCategory",
+                        "child": [
+                            {
+                                "name": "Select",
+                                "child": [
+                                    {
+                                        "name": "Location",
+                                        "value": null
+                                    },
+                                    {
+                                        "name": "SNCategory",
+                                        "value": null
+                                    },
+                                    {
+                                        "name": "SNObject",
+                                        "value": null,
+                                        "category": {
+                                            "name": "SNCategory",
+                                            "value": null
+                                        }
+                                    },
+                                    {
+                                        "name": "SNViewAngle",
+                                        "value": null,
+                                        "sn_object": {
+                                            "name": "SNObject",
+                                            "value": null,
+                                            "category": {
+                                                "name": "SNCategory",
+                                                "value": null
+                                            }
+                                        }
+                                    }
+                                ],
+                                "when": "last0"
+                            }
+                        ]
+                    },
+                    {
+                        "name": "SNCategory",
+                        "value": 0
+                    }
+                ]
+            },
+            {
+                "name": "NotSame",
+                "child": [
+                    {
+                        "name": "GetCategory",
+                        "child": [
+                            {
+                                "name": "Select",
+                                "child": [
+                                    {
+                                        "name": "Location",
+                                        "value": null
+                                    },
+                                    {
+                                        "name": "SNCategory",
+                                        "value": null
+                                    },
+                                    {
+                                        "name": "SNObject",
+                                        "value": null,
+                                        "category": {
+                                            "name": "SNCategory",
+                                            "value": null
+                                        }
+                                    },
+                                    {
+                                        "name": "SNViewAngle",
+                                        "value": null,
+                                        "sn_object": {
+                                            "name": "SNObject",
+                                            "value": null,
+                                            "category": {
+                                                "name": "SNCategory",
+                                                "value": null
+                                            }
+                                        }
+                                    }
+                                ],
+                                "when": "last2"
+                            }
+                        ]
+                    },
+                    {
+                        "name": "GetCategory",
+                        "child": [
+                            {
+                                "name": "Select",
+                                "child": [
+                                    {
+                                        "name": "Location",
+                                        "value": null
+                                    },
+                                    {
+                                        "name": "SNCategory",
+                                        "value": null
+                                    },
+                                    {
+                                        "name": "SNObject",
+                                        "value": null,
+                                        "category": {
+                                            "name": "SNCategory",
+                                            "value": null
+                                        }
+                                    },
+                                    {
+                                        "name": "SNViewAngle",
+                                        "value": null,
+                                        "sn_object": {
+                                            "name": "SNObject",
+                                            "value": null,
+                                            "category": {
+                                                "name": "SNCategory",
+                                                "value": null
+                                            }
+                                        }
+                                    }
+                                ],
+                                "when": "last4"
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    }
+}
