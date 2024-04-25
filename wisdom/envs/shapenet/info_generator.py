@@ -242,7 +242,8 @@ class TaskInfoCompo(object):
             self,
             canvas_size: int,
             fixation_cue: bool,
-            stim_data: SNStimData
+            stim_data: SNStimData,
+            add_distractors: bool = False,
     ) -> Tuple[List[np.ndarray], List[Dict], Dict]:
         # add fixation cues to all frames except for task ending frames
 
@@ -250,6 +251,7 @@ class TaskInfoCompo(object):
         per_task_info_dict, compo_info_dict = self.get_task_info_dict()
 
         imgs = []
+        # TODO: add distractors to frames post-hoc
         for i, (epoch, frame) in enumerate(zip(render_stimset(objset, canvas_size, stim_data), self.frame_info)):
             if fixation_cue:
                 if not any('ending' in description for description in frame.description):

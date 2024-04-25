@@ -88,7 +88,6 @@ class ShapeNetEnv(Env):
             task_objsets: Iterable[sg.ObjectSet] = None,
             compositional_infos: Iterable[ig.TaskInfoCompo] = None,
             num_merge: int = 1,
-            **kwargs
     ) -> ig.TaskInfoCompo:
         """
         keep adding 1 random task to the compositional task
@@ -117,6 +116,7 @@ class ShapeNetEnv(Env):
             task_objsets: Iterable[sg.ObjectSet] = None,
             compositional_infos: Iterable[ig.TaskInfoCompo] = None,
             mode: str = None,
+            **kwargs
     ) -> List[Tuple[List[np.ndarray], List[Dict], Dict]]:
         self.reset_env(mode)
         if mode and self.stim_data.splits[mode]:
@@ -134,7 +134,8 @@ class ShapeNetEnv(Env):
             imgs, per_task_info, compo_info_dict = compo_info.generate_trial(
                 self.env_spec.canvas_size,
                 self.env_spec.add_fixation_cue,
-                stim_data
+                stim_data,
+                **kwargs
             )
             trials.append((imgs, per_task_info, compo_info_dict))
         return trials
