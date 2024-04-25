@@ -62,14 +62,14 @@ class ShapeNetEnv(Env):
             self.task_gen.generate_task()
             for _ in range(n)
         ]
-        self.cached_tasks.update(tasks)
-        return set(tasks)
+        self.cached_tasks.update([t[1][1] for t in tasks])
+        return tasks
 
     @staticmethod
     def init_compositional_tasks(
             tasks: Iterable[tg.TemporalTask],
             task_objsets: Iterable[sg.ObjectSet] = None,
-    ):
+    ) -> List[ig.TaskInfoCompo]:
         if task_objsets is not None:
             assert len(tasks) == len(task_objsets)
         else:
@@ -86,16 +86,29 @@ class ShapeNetEnv(Env):
             self,
             tasks: Iterable[tg.TemporalTask] = None,
             task_objsets: Iterable[sg.ObjectSet] = None,
-            mode: str = None,
+            compositional_infos: Iterable[ig.TaskInfoCompo] = None,
             num_merge: int = 1,
             **kwargs
-    ):
+    ) -> ig.TaskInfoCompo:
+        """
+        keep adding 1 random task to the compositional task
+        """
         if not tasks:
             tasks = self.cached_tasks
-        compositional_infos = self.init_compositional_tasks(tasks, task_objsets)
-        compositional_task = compositional_infos[0]
+        if not compositional_infos:
+            compositional_infos = self.init_compositional_tasks(tasks, task_objsets)
+
+        tmp = random.choice(compositional_infos)
+        compositional_task = self.init_compositional_tasks(
+            [tmp.tasks[0].copy()]
+        )[0]
         for _ in range(num_merge):
-            break
+            compo_info = random.choice(compositional_infos)
+            tmp_info = self.init_compositional_tasks(
+                [compo_info.tasks[0].copy()]
+            )[0]
+            compositional_task.merge(tmp_info)
+        del tmp, tmp_info
         return compositional_task
 
     def generate_trials(
@@ -105,17 +118,15 @@ class ShapeNetEnv(Env):
             compositional_infos: Iterable[ig.TaskInfoCompo] = None,
             mode: str = None,
     ) -> List[Tuple[List[np.ndarray], List[Dict], Dict]]:
-        # TODO: stimuli sampled from dataset splits, have 3 separate df files?
-        #  self.stim_data.train = SNStimData(), etc
         self.reset_env(mode)
         if mode and self.stim_data.splits[mode]:
             stim_data = self.stim_data.splits[mode]['data']
         else:
             stim_data = self.stim_data
 
-        if not tasks:
-            tasks = self.cached_tasks
         if not compositional_infos:
+            if not tasks:
+                tasks = self.cached_tasks
             compositional_infos = self.init_compositional_tasks(tasks, task_objsets)
 
         trials = list()

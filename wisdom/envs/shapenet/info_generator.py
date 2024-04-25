@@ -365,6 +365,8 @@ class FrameInfo(object):
         for frame in new_frame_info:
             frame.relative_tasks = relative_tasks
             # new_task_info should only contain 1 task
+            if 0 not in frame.relative_task_epoch_idx:
+                print(frame.relative_task_epoch_idx)
             frame.relative_task_epoch_idx[next_task_idx] = frame.relative_task_epoch_idx.pop(0)
             for i, description in enumerate(frame.description):
                 if 'start' in description:
@@ -396,7 +398,6 @@ class FrameInfo(object):
         shareable_frames = self.frame_list[first_shareable:]
         new_task_len = new_task_info.n_epochs
         new_first_shareable = new_task_info.tasks[0].first_shareable
-
         self.update_relative_tasks(new_task_info.frame_info, relative_tasks)
 
         if len(shareable_frames) == 0:
