@@ -74,9 +74,6 @@ def create_tasks(env, track_tf, **kwargs):
         print(len(tasks))
         print(kwargs['n_tasks'])
         task = create_task(env)
-        if task.n_frames == 3:
-            imgs, instructions, answer, info_dict = generate_trial(env, task, mode='train' if kwargs['train'] else 'val')
-            read_write.write_trial(imgs, info_dict, os.path.join(kwargs['trials_dir'], 'test'))
         print('task.n_frames: ', task.n_frames)
         if  kwargs['min_len'] <= task.n_frames <= kwargs['max_len']:
             print('between min_len and max_len')
@@ -84,6 +81,9 @@ def create_tasks(env, track_tf, **kwargs):
                                                                    mode='train' if kwargs['train'] else 'val')
             n_and = instructions.count(' and ')
             n_or = instructions.count(' or ')
+
+            print(n_and, n_or)
+            
             if kwargs['min_bool_ops'] <= (n_and + n_or) <= kwargs['max_bool_ops']:
                 print('under bool op limit')
                 
