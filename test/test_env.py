@@ -501,6 +501,18 @@ class MyTestCase(unittest.TestCase):
             imgs, _, info_dict = trials[0]
             read_write.write_trial(imgs, info_dict, f'output/trial_{i}')
 
+    def test_distractors(self):
+        tasks = self.high_env.generate_tasks(100)
+        for t in tasks:
+            _, (_, temporal_task) = t
+            for i in range(10):
+                trials = self.high_env.generate_trials(
+                    tasks=[temporal_task],
+                    add_distractor=True
+                )
+                imgs, _, info_dict = trials[0]
+                read_write.write_trial(imgs, info_dict, f'output/trial_{i}')
+
 
 if __name__ == '__main__':
     unittest.main()

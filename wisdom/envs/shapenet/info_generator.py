@@ -243,7 +243,7 @@ class TaskInfoCompo(object):
             canvas_size: int,
             fixation_cue: bool,
             stim_data: SNStimData,
-            add_distractors: bool = False,
+            add_distractor: bool = False,
     ) -> Tuple[List[np.ndarray], List[Dict], Dict]:
         # add fixation cues to all frames except for task ending frames
 
