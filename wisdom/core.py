@@ -217,6 +217,31 @@ class Operator(object):
     def __str__(self):
         pass
 
+    def __hash__(self):
+        if self.child:
+            c_s = sorted(self.child, key=lambda o: o.__class__.__name__)
+            return hash(tuple(
+                [self.__class__.__name__] +
+                [c for c in c_s if isinstance(c, Operator)]
+            ))
+        else:
+            return hash(self.__class__.__name__)
+
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            if len(self.child) != len(other.child):
+                return False
+            else:
+                for c, o_c in zip(
+                        sorted(self.child, key=lambda o: o.__class__.__name__),
+                        sorted(other.child, key=lambda o: o.__class__.__name__)
+                ):
+                    if isinstance(c, Operator) and isinstance(o_c, Operator):
+                        if c != o_c:
+                            return False
+                return True
+        return False
+
     def __call__(self, objset, epoch_now):
         del objset
         del epoch_now
@@ -284,8 +309,15 @@ class Task(object):
         # when you want to get the answer to the ask
         return self._operator(objset, epoch_now)
 
-    def __str__(self):
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return self._operator == other._operator
+        return False
 
+    def __hash__(self):
+        return hash(self._operator)
+
+    def __str__(self):
         return str(self._operator)
 
     def _get_all_nodes(self, op, visited):
@@ -323,7 +355,7 @@ class Task(object):
         # Push current vertex to stack which stores result
         stack.insert(0, node)
 
-    def topological_sort(self):
+    def topological_sort(self) -> List[Operator]:
         """Perform a topological sort."""
         nodes = self._all_nodes
 

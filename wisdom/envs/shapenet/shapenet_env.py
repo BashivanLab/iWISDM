@@ -62,17 +62,48 @@ class ShapeNetEnv(Env):
             self.task_gen.generate_task()
             for _ in range(n)
         ]
-        return tasks
-
-    def cache_tasks(self, tasks: Iterable[tg.TemporalTask]):
         self.cached_tasks.update(tasks)
-        return
+        return set(tasks)
+
+    @staticmethod
+    def init_compositional_tasks(
+            tasks: Iterable[tg.TemporalTask],
+            task_objsets: Iterable[sg.ObjectSet] = None,
+    ):
+        if task_objsets is not None:
+            assert len(tasks) == len(task_objsets)
+        else:
+            task_objsets = [t.generate_objset() for t in tasks]
+
+        compo_tasks = list()
+        for task, objset in zip(tasks, task_objsets):
+            fi = ig.FrameInfo(task, objset)
+            compo_info = ig.TaskInfoCompo(task, fi)
+            compo_tasks.append(compo_info)
+        return compo_tasks
+
+    def merge_tasks(
+            self,
+            tasks: Iterable[tg.TemporalTask] = None,
+            task_objsets: Iterable[sg.ObjectSet] = None,
+            mode: str = None,
+            num_merge: int = 1,
+            **kwargs
+    ):
+        if not tasks:
+            tasks = self.cached_tasks
+        compositional_infos = self.init_compositional_tasks(tasks, task_objsets)
+        compositional_task = compositional_infos[0]
+        for _ in range(num_merge):
+            break
+        return compositional_task
 
     def generate_trials(
             self,
             tasks: Iterable[tg.TemporalTask] = None,
-            mode: str = None,
             task_objsets: Iterable[sg.ObjectSet] = None,
+            compositional_infos: Iterable[ig.TaskInfoCompo] = None,
+            mode: str = None,
     ) -> List[Tuple[List[np.ndarray], List[Dict], Dict]]:
         # TODO: stimuli sampled from dataset splits, have 3 separate df files?
         #  self.stim_data.train = SNStimData(), etc
@@ -81,18 +112,14 @@ class ShapeNetEnv(Env):
             stim_data = self.stim_data.splits[mode]['data']
         else:
             stim_data = self.stim_data
-        if tasks is None:
-            tasks = self.cached_tasks
 
-        if task_objsets is not None:
-            assert len(tasks) == len(task_objsets)
-        else:
-            task_objsets = [t.generate_objset() for t in tasks]
+        if not tasks:
+            tasks = self.cached_tasks
+        if not compositional_infos:
+            compositional_infos = self.init_compositional_tasks(tasks, task_objsets)
 
         trials = list()
-        for task, objset in zip(tasks, task_objsets):
-            fi = ig.FrameInfo(task, objset)
-            compo_info = ig.TaskInfoCompo(task, fi)
+        for compo_info in compositional_infos:
             imgs, per_task_info, compo_info_dict = compo_info.generate_trial(
                 self.env_spec.canvas_size,
                 self.env_spec.add_fixation_cue,
