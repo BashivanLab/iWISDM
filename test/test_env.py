@@ -10,6 +10,21 @@ import os
 
 
 class MyTestCase(unittest.TestCase):
+    def setUp(self):
+        with open('../benchmarking/configs/high_complexity_all.json', 'r') as f:
+            config = json.load(f)
+        high_env = make(
+            env_id='ShapeNet',
+            dataset_fp='../data/shapenet_handpicked'
+        )
+        high_env.set_env_spec(high_env.init_env_spec(
+            max_delay=4,
+            delay_prob=0.5,
+            add_fixation_cue=True,
+            auto_gen_config=config,
+        ))
+        self.high_env = high_env
+
     def test_env(self):
         env = make(
             env_id='ShapeNet',
@@ -459,19 +474,7 @@ class MyTestCase(unittest.TestCase):
         assert (all(str(t) != (test) for t in ts_set))
 
     def test_random(self):
-        with open('../benchmarking/configs/high_complexity_all.json', 'r') as f:
-            config = json.load(f)
-        env_1 = make(
-            env_id='ShapeNet',
-            dataset_fp='/Users/markbai/Documents/COG_v3_shapenet/data/shapenet_handpicked'
-        )
-        env_1.set_env_spec(env_1.init_env_spec(
-            max_delay=4,
-            delay_prob=0.5,
-            add_fixation_cue=True,
-            auto_gen_config=config,
-        ))
-        tasks = env_1.generate_tasks(100)
+        tasks = self.high_env.generate_tasks(100)
         ts = [t[1][1] for t in tasks]
         ts_set = set(ts)
         test = ts_set.pop()
@@ -480,10 +483,35 @@ class MyTestCase(unittest.TestCase):
         for t in tasks:
             _, (_, temporal_task) = t
             for i in range(10):
-                trials = env_1.generate_trials(tasks=[temporal_task])
+                trials = self.high_env.generate_trials(tasks=[temporal_task])
                 imgs, _, info_dict = trials[0]
                 read_write.write_trial(imgs, info_dict, f'output/trial_{i}')
         return
+
+    def test_merge(self):
+        tasks = self.high_env.generate_tasks(100)
+        for i in range(10):  # test 10 times
+            t = self.high_env.merge_tasks(
+                tasks=[t[1][1] for t in tasks],
+                num_merge=10
+            )
+            trials = self.high_env.generate_trials(
+                compositional_infos=[t]
+            )
+            imgs, _, info_dict = trials[0]
+            read_write.write_trial(imgs, info_dict, f'output/trial_{i}')
+
+    def test_distractors(self):
+        tasks = self.high_env.generate_tasks(100)
+        for t in tasks:
+            _, (_, temporal_task) = t
+            for i in range(10):
+                trials = self.high_env.generate_trials(
+                    tasks=[temporal_task],
+                    add_distractor=True
+                )
+                imgs, _, info_dict = trials[0]
+                read_write.write_trial(imgs, info_dict, f'output/trial_{i}')
 
 
 if __name__ == '__main__':

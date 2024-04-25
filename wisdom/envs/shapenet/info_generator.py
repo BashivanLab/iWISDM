@@ -242,7 +242,8 @@ class TaskInfoCompo(object):
             self,
             canvas_size: int,
             fixation_cue: bool,
-            stim_data: SNStimData
+            stim_data: SNStimData,
+            add_distractor: bool = False,
     ) -> Tuple[List[np.ndarray], List[Dict], Dict]:
         # add fixation cues to all frames except for task ending frames
 
@@ -250,6 +251,7 @@ class TaskInfoCompo(object):
         per_task_info_dict, compo_info_dict = self.get_task_info_dict()
 
         imgs = []
+        # TODO: add distractors to frames post-hoc
         for i, (epoch, frame) in enumerate(zip(render_stimset(objset, canvas_size, stim_data), self.frame_info)):
             if fixation_cue:
                 if not any('ending' in description for description in frame.description):
@@ -365,6 +367,8 @@ class FrameInfo(object):
         for frame in new_frame_info:
             frame.relative_tasks = relative_tasks
             # new_task_info should only contain 1 task
+            if 0 not in frame.relative_task_epoch_idx:
+                print(frame.relative_task_epoch_idx)
             frame.relative_task_epoch_idx[next_task_idx] = frame.relative_task_epoch_idx.pop(0)
             for i, description in enumerate(frame.description):
                 if 'start' in description:
@@ -396,7 +400,6 @@ class FrameInfo(object):
         shareable_frames = self.frame_list[first_shareable:]
         new_task_len = new_task_info.n_epochs
         new_first_shareable = new_task_info.tasks[0].first_shareable
-
         self.update_relative_tasks(new_task_info.frame_info, relative_tasks)
 
         if len(shareable_frames) == 0:

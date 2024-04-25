@@ -41,6 +41,12 @@ class SNAttribute(Attribute):
     def stim_data(self, value):
         self._stim_data = value
 
+    def copy(self):
+        """
+        :return: deep copy of the attribute
+        """
+        return self.__class__(self.value)
+
 
 class Space(SNAttribute):
     """Space class."""
@@ -176,6 +182,12 @@ class Location(SNAttribute):
             return '' + quadrant
         return 'location: ' + self.value
 
+    def copy(self):
+        """
+        :return: deep copy of the location
+        """
+        return Location(space=Space(self.space.value), value=self.value)
+
     def sample(self):
         return self.space.sample_loc()
 
@@ -247,6 +259,12 @@ class SNObject(SNAttribute):
             return '' + self.stim_data.attr_with_mapping[self.attr_type][self.value]
         return 'object: ' + str(self.value)
 
+    def copy(self):
+        """
+        :return: deep copy of the object
+        """
+        return SNObject(category=SNCategory(self.category.value), value=self.value)
+
     def sample(self, category=None):
         if category is None:
             category = random.choice(self.stim_data.ALLCATEGORIES)
@@ -288,6 +306,18 @@ class SNViewAngle(SNAttribute):
         if self.attr_type in self.stim_data.attr_with_mapping:
             return '' + self.stim_data.attr_with_mapping[self.attr_type][self.value]
         return 'view_angle: ' + str(self.value)
+
+    def copy(self):
+        """
+        :return: deep copy of the view angle
+        """
+        return SNViewAngle(
+            sn_object=SNObject(
+                category=SNCategory(self.object.category.value),
+                value=self.object.value
+            ),
+            value=self.value
+        )
 
     def sample(self, obj=None):
         if obj is None:
