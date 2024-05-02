@@ -508,7 +508,7 @@ class MyTestCase(unittest.TestCase):
             for i in range(10):
                 trials = self.high_env.generate_trials(
                     tasks=[temporal_task],
-                    add_distractor=True
+                    add_distractor_time=2
                 )
                 imgs, _, info_dict = trials[0]
                 read_write.write_trial(imgs, info_dict, f'output/trial_{i}')

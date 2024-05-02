@@ -157,7 +157,7 @@ class ShapeNetEnv(Env):
             stim_data = self.stim_data
 
         for base_class in self.base_classes:
-            base_class.stim_data = stim_data
+            base_class._stim_data = stim_data
             base_class.env_spec = self.env_spec
 
     def get_premade_task(self, task_family: List[str] = None, **kwargs) -> tg.TemporalTask:
