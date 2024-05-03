@@ -497,9 +497,10 @@ class TaskInfoCompo(object):
             objs = list()
             for epoch, info_dicts in obj_info.items():
                 for info_dict in sorted(info_dicts, key=lambda x: x['count']):
-                    d = info_dict['obj'].dump()
-                    d['count'] = info_dict['count']
-                    objs.append(d)
+                    info_dict['obj'] = info_dict['obj'].dump()
+                    info_dict['tasks'] = list(info_dict['tasks'])
+                    info_dict['attended_attr'] = {k: list(v) for k, v in info_dict['attended_attr'].items()}
+                    objs.append(info_dict)
         else:
             comp_instruction = external_instruction
             objs = [o.dump() for o in self.frame_info.objset]
