@@ -545,10 +545,10 @@ class TaskInfoCompo(object):
             attr of object 1 same as attr of object 2?
         the new task will be:
             observe (object 1 with attr x), observe (object 2 with attr y), observe object 3,
-            diff_attr of (object 1 with attr x) same as diff_attr of object 3?
+            diff_attr of object 1 same as diff_attr of object 3?
         e.g. attr is category, x is chair, y is car, diff_attr is location, so the new task instruction is:
             observe object 1 with category chair, observe object 2 with category car, observe object 3,
-            location of object 1 with category chair same as location of object 3?
+            location of object 1 same as location of object 3?
         @param n_distractor: how many distractors to add
         (bounded by how many tasks, and how many sample frames in each task)
         @return:

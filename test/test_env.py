@@ -515,13 +515,13 @@ class MyTestCase(unittest.TestCase):
                 # )
                 # imgs, _, info_dict = trials[0]
                 # read_write.write_trial(imgs, info_dict, f'{task_dir}/trial_{i}')
-                #
-                # trials = self.high_env.generate_trials(
-                #     tasks=[temporal_task],
-                #     add_distractor_time=2
-                # )
-                # imgs, _, info_dict = trials[0]
-                # read_write.write_trial(imgs, info_dict, f'{task_dir}/trial_time_distractor{i}')
+
+                trials = self.high_env.generate_trials(
+                    tasks=[temporal_task],
+                    add_distractor_time=2
+                )
+                imgs, _, info_dict = trials[0]
+                read_write.write_trial(imgs, info_dict, f'{task_dir}/trial_time_distractor{i}')
 
                 trials = self.high_env.generate_trials(
                     tasks=[temporal_task],
