@@ -94,11 +94,13 @@ class FrameInfo(object):
         self.objset.increase_epoch(self.objset.n_epoch + i)
         return True
 
-    def add_distractor(self, distractor: sg.Object, frame_idx: int):
+    def add_distractor(self, distractor: sg.Object, frame_idx: int, description: str = None):
         frame = self.frame_list[frame_idx]
         frame.objs.append(distractor)
         frame.relative_tasks.add(-1)
-        frame.description.append('distractor')
+        if not description:
+            description = 'distractor'
+        frame.description.append(description)
         self.objset.add(
             obj=distractor,
             epoch_now=len(self.frame_list) - 1,
@@ -393,8 +395,22 @@ class TaskInfoCompo(object):
         for epoch, frame in enumerate(self.frame_info):
             add_delay = True
             if obj_info[epoch]:  # if the frame contains stim/objects
-                for info_dict in obj_info[epoch]:  # for each object info dict,
+                if len(obj_info[epoch]) == 1:
+                    info_dict = obj_info[epoch][0]
                     compo_instruction += f'observe object {info_dict["count"]}, '
+                else:
+                    distractor_attr = [
+                        d.split('distractor with different ')[1]
+                        for d in frame.description if 'distractor with different ' in d
+                    ]
+                    if not distractor_attr:
+                        raise RuntimeError('No distractor description')
+
+                    for info_dict in obj_info[epoch]:
+                        add_attr = ''
+                        for attr in distractor_attr:
+                            add_attr += f'{attr}: {getattr(info_dict["obj"], attr)}'
+                        compo_instruction += f'observe object {info_dict["count"]} with {add_attr}, '
                 add_delay, was_delay = False, False
 
             for d in frame.description:
@@ -477,13 +493,20 @@ class TaskInfoCompo(object):
             })
 
         if is_instruction:
-            comp_instruction, _ = self.get_instruction_obj_info()
+            comp_instruction, obj_info = self.get_instruction_obj_info()
+            objs = list()
+            for epoch, info_dicts in obj_info.items():
+                for info_dict in sorted(info_dicts, key=lambda x: x['count']):
+                    d = info_dict['obj'].dump()
+                    d['count'] = info_dict['count']
+                    objs.append(d)
         else:
             comp_instruction = external_instruction
+            objs = [o.dump() for o in self.frame_info.objset]
 
         compo_info = {
             'epochs': int(len(self.frame_info)),
-            'objects': [o.dump() for o in self.frame_info.objset],
+            'objects': objs,
             'instruction': comp_instruction,
             'answers': self.get_target_value(per_task_info)
         }
@@ -540,16 +563,21 @@ class TaskInfoCompo(object):
             attrs = set()
             for task_idx in frame.relative_tasks:
                 task = self.tasks[task_idx]
-                attrs.union(task.get_relevant_attribute(f'last{task.n_frames - i - 1}'))
+                task_epoch = frame.relative_task_epoch_idx[task_idx]
+                attrs = attrs.union(task.get_relevant_attribute(f'last{task.n_frames - task_epoch - 1}'))
             attr_new_object = list()
             other_attrs = stim_data.ALL_ATTRS - attrs
+            if not other_attrs:  # all attributes are used, cannot add distractor with different attribute
+                continue
+
             for attr_type in other_attrs:
                 existing_obj = frame.objs[0]
                 attr_new_object.append(sg.another_attr(getattr(existing_obj, attr_type)))
 
             self.frame_info.add_distractor(
                 distractor=sg.Object(attrs=attr_new_object, when=i, deletable=True),
-                frame_idx=i
+                frame_idx=i,
+                description=f'distractor with different {other_attrs.pop()}'
             )
         return
 
@@ -591,9 +619,10 @@ class TaskInfoCompo(object):
     def compare_objs(info_dicts, l2):
         for info_dict in info_dicts:
             obj1 = info_dict['obj']
-            for obj2 in l2:
-                if obj1.compare_attrs(obj2):
-                    return info_dict
+            if not obj1.deletable:
+                for obj2 in l2:
+                    if obj1.compare_attrs(obj2):
+                        return info_dict
         return None
 
     @staticmethod

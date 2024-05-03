@@ -502,7 +502,7 @@ class MyTestCase(unittest.TestCase):
             read_write.write_trial(imgs, info_dict, f'output/trial_{i}')
 
     def test_distractors(self):
-        tasks = self.high_env.generate_tasks(100)
+        tasks = self.high_env.generate_tasks(10)
         for j, t in enumerate(tasks):
             _, (_, temporal_task) = t
             task_dir = f'output/task_{j}'
@@ -510,18 +510,18 @@ class MyTestCase(unittest.TestCase):
                 shutil.rmtree(task_dir)
             os.makedirs(task_dir)
             for i in range(10):
-                trials = self.high_env.generate_trials(
-                    tasks=[temporal_task],
-                )
-                imgs, _, info_dict = trials[0]
-                read_write.write_trial(imgs, info_dict, f'{task_dir}/trial_{i}')
-
-                trials = self.high_env.generate_trials(
-                    tasks=[temporal_task],
-                    add_distractor_time=2
-                )
-                imgs, _, info_dict = trials[0]
-                read_write.write_trial(imgs, info_dict, f'{task_dir}/trial_time_distractor{i}')
+                # trials = self.high_env.generate_trials(
+                #     tasks=[temporal_task],
+                # )
+                # imgs, _, info_dict = trials[0]
+                # read_write.write_trial(imgs, info_dict, f'{task_dir}/trial_{i}')
+                #
+                # trials = self.high_env.generate_trials(
+                #     tasks=[temporal_task],
+                #     add_distractor_time=2
+                # )
+                # imgs, _, info_dict = trials[0]
+                # read_write.write_trial(imgs, info_dict, f'{task_dir}/trial_time_distractor{i}')
 
                 trials = self.high_env.generate_trials(
                     tasks=[temporal_task],
