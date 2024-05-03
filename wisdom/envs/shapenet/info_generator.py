@@ -1,6 +1,8 @@
 """
 Classes for building temporal composite tasks
 """
+from __future__ import annotations
+
 import random
 import re
 from collections import defaultdict
@@ -14,8 +16,6 @@ from wisdom.envs.shapenet.registration import SNStimData
 import wisdom.envs.shapenet.stim_generator as sg
 import wisdom.envs.shapenet.task_generator as tg
 from wisdom.utils.read_write import add_cross, render_stimset
-
-from __future__ import annotations
 
 
 class FrameInfo(object):
@@ -98,7 +98,7 @@ class FrameInfo(object):
         frame = self.frame_list[frame_idx]
         frame.objs.append(distractor)
         frame.relative_tasks.add(-1)
-        frame.description.append(['distractor'])
+        frame.description.append('distractor')
         self.objset.add(
             obj=distractor,
             epoch_now=len(self.frame_list) - 1,
@@ -505,10 +505,10 @@ class TaskInfoCompo(object):
         empty_frames = [i for i, frame in enumerate(self.frame_info) if not frame.objs]
         if n_distractor > len(empty_frames):
             n_distractor = len(empty_frames)
-        frames_to_add = random.sample(empty_frames, n_distractor)
+        frames_to_add = sorted(random.sample(empty_frames, n_distractor))
         for i in frames_to_add:
             self.frame_info.add_distractor(
-                distractor=sg.Object(),
+                distractor=sg.Object(when=i, deletable=True),
                 frame_idx=i
             )
         return
@@ -529,6 +529,28 @@ class TaskInfoCompo(object):
         (bounded by how many tasks, and how many sample frames in each task)
         @return:
         """
+        stim_frames = [i for i, frame in enumerate(self.frame_info) if len(frame.objs) == 1]
+        relevant_frames = [i for i in stim_frames if -1 not in self.frame_info[i].relative_tasks]
+        if n_distractor > len(relevant_frames):
+            n_distractor = len(relevant_frames)
+
+        frames_to_add = sorted(random.sample(relevant_frames, n_distractor))
+        for i in frames_to_add:
+            frame = self.frame_info[i]
+            attrs = set()
+            for task_idx in frame.relative_tasks:
+                task = self.tasks[task_idx]
+                attrs.union(task.get_relevant_attribute(f'last{task.n_frames - i - 1}'))
+            attr_new_object = list()
+            other_attrs = stim_data.ALL_ATTRS - attrs
+            for attr_type in other_attrs:
+                existing_obj = frame.objs[0]
+                attr_new_object.append(sg.another_attr(getattr(existing_obj, attr_type)))
+
+            self.frame_info.add_distractor(
+                distractor=sg.Object(attrs=attr_new_object, when=i, deletable=True),
+                frame_idx=i
+            )
         return
 
     def generate_trial(
@@ -542,7 +564,7 @@ class TaskInfoCompo(object):
         if add_distractor_frame > 0:
             self.add_distractor_frame(add_distractor_frame, stim_data)
         if add_distractor_time > 0:
-            self.add_distractor_time(add_distractor_frame, stim_data)
+            self.add_distractor_time(add_distractor_time, stim_data)
 
         objset = self.frame_info.objset
         per_task_info_dict, compo_info_dict = self.get_task_info_dict()

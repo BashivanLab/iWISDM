@@ -503,15 +503,32 @@ class MyTestCase(unittest.TestCase):
 
     def test_distractors(self):
         tasks = self.high_env.generate_tasks(100)
-        for t in tasks:
+        for j, t in enumerate(tasks):
             _, (_, temporal_task) = t
+            task_dir = f'output/task_{j}'
+            if os.path.exists(task_dir):
+                shutil.rmtree(task_dir)
+            os.makedirs(task_dir)
             for i in range(10):
+                trials = self.high_env.generate_trials(
+                    tasks=[temporal_task],
+                )
+                imgs, _, info_dict = trials[0]
+                read_write.write_trial(imgs, info_dict, f'{task_dir}/trial_{i}')
+
                 trials = self.high_env.generate_trials(
                     tasks=[temporal_task],
                     add_distractor_time=2
                 )
                 imgs, _, info_dict = trials[0]
-                read_write.write_trial(imgs, info_dict, f'output/trial_{i}')
+                read_write.write_trial(imgs, info_dict, f'{task_dir}/trial_time_distractor{i}')
+
+                trials = self.high_env.generate_trials(
+                    tasks=[temporal_task],
+                    add_distractor_frame=2
+                )
+                imgs, _, info_dict = trials[0]
+                read_write.write_trial(imgs, info_dict, f'{task_dir}/trial_frame_distractor{i}')
 
 
 if __name__ == '__main__':

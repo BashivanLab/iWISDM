@@ -1124,7 +1124,7 @@ class TemporalTask(SNTask):
                     # selects.append(node)
         return selects
 
-    def get_relevant_attribute(self, lastk):
+    def get_relevant_attribute(self, lastk: str):
         # return the attribute of the object that is not randomly selected on lastk frame
         # for merging check purpose
         attrs = set()

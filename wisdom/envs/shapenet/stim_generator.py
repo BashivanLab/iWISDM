@@ -678,7 +678,6 @@ class ObjectSet(StimuliSet):
 
         return self.select_now(epoch_now, space, category, object, view_angle, delete_if_can)
 
-    # noinspection PyMethodOverriding
     def select_now(
             self,
             epoch_now,
