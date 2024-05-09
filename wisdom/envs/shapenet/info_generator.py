@@ -365,8 +365,13 @@ class TaskInfoCompo(object):
         obj_info = defaultdict(list)  # key: epoch, value: list of dictionary of object info
         count = 0
         for epoch, objs in sorted(self.frame_info.objset.dict.items()):
-            for i, obj in enumerate(objs):
+            num_objs = len(objs)
+            if num_objs > 0:
                 count += 1
+            for obj in objs:
+                # if not obj.deletable or num_objs == 1:
+                #     # remove this if instruction says observe distractor with add_attr
+                #     count += 1
                 info = dict()
                 info['count'] = count
                 info['obj'] = obj
@@ -407,6 +412,9 @@ class TaskInfoCompo(object):
                         raise RuntimeError('No distractor description')
 
                     for info_dict in obj_info[epoch]:
+                        if info_dict['obj'].deletable:
+                            # remove this if instruction says observe distractor with add_attr
+                            continue
                         add_attr = ''
                         for attr in distractor_attr:
                             add_attr += f'{attr}: {getattr(info_dict["obj"], attr)}'
@@ -438,7 +446,8 @@ class TaskInfoCompo(object):
                             cur += 1
                         else:
                             raise RuntimeError('No match')
-                    compo_instruction += task_instruction
+                    compo_instruction += (task_instruction + ' ') \
+                        if epoch != len(self.frame_info) - 1 else task_instruction
                     add_delay, was_delay = False, False
 
                     if self.tempo_dict:
@@ -544,11 +553,12 @@ class TaskInfoCompo(object):
             observe object 1, observe object 2,
             attr of object 1 same as attr of object 2?
         the new task will be:
-            observe (object 1 with attr x), observe (object 2 with attr y), observe object 3,
+            observe (object 1 with attr x), observe object 2,
             diff_attr of object 1 same as diff_attr of object 3?
         e.g. attr is category, x is chair, y is car, diff_attr is location, so the new task instruction is:
-            observe object 1 with category chair, observe object 2 with category car, observe object 3,
+            observe object 1 with category chair, observe object 3,
             location of object 1 same as location of object 3?
+
         @param n_distractor: how many distractors to add
         (bounded by how many tasks, and how many sample frames in each task)
         @return:
@@ -571,7 +581,7 @@ class TaskInfoCompo(object):
             if not other_attrs:  # all attributes are used, cannot add distractor with different attribute
                 continue
 
-            for attr_type in other_attrs:
+            for attr_type in other_attrs | {'location'}:
                 existing_obj = frame.objs[0]
                 attr_new_object.append(sg.another_attr(getattr(existing_obj, attr_type)))
 
@@ -599,7 +609,6 @@ class TaskInfoCompo(object):
         per_task_info_dict, compo_info_dict = self.get_task_info_dict()
 
         imgs = []
-        # TODO: add distractors to frames post-hoc
         for i, (epoch, frame) in enumerate(zip(render_stimset(objset, canvas_size, stim_data), self.frame_info)):
             if fixation_cue:
                 # add fixation cues to all frames except for task ending frames
