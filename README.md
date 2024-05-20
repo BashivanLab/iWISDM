@@ -34,7 +34,24 @@ A large-scale repository of shapes represented by 3D CAD models of objects  [(Ch
 [shapenet_handpicked.tar.gz](https://drive.google.com/file/d/1is72QDjP6A6TA1mZLL3doYWaU08waAxm/view?usp=sharing) 
 
 ### Basic Usage
-...
+```python
+# environment initialization
+with open('../benchmarking/configs/high_complexity_all.json', 'r') as f:
+    config = json.load(f)
+env = make(env_id='ShapeNet')
+env.set_env_spec(
+    high_env.init_env_spec(
+        auto_gen_config=config,
+    )
+)
+
+# AutoTask procedural task generation and saving trial
+tasks = env.generate_tasks(10)
+_, (_, temporal_task) = t[0]
+trials = env.generate_trials(tasks=[temporal_task])
+imgs, _, info_dict = trials[0]
+read_write.write_trial(imgs, info_dict, f'output/trial_{i}')
+```
 
 #### See [/tutorials](https://github.com/BashivanLab/iWISDM/tree/main/tutorials) for more examples.
 
