@@ -1,5 +1,5 @@
 # iWISDM
-iWISDM, short for instructed-Virtual VISual Decision Making, is a virtual environment capable of generating a limitless array of vision-language tasks of varying complexity. It is also a scalable and extensible framework which allows users to easily define their own task space and stimuli dataset. iWISDM builds on the compositional nature of human behavior, and the fact that complex tasks are often constructed by combining smaller task units together in time.
+iWISDM, short for instructed-Virtual VISual Decision Making, is a virtual environment capable of generating a limitless array of _vision-language tasks with varying complexity_. It is also a scalable and extensible framework which allows users to easily define their own task space and stimuli dataset. iWISDM builds on the compositional nature of human behavior, and the fact that complex tasks are often constructed by combining smaller task units together in time.
 
 Below is an example of the generated tasks and the accompanying task graphs: 
 ### AS a reminder to add examples
