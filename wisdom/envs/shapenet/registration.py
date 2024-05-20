@@ -270,6 +270,7 @@ class SNStimData(StimData):
         self.ALLCATEGORIES = list(self.ATTR_DICT.keys())
         self.ALLOBJECTS = {c: list(self.ATTR_DICT[c].keys()) for c in self.ATTR_DICT}
         self.ALLVIEWANGLES = {c: {obj: list(info.keys()) for obj, info in d.items()} for c, d in self.ATTR_DICT.items()}
+        self.ALL_ATTRS = {'location', 'category'}
 
     def get_object(self, obj: Stimulus, obj_size: Tuple[int, int], mode: str = None) -> NDArray:
         """

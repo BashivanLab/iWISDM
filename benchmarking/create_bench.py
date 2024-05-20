@@ -3,7 +3,6 @@ import json
 import shutil
 import argparse
 from natsort import natsorted
-from collections import defaultdict
 
 import sys
 
@@ -13,13 +12,11 @@ from wisdom import make
 from wisdom import read_write
 import wisdom.envs.shapenet.task_generator as tg
 
-
 def create_task(env):
     print('trying to create task')
     _, (_, task) = env.generate_tasks()[0]
     print('created task')
     return task
-
 
 def generate_trial(env, task, mode):
     trials = env.generate_trials(tasks=[task], mode=mode)
@@ -29,18 +26,14 @@ def generate_trial(env, task, mode):
     print('generated trial')
     return imgs, instructions, answer[-1], info_dict
 
-
 def store_task(task, fp):
     read_write.write_task(task, fp)
     print('storing task')
-
 
 def duplicate_check(current_instructions, instruction):
     if instruction in current_instructions:
         return True
     return False
-    print('dupe check')
-
 
 def load_stored_tasks(fp):
     print('fp: ', os.listdir(fp))
@@ -54,7 +47,6 @@ def load_stored_tasks(fp):
         ts.append(task)
     print('loaded tasks')
     return ts, ins
-
 
 def create_tasks(env, track_tf, **kwargs):
     total_and = 0
@@ -73,10 +65,14 @@ def create_tasks(env, track_tf, **kwargs):
     while len(tasks) < kwargs['n_tasks']:
         print(len(tasks))
         print(kwargs['n_tasks'])
+
         task = create_task(env)
+
         print('task.n_frames: ', task.n_frames)
+
         if  kwargs['min_len'] <= task.n_frames <= kwargs['max_len']:
             print('between min_len and max_len')
+
             imgs, instructions, answer, info_dict = generate_trial(env, task,
                                                                    mode='train' if kwargs['train'] else 'val')
             n_and = instructions.count(' and ')
@@ -94,53 +90,57 @@ def create_tasks(env, track_tf, **kwargs):
 
                     if kwargs['force_balance']:
                         print(track_tf[answer])
+
                         if (track_tf[answer] + 1) / kwargs['n_trials'] <= 1 / len(track_tf):
                             print('balanced')
+
                             if not duplicate_check(task_ins, instructions):
                                 print('not duplicate')
+
                                 track_tf[answer] += 1
                                 total_and += n_and
                                 total_or += n_or
                                 total_not += instructions.count(' not ')
                                 task_ins.append(instructions)
+
                                 store_task(task, kwargs['tasks_dir'] + '/' + str(len(tasks)) + '.json')
 
                                 info_dicts = []
                                 t_per_t = kwargs['n_trials']//kwargs['n_tasks']
                                 i = t_per_t 
+
                                 while i > 0:
-                                    print('printing: ', i)
                                     imgs, _, _, info_dict = generate_trial(env, task, mode='train' if kwargs['train'] else 'val')
                                     if info_dict not in info_dicts:
-                                        read_write.write_trial(imgs, info_dict, os.path.join(kwargs['trials_dir'],
-                                                                                            'trial' + str(
-                                                                                                len(tasks) * t_per_t + t_per_t - i)))
+                                        read_write.write_trial(imgs, info_dict, os.path.join(kwargs['trials_dir'], 'trial' + 
+                                                                                             str(len(tasks) * t_per_t + t_per_t - i)))
                                         info_dicts.append(info_dict)
                                         i -= 1
                                 tasks.append(task)
                     else:
-                        print('we went here')
                         if not duplicate_check(task_ins, instructions):
                             track_tf[answer] += 1
                             total_and += n_and
                             total_or += n_or
                             total_not += instructions.count(' not ')
                             task_ins.append(instructions)
+
                             store_task(task, kwargs['tasks_dir'] + '/' + str(len(tasks)) + '.json')
+
                             info_dicts = []
                             t_per_t = kwargs['n_trials'] // kwargs['n_tasks']
                             i = t_per_t
+
                             while i > 0:
-                                print('printing: ', i)
                                 imgs, _, _, info_dict = generate_trial(env, task, mode='train' if kwargs['train'] else 'val')
+
                                 if info_dict not in info_dicts:
-                                    read_write.write_trial(imgs, info_dict, os.path.join(kwargs['trials_dir'],
-                                                                                        'trial' + str(
-                                                                                            len(tasks) * t_per_t + t_per_t - i)))
+                                    read_write.write_trial(imgs, info_dict, os.path.join(kwargs['trials_dir'], 'trial' + 
+                                                                                         str(len(tasks) * t_per_t + t_per_t - i)))
                                     info_dicts.append(info_dict)
                                     i -= 1
-                            tasks.append(task)
 
+                            tasks.append(task)
     return tasks, task_ins
 
 
@@ -229,9 +229,7 @@ if __name__ == '__main__':
     else:
         track_tf = {'true': 0, 'false': 0}
 
-    print('total:', len(create_tasks(env, track_tf, **vars(args))[0]))
-
-    # if args.non_bool_actions:
-    #     number_of_files_to_delete = args.n_trials - n_trials
-    #     delete_last_n_files(args.tasks_dir, number_of_files_to_delete)
-    #     delete_last_n_files(args.trials_dir, number_of_files_to_delete)
+    if args.non_bool_actions:
+        number_of_files_to_delete = args.n_trials - n_trials
+        delete_last_n_files(args.tasks_dir, number_of_files_to_delete)
+        delete_last_n_files(args.trials_dir, number_of_files_to_delete)

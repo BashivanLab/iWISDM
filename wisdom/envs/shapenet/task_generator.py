@@ -459,8 +459,7 @@ class Get(SNOperator):
             return attr
 
     def copy(self):
-        new_objs = self.objs.copy()
-        return Get(self.attr_type, new_objs)
+        raise NotImplementedError()
 
     def get_expected_input(self, should_be):
         if should_be is None:
@@ -479,15 +478,27 @@ class GetObject(Get):
             words[-1] += '?'
         return ' '.join(words)
 
+    def copy(self):
+        new_objs = self.objs.copy()
+        return GetObject(new_objs)
+
 
 class GetCategory(Get):
     def __init__(self, objs):
         super(GetCategory, self).__init__('category', objs)
 
+    def copy(self):
+        new_objs = self.objs.copy()
+        return GetCategory(new_objs)
+
 
 class GetViewAngle(Get):
     def __init__(self, objs):
         super(GetViewAngle, self).__init__('view_angle', objs)
+
+    def copy(self):
+        new_objs = self.objs.copy()
+        return GetViewAngle(new_objs)
 
 
 class GetLoc(Get):
@@ -495,6 +506,10 @@ class GetLoc(Get):
 
     def __init__(self, objs):
         super(GetLoc, self).__init__('location', objs)
+
+    def copy(self):
+        new_objs = self.objs.copy()
+        return GetLoc(new_objs)
 
 
 class Exist(SNOperator):
@@ -1124,7 +1139,7 @@ class TemporalTask(SNTask):
                     # selects.append(node)
         return selects
 
-    def get_relevant_attribute(self, lastk):
+    def get_relevant_attribute(self, lastk: str):
         # return the attribute of the object that is not randomly selected on lastk frame
         # for merging check purpose
         attrs = set()

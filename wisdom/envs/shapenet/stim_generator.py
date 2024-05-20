@@ -257,7 +257,7 @@ class SNObject(SNAttribute):
     def __str__(self):
         if self.attr_type in self.stim_data.attr_with_mapping:
             return '' + self.stim_data.attr_with_mapping[self.attr_type][self.value]
-        return 'object: ' + str(self.value)
+        return 'identity: ' + str(self.value)
 
     def copy(self):
         """
@@ -425,14 +425,14 @@ class Object(SNStimulus):
 
     def __str__(self):
         return ' '.join([
-            'Object:', 'location',
-            str(self.location), 'category',
-            str(self.category), 'object',
-            str(self.object), 'view_angle',
-            str(self.view_angle), 'when',
-            str(self.when), 'epoch',
-            str(self.epoch), 'deletable',
-            str(self.deletable)
+            'Object:',
+            'location', str(self.location),
+            'category', str(self.category),
+            'object', str(self.object),
+            'view_angle', str(self.view_angle),
+            'when', str(self.when),
+            'epoch', str(self.epoch),
+            'deletable', str(self.deletable)
         ])
 
     def check_attrs(self):
@@ -678,7 +678,6 @@ class ObjectSet(StimuliSet):
 
         return self.select_now(epoch_now, space, category, object, view_angle, delete_if_can)
 
-    # noinspection PyMethodOverriding
     def select_now(
             self,
             epoch_now,

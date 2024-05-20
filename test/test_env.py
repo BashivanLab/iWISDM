@@ -5,8 +5,11 @@ import unittest
 from wisdom import make
 from wisdom.envs.shapenet import stim_generator as sg
 from wisdom import read_write
+from wisdom.envs.registration import get_grid
 
+from collections import Counter
 import os
+import re
 
 
 class MyTestCase(unittest.TestCase):
@@ -24,6 +27,48 @@ class MyTestCase(unittest.TestCase):
             auto_gen_config=config,
         ))
         self.high_env = high_env
+
+        with open('../benchmarking/configs/low_complexity_all.json', 'r') as f:
+            config = json.load(f)
+        low_env = make(
+            env_id='ShapeNet',
+            dataset_fp='../data/shapenet_handpicked'
+        )
+        low_env.set_env_spec(low_env.init_env_spec(
+            max_delay=4,
+            delay_prob=0.5,
+            add_fixation_cue=True,
+            auto_gen_config=config,
+        ))
+        self.low_env = low_env
+
+    @staticmethod
+    def test_instruction(info_dict, num_epochs):
+        instruction = info_dict['instruction']
+        instruction_obj_count = Counter([m.group() for m in re.finditer('object \d+', instruction)])
+        objs = info_dict['objects']
+        epochs = {epoch: list() for epoch in range(num_epochs)}
+        for obj in objs:
+            epochs[obj['obj']['epochs']].append(obj)
+        for obj in objs:
+            obj_count = obj['count']
+            if obj['obj']['is_distractor']:
+                if len(epochs[obj['obj']['epochs']]) == 1:
+                    if instruction_obj_count[f'object {obj_count}'] > 1:
+                        return False
+                else:
+                    cat = sg.SNObject._stim_data.attr_with_mapping['category'][obj['obj']['category']]
+                    if f'observe object {obj_count} with category: {cat}' in instruction:
+                        return False
+
+                    loc = obj['obj']['location']
+                    loc = [float(l) for l in loc[1:-1].split(', ')]
+                    loc_str = ''
+                    loc_str += 'top' if loc[1] < 0.5 else 'bottom'
+                    loc_str += ' left' if loc[0] < 0.5 else ' right'
+                    if f'observe object {obj_count} with location: {loc_str}' in instruction:
+                        return False
+        return True
 
     def test_env(self):
         env = make(
@@ -502,16 +547,60 @@ class MyTestCase(unittest.TestCase):
             read_write.write_trial(imgs, info_dict, f'output/trial_{i}')
 
     def test_distractors(self):
-        tasks = self.high_env.generate_tasks(100)
-        for t in tasks:
+        tasks = self.high_env.generate_tasks(10)
+        for j, t in enumerate(tasks):
             _, (_, temporal_task) = t
+            task_dir = f'output/task_{j}'
+            if os.path.exists(task_dir):
+                shutil.rmtree(task_dir)
+            os.makedirs(task_dir)
             for i in range(10):
+                # trials = self.high_env.generate_trials(
+                #     tasks=[temporal_task],
+                # )
+                # imgs, _, info_dict = trials[0]
+                # read_write.write_trial(imgs, info_dict, f'{task_dir}/trial_{i}')
+
                 trials = self.high_env.generate_trials(
                     tasks=[temporal_task],
-                    add_distractor=True
+                    add_distractor_time=2
                 )
                 imgs, _, info_dict = trials[0]
-                read_write.write_trial(imgs, info_dict, f'output/trial_{i}')
+                read_write.write_trial(imgs, info_dict, f'{task_dir}/trial_time_distractor{i}')
+                self.assertTrue(self.test_instruction(info_dict, len(imgs)))
+
+                trials = self.high_env.generate_trials(
+                    tasks=[temporal_task],
+                    add_distractor_frame=2
+                )
+                imgs, _, info_dict = trials[0]
+                read_write.write_trial(imgs, info_dict, f'{task_dir}/trial_frame_distractor{i}')
+                self.assertTrue(self.test_instruction(info_dict, len(imgs)))
+
+                trials = self.high_env.generate_trials(
+                    tasks=[temporal_task],
+                    add_distractor_frame=5,
+                    add_distractor_time=1,
+                )
+                imgs, _, info_dict = trials[0]
+                read_write.write_trial(imgs, info_dict, f'{task_dir}/trial_frame_time_distractor{i}')
+                self.assertTrue(self.test_instruction(info_dict, len(imgs)))
+
+    def test_merge_distractors(self):
+        tasks = self.low_env.generate_tasks(100)
+        for i in range(10):  # test 10 times
+            t = self.low_env.merge_tasks(
+                tasks=[t[1][1] for t in tasks],
+                num_merge=2
+            )
+            trials = self.low_env.generate_trials(
+                compositional_infos=[t],
+                add_distractor_frame=1,
+                add_distractor_time=1,
+            )
+            imgs, _, info_dict = trials[0]
+            read_write.write_trial(imgs, info_dict, f'output/trial_{i}')
+            self.assertTrue(self.test_instruction(info_dict, len(imgs)))
 
 
 if __name__ == '__main__':
