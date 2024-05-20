@@ -1,6 +1,16 @@
 # iWISDM
-- description
+iWISDM, short for the instructed-Virtual VISual Decision Making, is a virtual environment that is capable of generate a limitless array of vision-language tasks of varying complexity. iWISDM builds on the compositional nature of natural behavior and the fact that complex tasks are often compositionally constructed by combining smaller task units together in time. We thus developed a framework which allows instantiating visual decision making tasks as computational graphs that could be combined together in different ways to construct virtually infinite number of tasks with varying complexity. It also allows for procedural generation of natural language instructions parallel to tasks.
+ Below is an example of the generated tasks and the accompanying task graphs: 
+### AS a reminder to add examples
+iWISDM inherits several classes from COG (https://github.com/google/cog) to build task graphs. For convenience, we have pre-implemented several commonly used cognitive tasks in task_bank.py. For usage instructions, please refer to … 
 
+Additionally, For convenience, we have pre-generated three benchmarks of increased complexity level for evaluation of large multi-modal models. 
+### (Parameters for defining the three benchmark)
+
+These datasets can be downloaded at:
+### (Links for google drive/google apis?)
+
+### For further details, please refer to (link to the paper)
 ### Paper link and a bibtex to copy for citations
 
 
