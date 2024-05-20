@@ -4,6 +4,9 @@ iWISDM, short for the instructed-Virtual VISual Decision Making, is a virtual en
 ### AS a reminder to add examples
 iWISDM inherits several classes from COG (https://github.com/google/cog) to build task graphs. For convenience, we have pre-implemented several commonly used cognitive tasks in task_bank.py. For usage instructions, please refer to … 
 
+<img width="663" alt="Screenshot 2024-05-20 at 3 32 35 PM" src="https://github.com/BashivanLab/iWISDM/assets/59230772/7f589748-c455-409c-beb8-6fbb6ab3edad">
+
+
 Additionally, For convenience, we have pre-generated four benchmarks of increased complexity level for evaluation of large multi-modal models. 
 
 ![Benchmark details for each level of complexity](https://github.com/BashivanLab/iWISDM/blob/main/benchmarking/param_table.png?raw=true)
