@@ -12,7 +12,7 @@ Additionally, For convenience, we have pre-generated four benchmarks of increase
 ![Benchmark details for each level of complexity](https://github.com/BashivanLab/iWISDM/blob/main/benchmarking/param_table.png?raw=true)
 
 
-These datasets can be downloaded here: [iWISDM_benchsets.tar.gz](https://drive.google.com/file/d/1K-9AAJfvz6kiN3h9X2Rg0D88gJQ_rxSu/view?usp=sharing)
+These datasets can be generated from [/benchmarking](https://github.com/BashivanLab/iWISDM/tree/main/benchmarking) or downloaded: [iWISDM_benchsets.tar.gz](https://drive.google.com/file/d/1K-9AAJfvz6kiN3h9X2Rg0D88gJQ_rxSu/view?usp=sharing)
 
 ### For further details, please refer to (link to the paper)
 ### Paper link and a bibtex to copy for citations
