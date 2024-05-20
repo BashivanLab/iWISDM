@@ -3,7 +3,7 @@
         "Select":
             {
                 "n_downstream": 4,
-                "downstream": [ "GetLocation"],
+                "downstream": [ "GetLoc"],
                 "same_children_op": true,
                 "min_depth": 1,
                 "min_op": 1
@@ -32,7 +32,7 @@
         "IsSame":
             {
                 "n_downstream": 2,
-                "downstream": ["GetLocation"],
+                "downstream": ["GetLoc"],
                 "same_children_op": true,
                 "min_depth": 3,
                 "min_op": 7
@@ -40,7 +40,7 @@
         "NotSame":
             {
                 "n_downstream": 2,
-                "downstream": ["GetLocation"],
+                "downstream": ["GetLoc"],
                 "same_children_op": true,
                 "min_depth": 3,
                 "min_op": 7
@@ -71,8 +71,8 @@
                 "min_op": 1
             }
     },
-    "root_ops": ["IsSame", "NotSame"],
-    "boolean_ops": ["IsSame", "NotSame"],
+    "root_ops": ["IsSame"],
+    "boolean_ops": ["IsSame"],
     "leaf_op": ["Select"],
     "mid_op": ["Switch"],
     "max_op": 15,

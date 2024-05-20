@@ -84,7 +84,7 @@ def create_tasks(env, track_tf, **kwargs):
 
             print(n_and, n_or)
             
-            if kwargs['min_bool_ops'] <= (n_and + n_or) <= kwargs['max_bool_ops']:
+            if kwargs['min_joint_ops'] <= (n_and + n_or) <= kwargs['max_joint_ops']:
                 print('under bool op limit')
                 
                 n_delay = task.n_frames - instructions.count('observe')
@@ -172,8 +172,8 @@ if __name__ == '__main__':
     parser.add_argument('--n_trials', type=int, default=5)
     parser.add_argument('--n_tasks', type=int, default=5)
     parser.add_argument('--features', type=str, default='all')
-    parser.add_argument('--min_bool_ops', type=int, default=1)
-    parser.add_argument('--max_bool_ops', type=int, default=2)
+    parser.add_argument('--min_joint_ops', type=int, default=1)
+    parser.add_argument('--max_joint_ops', type=int, default=2)
     parser.add_argument('--force_balance', action='store_true', default=False)
     parser.add_argument('--non_bool_actions', action='store_true', default=False)
     args = parser.parse_args()

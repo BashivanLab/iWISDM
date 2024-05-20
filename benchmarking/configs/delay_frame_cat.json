@@ -71,8 +71,8 @@
                 "min_op": 1
             }
     },
-    "root_ops": ["IsSame", "NotSame"],
-    "boolean_ops": ["IsSame", "NotSame"],
+    "root_ops": ["IsSame"],
+    "boolean_ops": ["IsSame"],
     "leaf_op": ["Select"],
     "mid_op": ["Switch"],
     "max_op": 15,
