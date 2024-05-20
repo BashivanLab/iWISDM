@@ -14,18 +14,14 @@ tutorials/outputs*
 .DS_Store
 .DS_Store?
 .__pycache__
-.vscode
 *.vscode
-.zip
 *.zip
 
 *cpy*
 
 /benchmarking/temp/*
-*/__pycache__/*
-__pycache__
-__pycache__/
+/benchmarking/tasks/*
+*__pycache__*
 *.py[cod]
-**/__pycache__
 *.output
 .*
