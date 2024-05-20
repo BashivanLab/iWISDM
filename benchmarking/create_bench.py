@@ -62,6 +62,7 @@ def create_tasks(env, track_tf, **kwargs):
         tasks = []
         task_ins = []
 
+    # Create tasks 
     while len(tasks) < kwargs['n_tasks']:
         print(len(tasks))
         print(kwargs['n_tasks'])
@@ -70,6 +71,7 @@ def create_tasks(env, track_tf, **kwargs):
 
         print('task.n_frames: ', task.n_frames)
 
+        # Check if task meets length requirements
         if  kwargs['min_len'] <= task.n_frames <= kwargs['max_len']:
             print('between min_len and max_len')
 
@@ -80,20 +82,22 @@ def create_tasks(env, track_tf, **kwargs):
 
             print(n_and, n_or)
             
+            # Check if task meets joint operator requirements
             if kwargs['min_joint_ops'] <= (n_and + n_or) <= kwargs['max_joint_ops']:
                 print('under bool op limit')
                 
                 n_delay = task.n_frames - instructions.count('observe')
 
+                # Check if task meets delay frame requirements
                 if kwargs['min_delay'] <= n_delay <= kwargs['max_delay']:
                     print('under delay limit')
 
+                    # Check if task features are in balance
                     if kwargs['force_balance']:
-                        print(track_tf[answer])
-
                         if (track_tf[answer] + 1) / kwargs['n_trials'] <= 1 / len(track_tf):
                             print('balanced')
 
+                            # Check if task is a duplicate
                             if not duplicate_check(task_ins, instructions):
                                 print('not duplicate')
 
@@ -118,6 +122,7 @@ def create_tasks(env, track_tf, **kwargs):
                                         i -= 1
                                 tasks.append(task)
                     else:
+                        # Check if task is a duplicate
                         if not duplicate_check(task_ins, instructions):
                             track_tf[answer] += 1
                             total_and += n_and
@@ -167,7 +172,7 @@ if __name__ == '__main__':
     parser.add_argument('--min_len', type=int, default=3)
     parser.add_argument('--max_len', type=int, default=9)
     parser.add_argument('--min_delay', type=int, default=0)
-    parser.add_argument('--max_delay', type=int, default=2)
+    parser.add_argument('--max_delay', type=int, default=-1)
     parser.add_argument('--delay_prob', type=float, default=0.5)
     parser.add_argument('--n_trials', type=int, default=5)
     parser.add_argument('--n_tasks', type=int, default=5)
@@ -196,36 +201,49 @@ if __name__ == '__main__':
         env_id='ShapeNet',
         dataset_fp=args.stim_dir
     )
+
+    # Check if max_delay provided
+    if args.max_delay == -1:
+        args.max_delay = 2
+
     env_spec = env.init_env_spec(
         max_delay=args.max_delay,
         delay_prob=args.delay_prob,
         add_fixation_cue=True,
         auto_gen_config=config,
     )
+
     env.set_env_spec(env_spec)
 
-    # Set balance tracking dictionary
-    # CHANGE DICTIONARIES TO MATCH FEATURE LABELS OF STIMULUS SET
+    """
+    Set balance tracking dictionary 
+    (change dictionaries to match feature labels of stimulus set)
+    """
     n_trials = args.n_trials
+
     if args.features == 'all' and args.non_bool_actions:
         track_tf = {'true': 0, 'false': 0, 'benches': 0, 'boats': 0, 'cars': 0, 'chairs': 0, 'couches': 0,
                     'lighting': 0, 'planes': 0, 'tables': 0, 'bottom right': 0, 'bottom left': 0, 'top left': 0,
                     'top right': 0}
         args.n_trials = args.n_trials + (len(track_tf) - args.n_trials % len(track_tf))  # Makes sure n_trials is divisible by length of feature space
         args.n_tasks = args.n_trials
+
     elif args.features == 'category' and args.non_bool_actions:
         track_tf = {'true': 0, 'false': 0, 'benches': 0, 'boats': 0, 'cars': 0, 'chairs': 0, 'couches': 0,
                     'lighting': 0, 'planes': 0, 'tables': 0}
         args.n_trials = args.n_trials + (len(track_tf) - args.n_trials % len(track_tf))
         args.n_tasks = args.n_trials
+
     elif args.features == 'location' and args.non_bool_actions:
         track_tf = {'true': 0, 'false': 0, 'bottom right': 0, 'bottom left': 0, 'top left': 0, 'top right': 0}
         args.n_trials = args.n_trials + (len(track_tf) - args.n_trials % len(track_tf))
         args.n_tasks = args.n_trials
+
     elif args.features == 'object' and args.non_bool_actions:
         track_tf = {'true': 0, 'false': 0}
         args.n_trials = args.n_trials + (len(track_tf) - args.n_trials % len(track_tf))
         args.n_tasks = args.n_trials
+
     else:
         track_tf = {'true': 0, 'false': 0}
 
