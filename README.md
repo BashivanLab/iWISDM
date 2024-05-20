@@ -35,20 +35,24 @@ A large-scale repository of shapes represented by 3D CAD models of objects  [(Ch
 
 ### Basic Usage
 ```python
+# imports
+from wisdom import make
+from wisdom import read_write
+
 # environment initialization
 with open('../benchmarking/configs/high_complexity_all.json', 'r') as f:
-    config = json.load(f)
+    config = json.load(f)  # using pre-defined AutoTask configuration
 env = make(env_id='ShapeNet')
 env.set_env_spec(
-    high_env.init_env_spec(
+    env.init_env_spec(
         auto_gen_config=config,
     )
 )
 
 # AutoTask procedural task generation and saving trial
-tasks = env.generate_tasks(10)
-_, (_, temporal_task) = t[0]
-trials = env.generate_trials(tasks=[temporal_task])
+tasks = env.generate_tasks(10)  # generate 10 random task graphs and tasks
+_, (_, temporal_task) = tasks[0]
+trials = env.generate_trials(tasks=[temporal_task])  # generate a trial
 imgs, _, info_dict = trials[0]
 read_write.write_trial(imgs, info_dict, f'output/trial_{i}')
 ```
