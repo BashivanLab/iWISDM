@@ -13,8 +13,8 @@ These datasets can be generated from [/benchmarking](https://github.com/Bashivan
 ### For further details, please refer to (link to the paper)
 ### Paper link and a bibtex to copy for citations
 
-
-# Install Instructions
+# Usage
+### Install Instructions
 
 ### Graphiz
 - [Install graphiz on your machine](https://pygraphviz.github.io/documentation/stable/install.html)
