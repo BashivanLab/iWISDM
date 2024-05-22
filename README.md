@@ -2,6 +2,7 @@
 iWISDM, short for instructed-Virtual VISual Decision Making, is a virtual environment capable of generating a limitless array of _vision-language tasks with varying complexity_. iWISDM encompasses a broad spectrum of tasks that engage executive functions – such as inhibition of action, working memory, attentional set, task switching, and schema generalization. It is also a scalable and extensible framework which allows users to easily define their own task space and stimuli dataset. iWISDM builds on the compositional nature of human behavior, and the fact that complex tasks are often constructed by combining smaller task units together in time.
 
 Below is an example of the generated tasks:
+![202402_multfs_trial_example_high](https://github.com/BashivanLab/iWISDM/assets/44264329/f2160daf-106c-433f-a078-a9be9231f9fe)
 
 
 [202402_multfs_trial_example_high.pdf](https://github.com/BashivanLab/iWISDM/files/15405618/202402_multfs_trial_example_high.pdf)
