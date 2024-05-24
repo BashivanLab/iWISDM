@@ -4,9 +4,6 @@ iWISDM, short for instructed-Virtual VISual Decision Making, is a virtual enviro
 Below is an example of the generated tasks:
 ![202402_multfs_trial_example_high](https://github.com/BashivanLab/iWISDM/assets/44264329/f2160daf-106c-433f-a078-a9be9231f9fe)
 
-
-[202402_multfs_trial_example_high.pdf](https://github.com/BashivanLab/iWISDM/files/15405618/202402_multfs_trial_example_high.pdf)
-
 iWISDM inherits several classes from COG (https://github.com/google/cog) to build task graphs. For convenience, we have pre-implemented several commonly used cognitive tasks in task_bank.py. 
 
 For usage instructions, please refer to [Usage](#usage)
