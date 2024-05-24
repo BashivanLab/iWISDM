@@ -13,9 +13,8 @@ from wisdom import read_write
 import wisdom.envs.shapenet.task_generator as tg
 
 def create_task(env):
-    print('trying to create task')
     _, (_, task) = env.generate_tasks()[0]
-    print('created task')
+
     return task
 
 def generate_trial(env, task, mode):
@@ -23,12 +22,11 @@ def generate_trial(env, task, mode):
     imgs, _, info_dict = trials[0]
     instructions = info_dict['instruction']
     answer = info_dict['answers']
-    print('generated trial')
+
     return imgs, instructions, answer[-1], info_dict
 
 def store_task(task, fp):
     read_write.write_task(task, fp)
-    print('storing task')
 
 def duplicate_check(current_instructions, instruction):
     if instruction in current_instructions:
@@ -36,16 +34,16 @@ def duplicate_check(current_instructions, instruction):
     return False
 
 def load_stored_tasks(fp):
-    print('fp: ', os.listdir(fp))
     ts = []
     ins = []
+
     for task_fp in os.listdir(fp):
         task = tg.read_task(os.path.join(fp, task_fp))
 
         _, instructions, _, _ = generate_trial(env, task)
         ins.append(instructions)
         ts.append(task)
-    print('loaded tasks')
+
     return ts, ins
 
 def create_tasks(env, track_tf, **kwargs):
@@ -195,8 +193,10 @@ if __name__ == '__main__':
         shutil.rmtree(args.trials_dir)
     os.makedirs(args.trials_dir)
 
+    # Load config
     config = json.load(open(args.config_path))
-
+    
+    # Create environment
     env = make(
         env_id='ShapeNet',
         dataset_fp=args.stim_dir
@@ -206,6 +206,7 @@ if __name__ == '__main__':
     if args.max_delay == -1:
         args.max_delay = 2
 
+    # Initialize environment
     env_spec = env.init_env_spec(
         max_delay=args.max_delay,
         delay_prob=args.delay_prob,
