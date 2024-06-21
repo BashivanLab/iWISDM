@@ -23,13 +23,23 @@ These datasets can be generated from [/benchmarking](https://github.com/Bashivan
 - [Install graphiz on your machine](https://pygraphviz.github.io/documentation/stable/install.html)
 ### Poetry
 #### Install Poetry
-    curl -sSL https://install.python-poetry.org | python3 -
+
+```shell
+curl -sSL https://install.python-poetry.org | python3 -
+```
 
 ### Conda + Poetry
 #### Create conda python environment
-    conda create --name iwisdm python=3.11
+
+```shell
+conda create --name iwisdm python=3.11
+```
+
 #### Install packages
-    poetry install
+
+```shell
+poetry install
+```
 
 ### ShapeNet Subset 
 A large-scale repository of shapes represented by 3D CAD models of objects  [(Chang et. al. 2015)](https://arxiv.org/abs/1512.03012).
