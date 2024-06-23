@@ -1,7 +1,5 @@
 datasets/
 data/
-tutorials/offline_models/*
-tutorials/offline_models/*/*
 scripts/outputs/single-task/*.json
 scripts/outputs/single-task/*.png
 graphs
