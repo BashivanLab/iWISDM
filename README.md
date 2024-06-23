@@ -14,8 +14,7 @@ Additionally, for convenience, we have pre-generated four benchmarks of increase
 
 These datasets can be generated from [/benchmarking](https://github.com/BashivanLab/iWISDM/tree/main/benchmarking) or downloaded: [iWISDM_benchsets.tar.gz](https://drive.google.com/file/d/1K-9AAJfvz6kiN3h9X2Rg0D88gJQ_rxSu/view?usp=sharing)
 
-### For further details, please refer to (link to the paper)
-### Paper link and a bibtex to copy for citations
+### For further details, please refer to (https://arxiv.org/submit/5678755/view)
 
 # Usage
 ### Install Instructions
