@@ -33,7 +33,7 @@
             {
                 "n_downstream": 2,
                 "downstream": ["GetLoc", "CONST"],
-                "sample_dist": [0.00000000001, 0.99999999999], 
+                "sample_dist": [0, 1], 
                 "same_children_op": true,
                 "min_depth": 3,
                 "min_op": 7
@@ -42,7 +42,7 @@
             {
                 "n_downstream": 2,
                 "downstream": ["GetLoc", "CONST"],
-                "sample_dist": [0.00000000001, 0.99999999999], 
+                "sample_dist": [0, 1], 
                 "same_children_op": false,
                 "min_depth": 3,
                 "min_op": 7

@@ -18,7 +18,7 @@ def create_task(env):
     return task
 
 def generate_trial(env, task, mode):
-    trials = env.generate_trials(tasks=[task], mode=mode)
+    trials = env.generate_trials(tasks=[task], mode=mode,)
     imgs, _, info_dict = trials[0]
     instructions = info_dict['instruction']
     answer = info_dict['answers']
@@ -33,18 +33,20 @@ def duplicate_check(current_instructions, instruction):
         return True
     return False
 
-def load_stored_tasks(fp):
+def load_stored_tasks(fp, mode):
     ts = []
     ins = []
+    anss = []
 
     for task_fp in os.listdir(fp):
         task = tg.read_task(os.path.join(fp, task_fp))
 
-        _, instructions, _, _ = generate_trial(env, task)
+        _, instructions, answer, _ = generate_trial(env, task, mode)
         ins.append(instructions)
         ts.append(task)
+        anss.append(answer)
 
-    return ts, ins
+    return ts, ins, anss
 
 def create_tasks(env, track_tf, **kwargs):
     total_and = 0
@@ -53,9 +55,15 @@ def create_tasks(env, track_tf, **kwargs):
 
     # Load tasks if they exist
     if os.listdir(kwargs['tasks_dir']) != []:
-        tasks, task_ins = load_stored_tasks(kwargs['tasks_dir'])
-        for k, v in track_tf.items():
-            track_tf[k] = len(tasks) / len(track_tf)
+        tasks, task_ins, answers = load_stored_tasks(kwargs['tasks_dir'], mode='train' if kwargs['train'] else 'val')
+        # for k, v in track_tf.items():
+        #     track_tf[k] = len(tasks) / len(track_tf)
+
+        for ins, task, ans in zip(task_ins, tasks, answers):
+            total_and += ins.count(' and ')
+            total_or += ins.count(' or ')
+            total_not += ins.count(' not ')
+            track_tf[ans] += 1
     else:
         tasks = []
         task_ins = []
@@ -184,14 +192,14 @@ if __name__ == '__main__':
     print(args)
 
     # Remake task directory
-    if os.path.exists(args.tasks_dir):
-        shutil.rmtree(args.tasks_dir)
-    os.makedirs(args.tasks_dir)
+    if not os.path.exists(args.tasks_dir):
+        # shutil.rmtree(args.tasks_dir)
+        os.makedirs(args.tasks_dir)
 
     # Remake trials directory
-    if os.path.exists(args.trials_dir):
-        shutil.rmtree(args.trials_dir)
-    os.makedirs(args.trials_dir)
+    if not os.path.exists(args.trials_dir):
+        # shutil.rmtree(args.trials_dir)
+        os.makedirs(args.trials_dir)
 
     # Load config
     config = json.load(open(args.config_path))
@@ -247,6 +255,9 @@ if __name__ == '__main__':
 
     else:
         track_tf = {'true': 0, 'false': 0}
+
+    print('n_trials:', args.n_trials)
+    print('n_tasks:', args.n_tasks)
 
     print('total:', len(create_tasks(env, track_tf, **vars(args))[0]))
 
