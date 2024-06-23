@@ -56,9 +56,6 @@ def create_tasks(env, track_tf, **kwargs):
     # Load tasks if they exist
     if os.listdir(kwargs['tasks_dir']) != []:
         tasks, task_ins, answers = load_stored_tasks(kwargs['tasks_dir'], mode='train' if kwargs['train'] else 'val')
-        # for k, v in track_tf.items():
-        #     track_tf[k] = len(tasks) / len(track_tf)
-
         for ins, task, ans in zip(task_ins, tasks, answers):
             total_and += ins.count(' and ')
             total_or += ins.count(' or ')
@@ -191,14 +188,12 @@ if __name__ == '__main__':
 
     print(args)
 
-    # Remake task directory
+    # Make task directory
     if not os.path.exists(args.tasks_dir):
-        # shutil.rmtree(args.tasks_dir)
         os.makedirs(args.tasks_dir)
 
-    # Remake trials directory
+    # Make trials directory
     if not os.path.exists(args.trials_dir):
-        # shutil.rmtree(args.trials_dir)
         os.makedirs(args.trials_dir)
 
     # Load config
