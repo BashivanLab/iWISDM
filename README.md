@@ -14,7 +14,7 @@ Additionally, for convenience, we have pre-generated four benchmarks of increase
 
 These datasets can be generated from [/benchmarking](https://github.com/BashivanLab/iWISDM/tree/main/benchmarking) or downloaded: [iWISDM_benchsets.tar.gz](https://drive.google.com/file/d/1K-9AAJfvz6kiN3h9X2Rg0D88gJQ_rxSu/view?usp=sharing)
 
-### For further details, please refer to (https://arxiv.org/submit/5678755/view)
+### For further details, please refer to [(https://arxiv.org/submit/5678755/view)](https://arxiv.org/abs/2406.14343)
 
 # Usage
 ### Install Instructions
@@ -68,4 +68,6 @@ read_write.write_trial(imgs, info_dict, f'output/trial_{i}')
 #### See [/tutorials](https://github.com/BashivanLab/iWISDM/tree/main/tutorials) for more examples.
 
 ### Acknowledgements
-- COG - paper
+This repository builds upon the foundational work presented in the COG paper (https://arxiv.org/abs/1803.06092).
+
+Yang, Guangyu Robert, et al. "A dataset and architecture for visual reasoning with a working memory." Proceedings of the European Conference on Computer Vision (ECCV). 2018.
