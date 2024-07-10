@@ -21,6 +21,7 @@ from wisdom.envs.shapenet.registration import SNEnvSpec
 GRAPH_TUPLE = Tuple[nx.DiGraph, int, int]
 TASK = Tuple[Union[Operator, Attribute], Task]
 
+# TODO: take care of config prob (0.9999, 0.0001)
 
 class SNTaskGenerator(TaskGenerator):
     """

@@ -420,8 +420,8 @@ class TaskInfoCompo(object):
                             if attr == 'location':
                                 loc_attr += f' at {attr}: {getattr(info_dict["obj"], attr)}'
                             else:
-                                add_attr += f'{attr}: {getattr(info_dict["obj"], attr)}'
-                        compo_instruction += f'observe object {info_dict["count"]} with {add_attr}{loc_attr}, '
+                                add_attr += f' with {attr}: {getattr(info_dict["obj"], attr)}'
+                        compo_instruction += f'observe object {info_dict["count"]}{add_attr}{loc_attr}, '
                 add_delay, was_delay = False, False
 
             for d in frame.description:
