@@ -66,7 +66,7 @@ def obj_str(
     if isinstance(view_angle, Operator):
         sentence += ['with', str(view_angle)]
     if isinstance(location, Operator):
-        sentence += ['with', str(location)]
+        sentence += ['at', str(location)]
     if isinstance(obj, Operator):
         sentence += ['with', str(category)]
     return ' '.join(sentence)

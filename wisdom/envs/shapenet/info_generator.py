@@ -403,7 +403,7 @@ class TaskInfoCompo(object):
                 if len(obj_info[epoch]) == 1:
                     info_dict = obj_info[epoch][0]
                     compo_instruction += f'observe object {info_dict["count"]}, '
-                else:
+                else:  # if there are multiple stimuli in the frame (i.e. distractor)
                     distractor_attr = [
                         d.split('distractor with different ')[1]
                         for d in frame.description if 'distractor with different ' in d
@@ -415,10 +415,13 @@ class TaskInfoCompo(object):
                         if info_dict['obj'].deletable:
                             # remove this if instruction says observe distractor with add_attr
                             continue
-                        add_attr = ''
+                        add_attr, loc_attr = '', ''
                         for attr in distractor_attr:
-                            add_attr += f'{attr}: {getattr(info_dict["obj"], attr)}'
-                        compo_instruction += f'observe object {info_dict["count"]} with {add_attr}, '
+                            if attr == 'location':
+                                loc_attr += f' at {attr}: {getattr(info_dict["obj"], attr)}'
+                            else:
+                                add_attr += f'{attr}: {getattr(info_dict["obj"], attr)}'
+                        compo_instruction += f'observe object {info_dict["count"]} with {add_attr}{loc_attr}, '
                 add_delay, was_delay = False, False
 
             for d in frame.description:
@@ -600,8 +603,10 @@ class TaskInfoCompo(object):
             add_distractor_frame: int = 0,
             add_distractor_time: int = 0
     ) -> Tuple[List[np.ndarray], List[Dict], Dict]:
+        # TODO: return copy of objset, not add distractor in place
         if add_distractor_frame > 0:
             self.add_distractor_frame(add_distractor_frame, stim_data)
+
         if add_distractor_time > 0:
             self.add_distractor_time(add_distractor_time, stim_data)
 
