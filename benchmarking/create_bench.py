@@ -67,9 +67,6 @@ def create_tasks(env, track_tf, **kwargs):
 
     # Create tasks 
     while len(tasks) < kwargs['n_tasks']:
-        print(len(tasks))
-        print(kwargs['n_tasks'])
-
         task = create_task(env)
 
         print('task.n_frames: ', task.n_frames)
