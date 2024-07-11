@@ -3,6 +3,7 @@ from wisdom.envs.registration import StimData, EnvSpec
 from wisdom.envs.shapenet.shapenet_env import ShapeNetEnv
 from wisdom.utils.read_write import find_data_folder
 
+
 def make(
         env_id: str = 'ShapeNet',
         stim_data: StimData = None,

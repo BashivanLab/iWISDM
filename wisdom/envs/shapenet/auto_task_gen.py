@@ -21,7 +21,6 @@ from wisdom.envs.shapenet.registration import SNEnvSpec
 GRAPH_TUPLE = Tuple[nx.DiGraph, int, int]
 TASK = Tuple[Union[Operator, Attribute], Task]
 
-# TODO: take care of config prob (0.9999, 0.0001)
 
 class SNTaskGenerator(TaskGenerator):
     """
@@ -29,6 +28,11 @@ class SNTaskGenerator(TaskGenerator):
     """
 
     def __init__(self, env_spec: SNEnvSpec):
+        """
+        constructor for the SNTaskGenerator
+        @param env_spec: the task generation configuration,
+        see wisdom/envs/shapenet/registration.py for default env_spec
+        """
         super().__init__(env_spec)
         self.boolean_ops = self.config['boolean_ops']
         self.max_op = self.config['max_op']
@@ -36,6 +40,9 @@ class SNTaskGenerator(TaskGenerator):
         self.select_limit = self.config['select_limit']
         self.max_switch = self.config['max_switch']
         self.switch_threshold = self.config['switch_threshold']
+        self.compare_const_prob = self.config['compare_const_prob']
+        self.const_parent_ops = self.config['const_parent_ops']
+        self.indexable_get_ops = self.config['indexable_get_ops']
 
     @staticmethod
     def count_depth_and_op(op: Operator) -> Tuple[int, int]:
@@ -61,6 +68,33 @@ class SNTaskGenerator(TaskGenerator):
         op_count += 1
         depth_count += 1
         return op_count, depth_count
+
+    @staticmethod
+    def switch_generator(conditional: GRAPH_TUPLE, do_if: GRAPH_TUPLE, do_else: GRAPH_TUPLE) -> GRAPH_TUPLE:
+        """
+        function to generate a switch operator based on the conditional, do_if, and do_else subtask graphs
+        stitches the 3 subtask graphs together to form a switch task graph
+        @param conditional:
+        @param do_if:
+        @param do_else:
+        @return:
+        """
+        # combine the 3 subtasks graphs into the switch task graph by using networkx compose_all
+        do_if_graph, do_if_root, do_if_node = do_if
+        do_else_graph, do_else_root, do_else_node = do_else
+        conditional_graph, conditional_root, conditional_node = conditional
+
+        # combine all 3 graphs and add edges
+        G: nx.DiGraph = nx.compose_all([do_if_graph, do_else_graph, conditional_graph])
+        switch_count = conditional_node + 1
+        G.add_node(switch_count, label='Switch')
+        # note that all directed edges are reversed later at task construction
+        # after reversal, switch operator is connected to the selects of do_if and do_else
+        # the root of conditional is then connected to the switch operator
+        G.add_edge(do_if_node, switch_count)
+        G.add_edge(do_else_node, switch_count)
+        G.add_edge(switch_count, conditional_root)
+        return G, switch_count, switch_count
 
     def sample_root_helper(self, max_op, max_depth) -> Operator:
         """
@@ -104,7 +138,7 @@ class SNTaskGenerator(TaskGenerator):
 
         complexity_downstream = [op_depth_limit[op] for op in downstream_ops]
         min_complexity_downstream = [op for op in downstream_ops if op_depth_limit[op] == min(complexity_downstream)]
-        if "sample_dist" in self.op_dict[op_name]:
+        if "sample_dist" in self.op_dict[op_name]:  # sample dist overrides complexity bounding
             return np.random.choice(self.op_dict[op_name]["downstream"], p=self.op_dict[op_name]["sample_dist"])
         if not min_add_depth_filter:
             return np.random.choice(min_complexity_downstream)
@@ -201,7 +235,7 @@ class SNTaskGenerator(TaskGenerator):
             cur_depth: int,
             max_depth: int,
             select_op=False,
-            select_downstream=None
+            select_downstream=None,
     ) -> int:
         """
         modifies G in place
@@ -243,29 +277,42 @@ class SNTaskGenerator(TaskGenerator):
                 select_op = False
 
             parent = op_count
-            if root_op in ['IsSame', 'NotSame']:
-                if all(op == 'CONST' for op in children):
-                    # make sure we are not comparing two constants in IsSame
-                    downstream = self.op_dict[root_op]['downstream'].copy()
-                    downstream.remove('CONST')
-                    if 'sample_dist' in self.op_dict[root_op]:
-                        downstream = [op for op in downstream
-                                      if self.op_dict[root_op]['sample_dist'][
-                                          self.op_dict[root_op]['downstream'].index(op)] > 0.0]
-                    children[0] = random.choice(downstream)  # add a Get op to compare with the constant
-                if any(op == 'CONST' for op in children):
-                    const_idx = children.index('CONST')
-                    other_idx = 0 if const_idx == 1 else 1
-                    # remove this check if there's mapping for object idx
-                    if any(op == 'GetViewAngle' or op == 'GetObject' for op in children):
-                        children[const_idx] = children[other_idx]  # add a Get op to compare with the constant
+            compare_const_prob, const_parent_ops = self.compare_const_prob, self.const_parent_ops
+            if root_op in const_parent_ops:
+                # current environment only allows comparing category and location const
+                # do not compare constants if comparing view_angle and object
+                # remove this check if there's mapping for object/view_angle idx
+                if not any(op not in self.indexable_get_ops for op in children):
+                    if np.random.random() < compare_const_prob:
+                        # if the random number is less than the probability
+                        # then change one of the indexable Get operators to CONST
+                        idx = random.choice(range(len(children)))
+                        children[idx] = 'CONST'
+                else:
+                    if compare_const_prob == 1.0:
+                        # force compare to CONST by changing children to indexable Get operators
+                        if self.op_dict[root_op]['same_children_op']:
+                            n_downstream = self.op_dict[root_op]["n_downstream"]
+                            child = random.choice(self.indexable_get_ops)
+                            children = [child for _ in range(n_downstream)]
+                        else:
+                            children = [
+                                random.choice(self.indexable_get_ops)
+                                if node not in self.indexable_get_ops else node
+                                for node in children
+                            ]
+                        idx = random.choice(range(len(children)))
+                        children[idx] = 'CONST'
             for op in children:  # loop over sampled children and modify the graph in place
                 if op != 'None':  # if the operator is an operator
                     child = op_count + 1
                     # recursively generate branches based on the child operator
                     # op_count is incremented based on how many nodes were added in the child branch call
-                    op_count = self.branch_generator(G, op, child, max_op, cur_depth, max_depth, select_op,
-                                                     select_downstream)
+                    op_count = self.branch_generator(
+                        G, op, child,
+                        max_op, cur_depth, max_depth,
+                        select_op, select_downstream
+                    )
                     G.add_node(child, label=op)  # modify the graph
                     G.add_edge(parent, child)
             return op_count
@@ -276,7 +323,7 @@ class SNTaskGenerator(TaskGenerator):
             max_op=20,
             max_depth=10,
             select_limit=False,
-            root_op=None
+            root_op=None,
     ) -> GRAPH_TUPLE:
         """
         function for generating subtask graphs
@@ -301,35 +348,12 @@ class SNTaskGenerator(TaskGenerator):
 
         select_downstream = ['None'] * 4 if select_limit else None
 
-        op_count = self.branch_generator(G, root_op, op_count, max_op, 0, max_depth,
-                                         select_downstream=select_downstream)
+        op_count = self.branch_generator(
+            G, root_op, op_count,
+            max_op, 0, max_depth,
+            select_downstream=select_downstream
+        )
         return G, root, op_count
-
-    def switch_generator(self, conditional: GRAPH_TUPLE, do_if: GRAPH_TUPLE, do_else: GRAPH_TUPLE) -> GRAPH_TUPLE:
-        """
-        function to generate a switch operator based on the conditional, do_if, and do_else subtask graphs
-        stitches the 3 subtask graphs together to form a switch task graph
-        @param conditional:
-        @param do_if:
-        @param do_else:
-        @return:
-        """
-        # combine the 3 subtasks graphs into the switch task graph by using networkx compose_all
-        do_if_graph, do_if_root, do_if_node = do_if
-        do_else_graph, do_else_root, do_else_node = do_else
-        conditional_graph, conditional_root, conditional_node = conditional
-
-        # combine all 3 graphs and add edges
-        G: nx.DiGraph = nx.compose_all([do_if_graph, do_else_graph, conditional_graph])
-        switch_count = conditional_node + 1
-        G.add_node(switch_count, label='Switch')
-        # note that all directed edges are reversed later at task construction
-        # after reversal, switch operator is connected to the selects of do_if and do_else
-        # the root of conditional is then connected to the switch operator
-        G.add_edge(do_if_node, switch_count)
-        G.add_edge(do_else_node, switch_count)
-        G.add_edge(switch_count, conditional_root)
-        return G, switch_count, switch_count
 
     def generate_task(self) -> Tuple[GRAPH_TUPLE, TASK]:
         """
@@ -350,7 +374,8 @@ class SNTaskGenerator(TaskGenerator):
             count=count,
             max_op=self.max_op,
             max_depth=self.max_depth,
-            select_limit=self.select_limit
+            select_limit=self.select_limit,
+
         )
         subtask, whens = tg.subtask_generation(self.env_spec, subtask_graph, existing_whens=whens)
         count = subtask_graph[2] + 1  # start a new subtask graph node number according to old graph

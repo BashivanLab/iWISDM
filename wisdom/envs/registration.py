@@ -34,15 +34,12 @@ class EnvSpec:
         this includes maximum number of operators in the task, maximum depth of the task,
         the root operator of the task, and the generation configuration.
 
+        see wisdom/envs/shapenet/registration.py for example
         Args:
-            grid_size:
-            max_delay:
-            delay_prob:
-            max_op:
-            max_depth:
-            root_op:
-            select_limit:
-            auto_gen_config:
+            grid_size: convert image canvas into (n, n) grid for location tasks
+            max_delay: upper bound on the number of delay frames in a task
+            delay_prob: how likely a delay frame is added, [0.0, 1.0]
+            auto_gen_config: AutoTask generation configuration, see wisdom/envs/shapenet/registration.py for example
         """
 
     def __init__(
@@ -53,6 +50,15 @@ class EnvSpec:
             auto_gen_config: Dict = None,
             **kwargs
     ):
+        """
+        environment trial generation specifications
+
+        @param grid_size: convert image canvas into (n, n) grid for location tasks
+        @param max_delay: upper bound on the number of delay frames in a task
+        @param delay_prob: how likely a delay frame is added, [0.0, 1.0]
+        @param auto_gen_config:
+        @param kwargs:
+        """
         self.MAX_DELAY = max_delay
         self.delay_prob = delay_prob
         self.auto_gen_config = auto_gen_config
@@ -72,19 +78,19 @@ class EnvSpec:
 
 class StimData:
     """
-    input:
+    class for storing and retrieving the stimuli dataset information
+    Args:
         dir_path: file path to the stimuli dataset. the folder has subdir structure:
-            - dir_path
-                - train
-                    - imgs
-                        *
-                    - train_metadata.{csv/pkl}
-                - val
-                    - imgs
-                    - val.{csv/pkl}
-                - test
-                    - imgs
-                    - test_metadata.{csv/pkl}
+            dir_path:
+                -train
+                    -imgs
+                    -train_metadata.{csv/pkl}
+                -val
+                    -imgs
+                    -val.{csv/pkl}
+                -test
+                    -imgs
+                    -test_metadata.{csv/pkl}
         find_subdir: boolean, if True, find the subdirectories for train, validation, test splits
         df: pandas dataframe, the metadata for the stimuli dataset
         img_folder_path: file path to the stimuli images

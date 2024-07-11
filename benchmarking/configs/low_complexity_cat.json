@@ -32,8 +32,7 @@
         "IsSame":
             {
                 "n_downstream": 2,
-                "downstream": ["GetCategory",  "CONST"],
-
+                "downstream": ["GetCategory"],
                 "same_children_op": true,
                 "min_depth": 3,
                 "min_op": 7
@@ -41,7 +40,7 @@
         "NotSame":
             {
                 "n_downstream": 2,
-                "downstream": ["GetCategory", "CONST"],
+                "downstream": ["GetCategory"],
                 "same_children_op": true,
                 "min_depth": 3,
                 "min_op": 7
@@ -80,5 +79,8 @@
     "max_depth": 5,
     "max_switch": 0,
     "switch_threshold": 0,
-    "select_limit": false
+    "select_limit": false,
+    "compare_const_prob": 0.1,
+    "const_parent_ops": ["IsSame", "NotSame"],
+    "indexable_get_ops": ["GetLoc", "GetCategory"]
 }

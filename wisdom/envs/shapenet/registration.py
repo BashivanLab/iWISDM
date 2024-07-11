@@ -102,82 +102,82 @@ class SNEnvSpec(EnvSpec):
             **kwargs
     ):
         if auto_gen_config is None:
+            op_dict = {
+                "Select":
+                    {
+                        "n_downstream": 4,
+                        "downstream": ["GetLoc", "GetCategory", "GetObject"],
+                        "same_children_op": False,
+                        "min_depth": 1,
+                        "min_op": 1,
+                    },
+                "GetCategory":
+                    {
+                        "n_downstream": 1,
+                        "downstream": ["Select"],
+                        "min_depth": 2,
+                        "min_op": 2,
+                    },
+                "GetLoc":
+                    {
+                        "n_downstream": 1,
+                        "downstream": ["Select"],
+                        "min_depth": 2,
+                        "min_op": 2,
+                    },
+                "GetObject":
+                    {
+                        "n_downstream": 1,
+                        "downstream": ["Select"],
+                        "min_depth": 2,
+                        "min_op": 2,
+                    },
+                "IsSame":
+                    {
+                        "n_downstream": 2,
+                        "downstream": ["GetLoc", "GetCategory", "GetObject"],
+                        "sample_dist": [1 / 3, 1 / 3, 1 / 3],
+                        "same_children_op": True,
+                        "min_depth": 3,
+                        "min_op": 7,
+                    },
+                "NotSame":
+                    {
+                        "n_downstream": 2,
+                        "downstream": ["GetLoc", "GetCategory", "GetObject"],
+                        "sample_dist": [1 / 3, 1 / 3, 1 / 3],
+                        "same_children_op": True,
+                        "min_depth": 3,
+                        "min_op": 7,
+                    },
+                "And":
+                    {
+                        "n_downstream": 2,
+                        "downstream": ["IsSame", "NotSame", "And", "Or"],
+                        "same_children_op": False,
+                        "min_depth": 4,
+                        "min_op": 15,
+                    },
+                "Or":
+                    {
+                        "n_downstream": 2,
+                        "downstream": ["IsSame", "NotSame", "And", "Or"],
+                        "same_children_op": False,
+                        "min_depth": 4,
+                        "min_op": 15,
+                    },
+                "CONST":
+                    {
+                        "n_downstream": 0,
+                        "downstream": [],
+                        "sample_dist": [],
+                        "same_children_op": False,
+                        "min_depth": 1,
+                        "min_op": 1,
+                    }
+            }
             auto_gen_config = {
-                'op_dict': {
-                    "Select":
-                        {
-                            "n_downstream": 4,
-                            "downstream": ["GetLoc", "GetCategory", "GetObject"],
-                            "same_children_op": False,
-                            "min_depth": 1,
-                            "min_op": 1,
-                        },
-                    "GetCategory":
-                        {
-                            "n_downstream": 1,
-                            "downstream": ["Select"],
-                            "min_depth": 2,
-                            "min_op": 2,
-                        },
-                    "GetLoc":
-                        {
-                            "n_downstream": 1,
-                            "downstream": ["Select"],
-                            "min_depth": 2,
-                            "min_op": 2,
-                        },
-                    "GetObject":
-                        {
-                            "n_downstream": 1,
-                            "downstream": ["Select"],
-                            "min_depth": 2,
-                            "min_op": 2,
-                        },
-                    "IsSame":
-                        {
-                            "n_downstream": 2,
-                            "downstream": ["GetLoc", "GetCategory", "GetObject", "CONST"],
-                            "sample_dist": [4 / 15, 4 / 15, 4 / 15, 1 / 5],
-
-                            "same_children_op": True,
-                            "min_depth": 3,
-                            "min_op": 7,
-                        },
-                    "NotSame":
-                        {
-                            "n_downstream": 2,
-                            "downstream": ["GetLoc", "GetCategory", "GetObject", "CONST"],
-                            "sample_dist": [4 / 15, 4 / 15, 4 / 15, 1 / 5],
-                            "same_children_op": True,
-                            "min_depth": 3,
-                            "min_op": 7,
-                        },
-                    "And":
-                        {
-                            "n_downstream": 2,
-                            "downstream": ["IsSame", "NotSame", "And", "Or"],
-                            "same_children_op": False,
-                            "min_depth": 4,
-                            "min_op": 15,
-                        },
-                    "Or":
-                        {
-                            "n_downstream": 2,
-                            "downstream": ["IsSame", "NotSame", "And", "Or"],
-                            "same_children_op": False,
-                            "min_depth": 4,
-                            "min_op": 15,
-                        },
-                    "CONST":
-                        {
-                            "n_downstream": 0,
-                            "downstream": [],
-                            "sample_dist": [],
-                            "same_children_op": False,
-                            "min_depth": 1,
-                            "min_op": 1,
-                        }
-                },
+                'op_dict': op_dict,
                 # root_ops are the operators to begin a task
                 'root_ops': ["IsSame", "And", "Or", "NotSame", "GetLoc", "GetCategory"],
                 'boolean_ops': ["IsSame", "And", "Or", "NotSame", ],
@@ -189,6 +189,9 @@ class SNEnvSpec(EnvSpec):
                 'max_switch': 1,
                 'switch_threshold': 0,
                 'select_limit': False,
+                'compare_const_prob': 1 / 15,
+                'const_parent_ops': ["IsSame", "NotSame"],
+                'indexable_get_ops': ["GetLoc", "GetCategory"],
             }
         self.add_fixation_cue = add_fixation_cue
         self.canvas_size = canvas_size

@@ -33,7 +33,7 @@
             {
                 "n_downstream": 2,
                 "downstream": ["GetCategory", "CONST"],
-                "sample_dist": [0, 1], 
+                "sample_dist": [0, 1],
                 "same_children_op": true,
                 "min_depth": 3,
                 "min_op": 7
@@ -42,7 +42,7 @@
             {
                 "n_downstream": 2,
                 "downstream": ["GetCategory", "CONST"],
-                "sample_dist": [0, 1], 
+                "sample_dist": [0, 1],
                 "same_children_op": false,
                 "min_depth": 3,
                 "min_op": 7
@@ -81,5 +81,8 @@
     "max_depth": 3,
     "max_switch": 0,
     "switch_threshold": 0,
-    "select_limit": true
+    "select_limit": true,
+    "compare_const_prob": 1.0,
+    "const_parent_ops": ["IsSame", "NotSame"],
+    "indexable_get_ops": ["GetLoc", "GetCategory"]
 }

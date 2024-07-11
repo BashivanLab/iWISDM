@@ -79,5 +79,8 @@
     "max_depth": 3,
     "max_switch": 0,
     "switch_threshold": 0,
-    "select_limit": true
+    "select_limit": true,
+    "compare_const_prob": 0.0,
+    "const_parent_ops": ["IsSame", "NotSame"],
+    "indexable_get_ops": ["GetLoc", "GetCategory"]
 }
