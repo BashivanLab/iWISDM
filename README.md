@@ -72,3 +72,14 @@ read_write.write_trial(imgs, info_dict, f'output/trial_{i}')
 This repository builds upon the foundational work presented in the COG paper (https://arxiv.org/abs/1803.06092).
 
 Yang, Guangyu Robert, et al. "A dataset and architecture for visual reasoning with a working memory." Proceedings of the European Conference on Computer Vision (ECCV). 2018.
+
+### Citation
+If you find iWISDM useful in your research, please use the following BibTex:
+```
+@inproceedings{lei2024iwisdm,
+  title={iWISDM: Assessing instruction following in multimodal models at scale},
+  author={Lei, Xiaoxuan and Gomez, Lucas and Bai, Hao Yuan and Bashivan, Pouya},
+  booktitle={Conference on Lifelong Learning Agents (CoLLAs 2024)},
+  year={2024}
+}
+```
