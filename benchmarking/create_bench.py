@@ -102,7 +102,7 @@ def create_tasks(env, track_tf, **kwargs):
         print('under delay limit')
         # Check if task features are in balance
         if kwargs['force_balance']:
-            if not (track_tf[answer] + 1) / kwargs['n_trials'] <= 1 / len(track_tf):
+            if not (track_tf[answer] + 1) / kwargs['n_tasks'] <= 1 / len(track_tf):
                 print('not balanced')
                 continue
             
@@ -224,6 +224,9 @@ if __name__ == '__main__':
 
     print(args)
 
+    # Assert that n_trials is >= n_tasks or n_trails is 0
+    assert args.n_trials >= args.n_tasks or args.n_trials == 0, 'n_trials must be >= n_tasks or 0'
+
     # Make task directory
     if not os.path.exists(args.tasks_dir):
         os.makedirs(args.tasks_dir)
@@ -259,43 +262,40 @@ if __name__ == '__main__':
     Set balance tracking dictionary 
     (change dictionaries to match feature labels of stimulus set)
     """
-    n_trials = args.n_trials
+    n_tasks_ = args.n_tasks
+    n_trials_ = args.n_trials
 
     if args.features == 'all' and args.non_bool_actions:
-        track_tf = {'true': 0, 'false': 0, 'benches': 0, 'boats': 0, 'cars': 0, 'chairs': 0, 'couches': 0,
-                    'lighting': 0, 'planes': 0, 'tables': 0, 'bottom right': 0, 'bottom left': 0, 'top left': 0,
-                    'top right': 0}
-        args.n_trials = args.n_trials + (len(track_tf) - args.n_trials % len(track_tf))  # Makes sure n_trials is divisible by length of feature space
-        args.n_tasks = args.n_trials
+        track_tf = {'true': 0, 'false': 0, 'benches': 0, 'boats': 0, 'cars': 0, 'chairs': 0, 'couches': 0, 'lighting': 0, 
+                    'planes': 0, 'tables': 0, 'bottom right': 0, 'bottom left': 0, 'top left': 0, 'top right': 0}
 
     elif args.features == 'category' and args.non_bool_actions:
         track_tf = {'true': 0, 'false': 0, 'benches': 0, 'boats': 0, 'cars': 0, 'chairs': 0, 'couches': 0,
                     'lighting': 0, 'planes': 0, 'tables': 0}
-        args.n_trials = args.n_trials + (len(track_tf) - args.n_trials % len(track_tf))
-        args.n_tasks = args.n_trials
 
     elif args.features == 'location' and args.non_bool_actions:
         track_tf = {'true': 0, 'false': 0, 'bottom right': 0, 'bottom left': 0, 'top left': 0, 'top right': 0}
-        args.n_trials = args.n_trials + (len(track_tf) - args.n_trials % len(track_tf))
-        args.n_tasks = args.n_trials
-
-    elif args.features == 'object' and args.non_bool_actions:
-        track_tf = {'true': 0, 'false': 0}
-        args.n_trials = args.n_trials + (len(track_tf) - args.n_trials % len(track_tf))
-        args.n_tasks = args.n_trials
 
     else:
         track_tf = {'true': 0, 'false': 0}
 
+    if args.force_balance:
+        # Make sure n_tasks is divisible by length of feature space
+        args.n_tasks = args.n_tasks + (len(track_tf) - args.n_tasks % len(track_tf))
+
+        if args.n_trials > 0:
+            args.n_trials = args.n_tasks*(n_trials_//n_tasks_)
+        
     print('n_trials:', args.n_trials)
     print('n_tasks:', args.n_tasks)
 
     print('total:', len(create_tasks(env, track_tf, **vars(args))))
 
     if args.non_bool_actions:
-        number_of_files_to_delete = args.n_trials - n_trials
-        delete_last_n_files(args.tasks_dir, number_of_files_to_delete)
-        delete_last_n_files(args.trials_dir, number_of_files_to_delete)
+        number_of_tasks_to_delete = args.n_tasks - n_tasks_
+        number_of_trials_to_delete = args.n_trials - n_trials_
+        delete_last_n_files(args.tasks_dir, number_of_tasks_to_delete)
+        delete_last_n_files(args.trials_dir, number_of_trials_to_delete)
 
     if args.shuffle:
         shuffle_files(args.tasks_dir)
