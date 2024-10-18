@@ -2,6 +2,7 @@ import os
 import json
 import shutil
 import argparse
+import numpy as np
 from natsort import natsorted
 
 import sys
@@ -28,10 +29,8 @@ def generate_trial(env, task, mode):
 def store_task(task, fp):
     read_write.write_task(task, fp)
 
-def duplicate_check(current_instructions, instruction):
-    if instruction in current_instructions:
-        return True
-    return False
+def duplicate_check(task_strs, task_str):
+    return task_str in task_strs
 
 def load_stored_tasks(fp, mode):
     ts = []
@@ -56,97 +55,110 @@ def create_tasks(env, track_tf, **kwargs):
     # Load tasks if they exist
     if os.listdir(kwargs['tasks_dir']) != []:
         tasks, task_ins, answers = load_stored_tasks(kwargs['tasks_dir'], mode='train' if kwargs['train'] else 'val')
+        task_strs = []
         for ins, task, ans in zip(task_ins, tasks, answers):
             total_and += ins.count(' and ')
             total_or += ins.count(' or ')
             total_not += ins.count(' not ')
             track_tf[ans] += 1
+            task_str = json.dumps(task.to_json())
+            task_strs.append(task_str)
     else:
         tasks = []
-        task_ins = []
+        task_strs = []
 
     # Create tasks 
     while len(tasks) < kwargs['n_tasks']:
         task = create_task(env)
 
+        task_str = json.dumps(task.to_json())
+
         print('task.n_frames: ', task.n_frames)
-
+        
         # Check if task meets length requirements
-        if  kwargs['min_len'] <= task.n_frames <= kwargs['max_len']:
-            print('between min_len and max_len')
+        if  not (kwargs['min_len'] <= task.n_frames <= kwargs['max_len']):
+            print('not between min_len and max_len')
+            continue
 
-            imgs, instructions, answer, info_dict = generate_trial(env, task,
-                                                                   mode='train' if kwargs['train'] else 'val')
-            n_and = instructions.count(' and ')
-            n_or = instructions.count(' or ')
-
-            print(n_and, n_or)
+        print('between min_len and max_len')
+        imgs, instructions, answer, info_dict = generate_trial(env, task,
+                                                                mode='train' if kwargs['train'] else 'val')
+        n_and = instructions.count(' and ')
+        n_or = instructions.count(' or ')
             
-            # Check if task meets joint operator requirements
-            if kwargs['min_joint_ops'] <= (n_and + n_or) <= kwargs['max_joint_ops']:
-                print('under bool op limit')
-                
-                n_delay = task.n_frames - instructions.count('observe')
+        # Check if task meets joint operator requirements
+        if not (kwargs['min_joint_ops'] <= (n_and + n_or) <= kwargs['max_joint_ops']):
+            print('not between min_joint_ops and max_joint_ops')
+            continue
+        
+        print('under bool op limit')
+        n_delay = task.n_frames - instructions.count('observe')
 
-                # Check if task meets delay frame requirements
-                if kwargs['min_delay'] <= n_delay <= kwargs['max_delay']:
-                    print('under delay limit')
+        # Check if task meets delay frame requirements
+        if not (kwargs['min_delay'] <= n_delay <= kwargs['max_delay']):
+            print('over delay limit')
+            continue
 
-                    # Check if task features are in balance
-                    if kwargs['force_balance']:
-                        if (track_tf[answer] + 1) / kwargs['n_trials'] <= 1 / len(track_tf):
-                            print('balanced')
+        print('under delay limit')
+        # Check if task features are in balance
+        if kwargs['force_balance']:
+            if not (track_tf[answer] + 1) / kwargs['n_trials'] <= 1 / len(track_tf):
+                print('not balanced')
+                continue
+            
+            print('balanced')
+            # Check if task is a duplicate
+            if not duplicate_check(task_strs, task_str):
+                print('not duplicate')
 
-                            # Check if task is a duplicate
-                            if not duplicate_check(task_ins, instructions):
-                                print('not duplicate')
+                track_tf[answer] += 1
+                total_and += n_and
+                total_or += n_or
+                total_not += instructions.count(' not ')
 
-                                track_tf[answer] += 1
-                                total_and += n_and
-                                total_or += n_or
-                                total_not += instructions.count(' not ')
-                                task_ins.append(instructions)
+                task_strs.append(task_str)
 
-                                store_task(task, kwargs['tasks_dir'] + '/' + str(len(tasks)) + '.json')
+                store_task(task, kwargs['tasks_dir'] + '/' + str(len(tasks)) + '.json')
 
-                                info_dicts = []
-                                t_per_t = kwargs['n_trials']//kwargs['n_tasks']
-                                i = t_per_t 
+                info_dicts = []
+                t_per_t = kwargs['n_trials']//kwargs['n_tasks']
+                i = t_per_t 
 
-                                while i > 0:
-                                    imgs, _, _, info_dict = generate_trial(env, task, mode='train' if kwargs['train'] else 'val')
-                                    if info_dict not in info_dicts:
-                                        read_write.write_trial(imgs, info_dict, os.path.join(kwargs['trials_dir'], 'trial' + 
-                                                                                             str(len(tasks) * t_per_t + t_per_t - i)))
-                                        info_dicts.append(info_dict)
-                                        i -= 1
-                                tasks.append(task)
-                    else:
-                        # Check if task is a duplicate
-                        if not duplicate_check(task_ins, instructions):
-                            track_tf[answer] += 1
-                            total_and += n_and
-                            total_or += n_or
-                            total_not += instructions.count(' not ')
-                            task_ins.append(instructions)
+                while i > 0:
+                    imgs, _, _, info_dict = generate_trial(env, task, mode='train' if kwargs['train'] else 'val')
+                    if info_dict not in info_dicts:
+                        read_write.write_trial(imgs, info_dict, os.path.join(kwargs['trials_dir'], 'trial' + 
+                                                                                str(len(tasks) * t_per_t + t_per_t - i)))
+                        info_dicts.append(info_dict)
+                        i -= 1
+                tasks.append(task)
+        else:
+            # Check if task is a duplicate
+            if not duplicate_check(task_strs, task_str):
+                track_tf[answer] += 1
+                total_and += n_and
+                total_or += n_or
+                total_not += instructions.count(' not ')
 
-                            store_task(task, kwargs['tasks_dir'] + '/' + str(len(tasks)) + '.json')
+                task_strs.append(task_str)
 
-                            info_dicts = []
-                            t_per_t = kwargs['n_trials'] // kwargs['n_tasks']
-                            i = t_per_t
+                store_task(task, kwargs['tasks_dir'] + '/' + str(len(tasks)) + '.json')
 
-                            while i > 0:
-                                imgs, _, _, info_dict = generate_trial(env, task, mode='train' if kwargs['train'] else 'val')
+                info_dicts = []
+                t_per_t = kwargs['n_trials'] // kwargs['n_tasks']
+                i = t_per_t
 
-                                if info_dict not in info_dicts:
-                                    read_write.write_trial(imgs, info_dict, os.path.join(kwargs['trials_dir'], 'trial' + 
-                                                                                         str(len(tasks) * t_per_t + t_per_t - i)))
-                                    info_dicts.append(info_dict)
-                                    i -= 1
+                while i > 0:
+                    imgs, _, _, info_dict = generate_trial(env, task, mode='train' if kwargs['train'] else 'val')
 
-                            tasks.append(task)
-    return tasks, task_ins
+                    if info_dict not in info_dicts:
+                        read_write.write_trial(imgs, info_dict, os.path.join(kwargs['trials_dir'], 'trial' + 
+                                                                                str(len(tasks) * t_per_t + t_per_t - i)))
+                        info_dicts.append(info_dict)
+                        i -= 1
+
+                tasks.append(task)
+    return tasks
 
 
 def delete_last_n_files(directory, n):
@@ -160,6 +172,32 @@ def delete_last_n_files(directory, n):
             os.remove(file_path)
         else:
             shutil.rmtree(file_path)
+
+# Shuffle files in directory 
+def shuffle_files(directory):
+    files = os.listdir(directory)
+
+    # Create temp directory
+    if not os.path.exists(os.path.join(directory, 'temp')):
+        os.makedirs(os.path.join(directory, 'temp'))
+    else:
+        shutil.rmtree(os.path.join(directory, 'temp'))
+        os.makedirs(os.path.join(directory, 'temp'))
+
+    # Shuffle files
+    indices = np.arange(len(files))
+    np.random.shuffle(indices)
+
+    # Copy files to temp directory with new indices
+    for i, file in enumerate(files):
+        shutil.copyfile(os.path.join(directory, file), os.path.join(directory, 'temp', str(indices[i]) + '.json'))
+
+    # Copy and replace files in original directory
+    for file in os.listdir(os.path.join(directory, 'temp')):
+        shutil.copyfile(os.path.join(directory, 'temp', file), os.path.join(directory, file))
+
+    # Remove temp directory
+    shutil.rmtree(os.path.join(directory, 'temp'))
 
 
 if __name__ == '__main__':
@@ -181,6 +219,7 @@ if __name__ == '__main__':
     parser.add_argument('--max_joint_ops', type=int, default=2)
     parser.add_argument('--force_balance', action='store_true', default=False)
     parser.add_argument('--non_bool_actions', action='store_true', default=False)
+    parser.add_argument('--shuffle', action='store_true', default=False)
     args = parser.parse_args()
 
     print(args)
@@ -251,9 +290,12 @@ if __name__ == '__main__':
     print('n_trials:', args.n_trials)
     print('n_tasks:', args.n_tasks)
 
-    print('total:', len(create_tasks(env, track_tf, **vars(args))[0]))
+    print('total:', len(create_tasks(env, track_tf, **vars(args))))
 
     if args.non_bool_actions:
         number_of_files_to_delete = args.n_trials - n_trials
         delete_last_n_files(args.tasks_dir, number_of_files_to_delete)
         delete_last_n_files(args.trials_dir, number_of_files_to_delete)
+
+    if args.shuffle:
+        shuffle_files(args.tasks_dir)
