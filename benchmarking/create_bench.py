@@ -288,7 +288,6 @@ if __name__ == '__main__':
         
     print('n_trials:', args.n_trials)
     print('n_tasks:', args.n_tasks)
-
     print('total:', len(create_tasks(env, track_tf, **vars(args))))
 
     if args.non_bool_actions:
