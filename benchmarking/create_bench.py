@@ -29,8 +29,11 @@ def generate_trial(env, task, mode):
 def store_task(task, fp):
     read_write.write_task(task, fp)
 
-def duplicate_check(task_strs, task_str):
-    return task_str in task_strs
+def duplicate_check(tasks, task):
+    tasks_len = len(tasks)
+    tasks_new = tasks + [task]
+    tasks_new_set = set(tasks_new)
+    return len(tasks_new_set) <= tasks_len
 
 def load_stored_tasks(fp, mode):
     ts = []
@@ -108,7 +111,7 @@ def create_tasks(env, track_tf, **kwargs):
             
             print('balanced')
             # Check if task is a duplicate
-            if not duplicate_check(task_strs, task_str):
+            if not duplicate_check(tasks, task):
                 print('not duplicate')
 
                 track_tf[answer] += 1
@@ -134,7 +137,9 @@ def create_tasks(env, track_tf, **kwargs):
                 tasks.append(task)
         else:
             # Check if task is a duplicate
-            if not duplicate_check(task_strs, task_str):
+            if not duplicate_check(tasks, task):
+                print('not duplicate')
+                
                 track_tf[answer] += 1
                 total_and += n_and
                 total_or += n_or
