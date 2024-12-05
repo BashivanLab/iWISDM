@@ -290,6 +290,26 @@ class Operator(object):
                 return False
         return True
 
+    def get_children_targets(self, objset):
+        """
+        get the answers to each child recursively
+        @param objset:
+        @return:
+        """
+        if not isinstance(self, Operator):
+            return
+        target = str(self(objset, objset.n_epoch - 1))
+        self_dict = dict()
+        self_dict['question'] = str(self)
+        self_dict['answer'] = target
+        if not self.child:
+            return self_dict
+        self_dict['children'] = [
+            c.get_children_targets(objset)
+            for c in self.child if isinstance(c, Operator) and not isinstance(c, Attribute)
+        ]
+        return self_dict
+
 
 class Task(object):
     """Base class for tasks."""
@@ -388,6 +408,24 @@ class Task(object):
 
     def get_target(self, objset):
         return [self(objset, objset.n_epoch - 1)]
+
+    def get_subtask_targets(self, objset):
+        """
+        get the answers to each subtask
+        @param objset:
+        @return: nested lists of answers to each children operator
+        """
+        targets = [str(target) for target in self.get_target(objset)]
+        self_dict = dict()
+        self_dict['question'] = str(self)
+        self_dict['answer'] = targets[0]
+        if not self._operator.child:
+            return self_dict
+        self_dict['children'] = [
+            c.get_children_targets(objset)
+            for c in self._operator.child if isinstance(c, Operator)
+        ]
+        return self_dict
 
     def is_bool_output(self) -> bool:
         raise NotImplementedError

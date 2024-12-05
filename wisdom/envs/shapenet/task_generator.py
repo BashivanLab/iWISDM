@@ -407,6 +407,14 @@ class Select(SNOperator):
     def self_json(self):
         return {'when': self.when}
 
+    def get_children_targets(self, objset):
+        has_op = False
+        for c in self.child:
+            if isinstance(c, Operator):
+                has_op = True
+        if has_op:
+            return super().get_children_targets(objset)
+        return []
 
 class Get(SNOperator):
     """Get attribute of an object."""
