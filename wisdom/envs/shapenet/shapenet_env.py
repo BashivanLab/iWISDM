@@ -116,6 +116,7 @@ class ShapeNetEnv(Env):
             task_objsets: Iterable[sg.ObjectSet] = None,
             compositional_infos: Iterable[ig.TaskInfoCompo] = None,
             mode: str = None,
+            return_objset: bool = False,
             **kwargs
     ) -> List[Tuple[List[np.ndarray], List[Dict], Dict]]:
         self.reset_env(mode)
@@ -131,13 +132,23 @@ class ShapeNetEnv(Env):
 
         trials = list()
         for compo_info in compositional_infos:
-            imgs, per_task_info, compo_info_dict = compo_info.generate_trial(
-                self.env_spec.canvas_size,
-                self.env_spec.add_fixation_cue,
-                stim_data,
-                **kwargs
-            )
-            trials.append((imgs, per_task_info, compo_info_dict))
+            if return_objset:
+                imgs, per_task_info, compo_info_dict, objset = compo_info.generate_trial(
+                    self.env_spec.canvas_size,
+                    self.env_spec.add_fixation_cue,
+                    stim_data,
+                    return_objset,
+                    **kwargs
+                )
+                trials.append((imgs, per_task_info, compo_info_dict, objset))
+            else:
+                imgs, per_task_info, compo_info_dict = compo_info.generate_trial(
+                    self.env_spec.canvas_size,
+                    self.env_spec.add_fixation_cue,
+                    stim_data,
+                    **kwargs
+                )
+                trials.append((imgs, per_task_info, compo_info_dict))
         return trials
 
     def render_trials(self):

@@ -600,8 +600,9 @@ class TaskInfoCompo(object):
             canvas_size: int,
             fixation_cue: bool,
             stim_data: SNStimData,
+            return_objset: bool = False,
             add_distractor_frame: int = 0,
-            add_distractor_time: int = 0
+            add_distractor_time: int = 0,
     ) -> Tuple[List[np.ndarray], List[Dict], Dict]:
         # TODO: return copy of objset, not add distractor in place
         if add_distractor_frame > 0:
@@ -620,6 +621,10 @@ class TaskInfoCompo(object):
                 if not any('ending' in description for description in frame.description):
                     epoch = add_cross(epoch)
             imgs.append(epoch)
+
+        if return_objset:
+            print('returning objset')
+            return imgs, per_task_info_dict, compo_info_dict, objset
         return imgs, per_task_info_dict, compo_info_dict
 
     def __len__(self):
