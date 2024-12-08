@@ -97,12 +97,12 @@ read_write.write_trial(imgs, info_dict, f'output/trial_{i}')
 
 #### See [/tutorials](https://github.com/BashivanLab/iWISDM/tree/main/tutorials) for more examples.
 
-### Acknowledgements
+# Acknowledgements
 This repository builds upon the foundational work presented in the COG paper [(Yang et al.)](https://arxiv.org/abs/1803.06092).
 
 Yang, Guangyu Robert, et al. "A dataset and architecture for visual reasoning with a working memory." Proceedings of the European Conference on Computer Vision (ECCV). 2018.
 
-### Citation
+# Citation
 If you find iWISDM useful in your research, please use the following BibTex:
 ```
 @inproceedings{lei2024iwisdm,
