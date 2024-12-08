@@ -23,9 +23,12 @@ It is also a scalable and extensible framework which allows users to easily defi
 Using iWISDM, we have compiled four distinct benchmarks of increasing complexity levels for evaluation of large multi-modal models.
 
 Below is an example of the generated tasks:
-<img width="829" alt="Screenshot 2024-06-24 at 8 43 41 PM" src="https://github.com/BashivanLab/iWISDM/assets/44264329/5f7eeffe-a3be-405f-8514-6424818cf5b7">
-
-![Benchmark details for each level of complexity](https://github.com/BashivanLab/iWISDM/blob/main/benchmarking/param_table.png?raw=true)
+<p align="center">
+  <img width="800" alt="Screenshot 2024-06-24 at 8 43 41 PM" src="https://github.com/BashivanLab/iWISDM/assets/44264329/5f7eeffe-a3be-405f-8514-6424818cf5b7">
+</p>
+<p align="center">
+  <img src="https://github.com/BashivanLab/iWISDM/blob/main/benchmarking/param_table.png?raw=true" alt="benchmarking params"/>
+</p>
 
 These datasets can be generated from [/benchmarking](https://github.com/BashivanLab/iWISDM/tree/main/benchmarking) or downloaded at: 
 [iWISDM_benchsets.tar.gz](https://drive.google.com/file/d/1K-9AAJfvz6kiN3h9X2Rg0D88gJQ_rxSu/view?usp=sharing)
