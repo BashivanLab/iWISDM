@@ -11,10 +11,10 @@ from typing import Tuple, Union, List
 import numpy as np
 import networkx as nx
 
-from wisdom.core import Operator, Attribute, Task
-from wisdom.utils.auto_task_gen import TaskGenerator
-import wisdom.envs.shapenet.task_generator as tg
-from wisdom.envs.shapenet.registration import SNEnvSpec
+from iwisdm.core import Operator, Attribute, Task
+from iwisdm.utils.auto_task_gen import TaskGenerator
+import iwisdm.envs.shapenet.task_generator as tg
+from iwisdm.envs.shapenet.registration import SNEnvSpec
 
 # Tuples of the graph object, the root root_op number, and the number of operators,
 # needed to compose graphs in switch generation
@@ -31,7 +31,7 @@ class SNTaskGenerator(TaskGenerator):
         """
         constructor for the SNTaskGenerator
         @param env_spec: the task generation configuration,
-        see wisdom/envs/shapenet/registration.py for default env_spec
+        see iwisdm/envs/shapenet/registration.py for default env_spec
         """
         super().__init__(env_spec)
         self.boolean_ops = self.config['boolean_ops']

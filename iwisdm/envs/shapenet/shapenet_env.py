@@ -4,15 +4,15 @@ from typing import Tuple, List, Dict, Iterable, Union
 import networkx as nx
 import numpy as np
 
-from wisdom.core import Env, Operator, Attribute, Task
-import wisdom.envs.shapenet.auto_task_gen as atg
-import wisdom.envs.shapenet.stim_generator as sg
-import wisdom.envs.shapenet.task_generator as tg
-import wisdom.envs.shapenet.info_generator as ig
+from iwisdm.core import Env, Operator, Attribute, Task
+import iwisdm.envs.shapenet.auto_task_gen as atg
+import iwisdm.envs.shapenet.stim_generator as sg
+import iwisdm.envs.shapenet.task_generator as tg
+import iwisdm.envs.shapenet.info_generator as ig
 
-import wisdom.envs.shapenet.registration as env_reg
-from wisdom.envs.shapenet.registration import SNEnvSpec, SNStimData
-from wisdom.envs.shapenet.task_bank import task_family_dict
+import iwisdm.envs.shapenet.registration as env_reg
+from iwisdm.envs.shapenet.registration import SNEnvSpec, SNStimData
+from iwisdm.envs.shapenet.task_bank import task_family_dict
 
 GRAPH_TUPLE = Tuple[nx.DiGraph, int, int]
 TASK = Tuple[Union[Operator, Attribute], Task]

@@ -19,13 +19,13 @@ from bisect import bisect_left
 import random
 from typing import List, Dict, Callable
 
-from wisdom.core import (
+from iwisdm.core import (
     Attribute,
     Stimulus,
     StimuliSet
 )
-from wisdom.envs.shapenet.registration import SNEnvSpec, SNStimData
-import wisdom.envs.shapenet.registration as env_reg
+from iwisdm.envs.shapenet.registration import SNEnvSpec, SNStimData
+import iwisdm.envs.shapenet.registration as env_reg
 
 
 class SNAttribute(Attribute):

@@ -8,8 +8,8 @@ also constructs tasks based on the generated graphs
 from collections import defaultdict
 
 import networkx as nx
-from wisdom.core import Operator, Attribute, Task
-from wisdom.envs.registration import EnvSpec
+from iwisdm.core import Operator, Attribute, Task
+from iwisdm.envs.registration import EnvSpec
 from typing import Tuple, Union
 
 # Tuples of the graph object, the root root_op number, and the number of operators,

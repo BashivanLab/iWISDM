@@ -11,11 +11,11 @@ from typing import Tuple, Dict, List, Set
 
 import numpy as np
 
-import wisdom.envs.shapenet.registration as env_reg
-from wisdom.envs.shapenet.registration import SNStimData
-import wisdom.envs.shapenet.stim_generator as sg
-import wisdom.envs.shapenet.task_generator as tg
-from wisdom.utils.read_write import add_cross, render_stimset
+import iwisdm.envs.shapenet.registration as env_reg
+from iwisdm.envs.shapenet.registration import SNStimData
+import iwisdm.envs.shapenet.stim_generator as sg
+import iwisdm.envs.shapenet.task_generator as tg
+from iwisdm.utils.read_write import add_cross, render_stimset
 
 
 class FrameInfo(object):

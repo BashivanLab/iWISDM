@@ -9,7 +9,7 @@ from typing import Tuple, Dict, List, Iterable, Any, Union
 import networkx as nx
 import numpy as np
 
-from wisdom.envs.registration import EnvSpec, StimData, Constant
+from iwisdm.envs.registration import EnvSpec, StimData, Constant
 
 
 class Attribute(object):

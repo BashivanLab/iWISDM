@@ -24,13 +24,13 @@ import networkx as nx
 import numpy as np
 import random
 
-from wisdom.core import (
+from iwisdm.core import (
     Task,
     Operator
 )
-from wisdom.envs.shapenet.registration import SNStimData, SNEnvSpec
-import wisdom.envs.shapenet.stim_generator as sg
-import wisdom.envs.shapenet.registration as env_reg
+from iwisdm.envs.shapenet.registration import SNStimData, SNEnvSpec
+import iwisdm.envs.shapenet.stim_generator as sg
+import iwisdm.envs.shapenet.registration as env_reg
 
 
 def obj_str(

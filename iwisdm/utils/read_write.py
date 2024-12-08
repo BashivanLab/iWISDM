@@ -8,7 +8,7 @@ import cv2
 import numpy as np
 from numpy.typing import NDArray
 
-from wisdom.core import StimuliSet, StimData
+from iwisdm.core import StimuliSet, StimData
 
 
 def read_img(fp: str, obj_size: Tuple[int, int], color_format='RGB'):

@@ -9,9 +9,9 @@ import sys
 
 sys.path.append('../')
 
-from wisdom import make
-from wisdom import read_write
-import wisdom.envs.shapenet.task_generator as tg
+from iwisdm import make
+from iwisdm import read_write
+import iwisdm.envs.shapenet.task_generator as tg
 
 def create_task(env):
     _, (_, task) = env.generate_tasks()[0]
