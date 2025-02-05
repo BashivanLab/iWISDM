@@ -1,4 +1,4 @@
-from wisdom.core import (
+from iwisdm.core import (
     Env,
     Attribute,
     Operator,
@@ -7,13 +7,13 @@ from wisdom.core import (
 
 )
 
-from wisdom.envs.registration import (
+from iwisdm.envs.registration import (
     EnvSpec,
     StimData
 )
 
-from wisdom.envs.make import make
-from wisdom.utils import read_write
+from iwisdm.envs.make import make
+from iwisdm.utils import read_write
 
 __all__ = [
     'Env',

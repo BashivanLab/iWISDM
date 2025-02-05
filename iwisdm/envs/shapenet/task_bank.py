@@ -8,10 +8,10 @@ from __future__ import print_function
 from collections import OrderedDict
 import random
 
-from wisdom.envs.shapenet.task_generator import TemporalTask
-from wisdom.envs.shapenet import task_generator as tg
-import wisdom.envs.shapenet.stim_generator as sg
-import wisdom.envs.shapenet.registration as env_reg
+from iwisdm.envs.shapenet.task_generator import TemporalTask
+from iwisdm.envs.shapenet import task_generator as tg
+import iwisdm.envs.shapenet.stim_generator as sg
+import iwisdm.envs.shapenet.registration as env_reg
 
 
 class ExistCategoryOfTemporal(TemporalTask):

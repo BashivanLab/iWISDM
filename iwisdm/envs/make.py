@@ -1,7 +1,7 @@
-from wisdom.core import Env
-from wisdom.envs.registration import StimData, EnvSpec
-from wisdom.envs.shapenet.shapenet_env import ShapeNetEnv
-from wisdom.utils.read_write import find_data_folder
+from iwisdm.core import Env
+from iwisdm.envs.registration import StimData, EnvSpec
+from iwisdm.envs.shapenet.shapenet_env import ShapeNetEnv
+from iwisdm.utils.read_write import find_data_folder
 
 
 def make(
@@ -14,9 +14,9 @@ def make(
     create an environment instance with
     1. specified stimuli dataset, the dataset directory contains the actual stimuli,
         and a meta info file that contains information about the stimuli
-        see wisdom/envs/registration.py for more details on the stimuli dataset
+        see iwisdm/envs/registration.py for more details on the stimuli dataset
     2. environment specifications that control how tasks are randomly generated
-        see wisdom/envs/registration.py for more details on the environment specification
+        see iwisdm/envs/registration.py for more details on the environment specification
     @param env_id: the name of the environment
     @param stim_data: Data class that contains the stimuli dataset directory
     @param env_spec: Data class that contains the environment specification

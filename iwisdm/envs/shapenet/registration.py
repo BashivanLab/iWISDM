@@ -7,9 +7,9 @@ import pandas as pd
 import numpy as np
 from numpy.typing import NDArray
 
-from wisdom.core import Stimulus
-from wisdom.envs.registration import Constant, EnvSpec, StimData
-from wisdom.utils.read_write import read_img
+from iwisdm.core import Stimulus
+from iwisdm.envs.registration import Constant, EnvSpec, StimData
+from iwisdm.utils.read_write import read_img
 
 
 def compare_when(when_list):

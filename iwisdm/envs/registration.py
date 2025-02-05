@@ -34,12 +34,12 @@ class EnvSpec:
         this includes maximum number of operators in the task, maximum depth of the task,
         the root operator of the task, and the generation configuration.
 
-        see wisdom/envs/shapenet/registration.py for example
+        see iwisdm/envs/shapenet/registration.py for example
         Args:
             grid_size: convert image canvas into (n, n) grid for location tasks
             max_delay: upper bound on the number of delay frames in a task
             delay_prob: how likely a delay frame is added, [0.0, 1.0]
-            auto_gen_config: AutoTask generation configuration, see wisdom/envs/shapenet/registration.py for example
+            auto_gen_config: AutoTask generation configuration, see iwisdm/envs/shapenet/registration.py for example
         """
 
     def __init__(
