@@ -19,6 +19,8 @@ tutorials/outputs*
 
 /benchmarking/temp/*
 /benchmarking/tasks/*
+/benchmarking/configs/custom/
+/benchmarking/configs/custom/*
 *__pycache__*
 *.py[cod]
 *.output
