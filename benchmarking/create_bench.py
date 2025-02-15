@@ -3,6 +3,7 @@ import json
 import shutil
 import argparse
 import numpy as np
+import random
 from natsort import natsorted
 
 import sys
@@ -19,7 +20,8 @@ def create_task(env):
     return task
 
 def generate_trial(env, task, mode):
-    trials = env.generate_trials(tasks=[task], mode=mode,)
+
+    trials = env.generate_trials(tasks=[task], mode=mode)
     imgs, _, info_dict = trials[0]
     instructions = info_dict['instruction']
     answer = info_dict['answers']
