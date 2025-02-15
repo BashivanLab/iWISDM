@@ -140,7 +140,10 @@ def write_trial(imgs, compo_info_dict, trial_fp: str) -> None:
 
     frames_fp = os.path.join(trial_fp, 'frames')
     if os.path.exists(frames_fp):
+        print(f'\n*** removing existing trial directory at {os.path.abspath(frames_fp)}')
         shutil.rmtree(frames_fp)
+
+    print(f'writing trial frames into {os.path.abspath(frames_fp)}')
     os.makedirs(frames_fp)
 
     for i, img_arr in enumerate(imgs):

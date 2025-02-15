@@ -377,20 +377,36 @@ class Task(object):
 
     def topological_sort(self) -> List[Operator]:
         """Perform a topological sort."""
-        nodes = self._all_nodes
+        nodes = self._all_nodes  # get all nodes with DFS
 
-        # Mark all the vertices as not visited
-        visited = defaultdict(lambda: False)
-        stack = []
+        # *** previous COG codebase used topological sort, this would cause bugs in guess_objset,
+        # which uses the output from this function to iterate through the nodes in the task graph
+        # e.g.
+        # Task:
+        #   if category of last 4 object equals category of last 2,
+        #   then identity of last2 object equals identity of last0 object,
+        #   else location of last2 object equals location of last0 object
+        # topological sort (top sort) returns
+        #   [Switch, Location IsSame, GetLoc last0, GetLoc last2, Identity IsSame, GetObj last0, Select last0, GetObj last2, Category IsSame, GetCategory last2, Select last2, GetCategory last4, Select last4]
+        # whereas DFS returns
+        #   [Switch, Category IsSame, GetCategory last4, Select last4, GetCategory last2, Select last2, Identity IsSame, GetObj last2, GetObj last0, Select last0, Location IsSame, GetLoc last2, GetLoc last0]
+        #
+        # in the case of top sort, after node 'GetObj last2', the object identity for 'Select last2' is assigned. At node 'GetCategory last2', the category is assigned again.
+        # in the case of DFS, the 'Selects' in each subgraph are iterated before nodes in another subgraph, this objset.select_now() to identify the existing objects in objset, and assign the value to IsSame
 
-        # Call the recursive helper function to store Topological
-        # Sort starting from all vertices one by one
-        for node in nodes:
-            if not visited[node]:
-                self.topological_sort_visit(node, visited, stack)
-
-        # Print contents of stack
-        return stack
+        # # Mark all the vertices as not visited
+        # visited = defaultdict(lambda: False)
+        # stack = []
+        #
+        # # Call the recursive helper function to store Topological
+        # # Sort starting from all vertices one by one
+        # for node in nodes:
+        #     if not visited[node]:
+        #         self.topological_sort_visit(node, visited, stack)
+        #
+        # # Print contents of stack
+        # return stack
+        return nodes
 
     def guess_objset(self, *kwargs):
         """

@@ -698,6 +698,8 @@ class ObjectSet(StimuliSet):
         """
         # Select only objects that have happened
         subset = self.dict[epoch_now]
+        if not subset:
+            return subset
 
         if category is not None and category.has_value():
             subset = [o for o in subset if o.category == category]
