@@ -416,6 +416,7 @@ class Select(SNOperator):
             return super().get_children_targets(objset)
         return []
 
+
 class Get(SNOperator):
     """Get attribute of an object."""
 
@@ -741,8 +742,8 @@ class IsSame(SNOperator):
     def get_expected_input(self, should_be, objset, epoch_now):
         if should_be is None:
             should_be = random.random() > 0.5
-        # Determine which attribute should be fixed and which shouldn't
 
+        # Determine which attribute should be fixed and which shouldn't
         attr1_value = self.attr1(objset, epoch_now)
         attr2_value = self.attr2(objset, epoch_now)
 
@@ -751,6 +752,8 @@ class IsSame(SNOperator):
 
         if attr1_fixed:
             assert attr1_value.has_value()
+        if attr2_fixed:
+            assert attr2_value.has_value()
 
         if attr1_fixed and attr2_fixed:
             # do nothing
@@ -762,13 +765,21 @@ class IsSame(SNOperator):
             attr1_assign = attr2_value if should_be else sg.another_attr(attr2_value)
             attr2_assign = Skip()
         else:
+            # if the two selects have no fixed values,
+            # check for how many downstream attributes exist
+            # keep sampling until len(downstream attribute) >= 2
             if self.attr_type == 'view_angle':
-                # if sample another view_angle if not should be
-                # check for how many view_angles exist for the object first
                 obj = sg.random_attr('object')
                 while len(self.stim_data.ALLVIEWANGLES[obj.category.value][obj.value]) < 2:
                     obj = sg.random_attr('object')
                 attr = sg.random_attr('view_angle')
+                attr1_assign = attr
+                attr2_assign = attr if should_be else sg.another_attr(attr)
+            elif self.attr_type == 'object':
+                cat = sg.random_attr('category')
+                while len(self.stim_data.ALLOBJECTS[cat.value]) < 2:
+                    cat = sg.random_attr('category')
+                attr = sg.random_attr('object')
                 attr1_assign = attr
                 attr2_assign = attr if should_be else sg.another_attr(attr)
             elif self.attr_type == 'location':
