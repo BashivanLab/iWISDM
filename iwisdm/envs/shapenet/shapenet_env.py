@@ -97,16 +97,23 @@ class ShapeNetEnv(Env):
         if not compositional_infos:
             compositional_infos = self.init_compositional_tasks(tasks, task_objsets)
 
-        tmp = random.choice(compositional_infos)
-        compositional_task = self.init_compositional_tasks(
-            [tmp.tasks[0].copy()]
-        )[0]
-        for _ in range(num_merge):
-            compo_info = random.choice(compositional_infos)
-            tmp_info = self.init_compositional_tasks(
-                [compo_info.tasks[0].copy()]
-            )[0]
-            compositional_task.merge(tmp_info)
+        # make copies
+        tmp = random.choice(compositional_infos)  # start with a random task
+        compositional_task = self.init_compositional_tasks([tmp.tasks[0].copy()])[0]
+        if num_merge + 1 > len(compositional_infos):
+            # merge with replacement
+            for _ in range(num_merge):
+                compo_info = random.choice(compositional_infos)
+                tmp_info = self.init_compositional_tasks([compo_info.tasks[0].copy()])[0]
+                compositional_task.merge(tmp_info)
+        else:
+            # merge without replacement
+            for _ in range(num_merge):
+                compo_info = random.choice(compositional_infos)
+                compositional_infos.remove(compo_info)
+
+                tmp_info = self.init_compositional_tasks([compo_info.tasks[0].copy()])[0]
+                compositional_task.merge(tmp_info)
         del tmp, tmp_info
         return compositional_task
 
@@ -120,8 +127,12 @@ class ShapeNetEnv(Env):
             **kwargs
     ) -> List[Tuple[List[np.ndarray], List[Dict], Dict]]:
         self.reset_env(mode)
-        if mode and self.stim_data.splits[mode]:
-            stim_data = self.stim_data.splits[mode]['data']
+        if mode:
+            if mode in self.stim_data.splits:
+                stim_data = self.stim_data.splits[mode]['data']
+            else:
+                raise ValueError(
+                    f"mode {mode} not found in stim_data splits, only {self.stim_data.splits.keys()} splits")
         else:
             stim_data = self.stim_data
 

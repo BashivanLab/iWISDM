@@ -121,6 +121,17 @@ class Space(SNAttribute):
         return ((self.value[0][0] < x < self.value[0][1]) and
                 (self.value[1][0] < y < self.value[1][1]))
 
+    @staticmethod
+    def get_space_of(coords, env_spec):
+        """
+        find the space grid that includes the location
+        """
+        x, y = coords
+        all_spaces = list(env_spec.grid.values())
+        for space in all_spaces:
+            if (space[0][0] < x < space[0][1]) and (space[1][0] < y < space[1][1]):
+                return Space(space)
+
     def get_space_to(self, space_type: str):
         x0, x1 = self.value[0]
         y0, y1 = self.value[1]
@@ -154,9 +165,14 @@ class Location(SNAttribute):
         """
         super(Location, self).__init__(value)
         if space is None:
-            space = random_attr('space')
+            if value is not None:
+                self.space = Space.get_space_of(value, self.env_spec)
+            else:
+                self.space = random_attr('space')
+        else:
+            self.space = space
+        # self.space = random_attr('space')
         self.attr_type = 'location'
-        self.space = space
 
     def __eq__(self, other):
         if isinstance(other, self.__class__):

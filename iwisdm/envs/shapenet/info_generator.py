@@ -161,7 +161,7 @@ class FrameInfo(object):
             self.first_shareable = new_first_shareable + first_shareable
             return first_shareable
         else:
-            # add more frames
+            # add more frames if needed
             if len(shareable_frames) == new_task_len:
                 self.add_new_frames(1, relative_tasks)
                 first_shareable += 1
@@ -197,7 +197,6 @@ class FrameInfo(object):
             self.last_task_end = first_shareable + new_task_len - 1
             self.last_task = list(relative_tasks)[0]
             self.last_task_start = first_shareable
-
             self.first_shareable = new_first_shareable + first_shareable
             return first_shareable
 
@@ -246,7 +245,10 @@ class FrameInfo(object):
             self.description = self.description + new_frame.description  # append new descriptions
 
             for new_obj in new_frame.objs:
-                self.fi.objset.add(new_obj.copy(), len(self.fi) - 1, merge_idx=self.idx)  # update objset
+                last_added_obj = self.fi.objset.add(new_obj.copy(), len(self.fi) - 1, merge_idx=self.idx)  # update objset
+            if len(self.fi.objset.dict[self.idx]) > 1:
+                objs = self.fi.objset.dict[self.idx]
+                raise RuntimeError(f'More than 1 object in frame {objs}')
             self.objs = self.fi.objset.dict[self.idx].copy()
 
             # update the dictionary for relative_task_epoch
@@ -323,6 +325,8 @@ class TaskInfoCompo(object):
         # get new objset for new task based on updated operators and merge
         if changed:
             # update objset based on existing objects, guess_objset resolves conflicts
+
+            # new_task_copy has its task graph (Selects) changed to use the old stimuli
             new_objset = new_task_copy.guess_objset(objset, new_task_copy.n_frames - 1)
             updated_fi = FrameInfo(new_task_copy, new_objset)  # initialize new frame info based on updated objset
             FrameInfo.update_relative_tasks(updated_fi, relative_tasks={new_task_idx})
@@ -409,7 +413,9 @@ class TaskInfoCompo(object):
                         for d in frame.description if 'distractor with different ' in d
                     ]
                     if not distractor_attr:
-                        raise RuntimeError('No distractor description')
+                        raise RuntimeError(f'Found more than 1 object at epoch {epoch}, '
+                                           f'but no distractor description was found. '
+                                           f'This behaviour is unexpected.')
 
                     for info_dict in obj_info[epoch]:
                         if info_dict['obj'].deletable:

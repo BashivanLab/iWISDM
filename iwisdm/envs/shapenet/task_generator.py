@@ -1432,7 +1432,6 @@ def load_operator_json(
             init['category'] = load_operator_json(op_dict['category'], operator_families, attr_families)
         elif 'sn_object' in op_dict:
             init['sn_object'] = load_operator_json(op_dict['sn_object'], operator_families, attr_families)
-
         return attr_families[name](value=op_dict['value'], **init)
 
 

@@ -383,7 +383,7 @@ class Task(object):
         # which uses the output from this function to iterate through the nodes in the task graph
         # e.g.
         # Task:
-        #   if category of last 4 object equals category of last 2,
+        #   if category of last4 object equals category of last2,
         #   then identity of last2 object equals identity of last0 object,
         #   else location of last2 object equals location of last0 object
         # topological sort (top sort) returns
