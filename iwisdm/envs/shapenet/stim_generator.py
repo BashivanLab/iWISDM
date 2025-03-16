@@ -290,10 +290,11 @@ class SNObject(SNAttribute):
         return SNObject(category=SNCategory(category), value=obj)
 
     def resample(self, old_obj):
+        # sample a completely new object (category might be the same)
         all_cats = self.stim_data.ALLCATEGORIES.copy()
         new_category = random.choice(all_cats)
         all_cats.remove(new_category)
-        all_objects = list(self.stim_data.ALLOBJECTS[new_category])
+        all_objects = self.stim_data.ALLOBJECTS[new_category].copy()
 
         if new_category == old_obj.category.value:
             all_objects.remove(old_obj.value)

@@ -2,6 +2,7 @@ import random
 from typing import Tuple, List, Dict, Iterable, Union
 
 import networkx as nx
+import json
 import numpy as np
 
 from iwisdm.core import Env, Operator, Attribute, Task
@@ -116,6 +117,41 @@ class ShapeNetEnv(Env):
                 compositional_task.merge(tmp_info)
         del tmp, tmp_info
         return compositional_task
+
+    def read_task(self, task_fp: str):
+        """
+        Read a task from a json file
+
+        @param task_fp: the file path to the task
+        @return: a TemporalTask instance
+        """
+        self.reset_env()
+        with open(task_fp, 'r') as f:
+            task_info = json.load(f)
+
+        # load the operator objects
+        op = tg.load_operator_json(task_info['operator'])
+        # if loading a task json generated from another environment instance,
+        # there can be attribute constants that are absent in the current stim_data
+        # replace the attribute constants with attributes sampled from the current stim_data
+        for node in op._all_nodes:
+            if isinstance(node, sg.SNAttribute):
+                if node.has_value():  # if the attribute is a constant and has a value
+                    parents = node.parent
+                    new_attr = node.sample()
+                    for parent in parents:
+                        assert isinstance(parent, tg.IsSame) or isinstance(parent, tg.NotSame)
+                        parent.replace_child(node, new_attr)
+
+        task_info['operator'] = op
+        # reinitialize using the parent task class. (the created task object is functionally identical)
+        task = tg.TemporalTask(
+            operator=task_info['operator'],
+            n_frames=task_info['n_frames'],
+            first_shareable=task_info['first_shareable'],
+            whens=task_info['whens']
+        )
+        return task
 
     def generate_trials(
             self,

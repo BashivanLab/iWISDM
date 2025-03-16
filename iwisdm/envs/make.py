@@ -9,7 +9,7 @@ def make(
         stim_data: StimData = None,
         env_spec: EnvSpec = None,
         dataset_fp: str = None,
-) -> Env:
+):
     """
     create an environment instance with
     1. specified stimuli dataset, the dataset directory contains the actual stimuli,

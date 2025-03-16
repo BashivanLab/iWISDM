@@ -258,6 +258,19 @@ class Operator(object):
             for c in child:
                 self.set_child(c)
 
+    def replace_child(self, old_child, new_child):
+        """Replace a child operator with a new one."""
+        child_idx = self.child.index(old_child)
+        parent_idx = old_child.parent.index(self)
+        try:
+            new_child.parent = old_child.parent
+            new_child.parent[parent_idx] = self
+            self.child[child_idx] = new_child
+        except AttributeError:
+            for c in new_child:
+                self.replace_child(old_child, c)
+        return
+
     def get_expected_input(self, *args, **kwargs):
         """Guess and update the objset at this epoch.
 
@@ -309,6 +322,23 @@ class Operator(object):
             for c in self.child if isinstance(c, Operator) and not isinstance(c, Attribute)
         ]
         return self_dict
+
+    def _get_all_nodes(self, op, visited):
+        visited[op] = True
+        all_nodes = [op]
+        for c in op.child:
+            if not visited[c]:
+                if hasattr(c, 'child'):
+                    all_nodes.extend(self._get_all_nodes(c, visited))
+                else:
+                    all_nodes.append(c)
+        return all_nodes
+
+    @property
+    def _all_nodes(self):
+        """Return all nodes in a list."""
+        visited = defaultdict(lambda: False)
+        return self._get_all_nodes(self, visited)
 
 
 class Task(object):
