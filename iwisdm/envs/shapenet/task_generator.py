@@ -1347,6 +1347,8 @@ def graph_to_operators(
                     attr_i = 1
                 if attr.attr_type != op.attr_type:
                     ops[attr_i] = sg.random_attr(op.attr_type)
+            if random.random() < 0.5:
+                return operator_families[operators[root]](ops[1], ops[0])
             return operator_families[operators[root]](ops[0], ops[1])
         else:
             raise ValueError(f"Unknown Operator {operators[root]}")
