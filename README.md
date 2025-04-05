@@ -108,10 +108,18 @@ Yang, Guangyu Robert, et al. "A dataset and architecture for visual reasoning wi
 # Citation
 If you find iWISDM useful in your research, please use the following BibTex:
 ```
-@inproceedings{lei2024iwisdm,
-  title={iWISDM: Assessing instruction following in multimodal models at scale},
-  author={Lei, Xiaoxuan and Gomez, Lucas and Bai, Hao Yuan and Bashivan, Pouya},
-  booktitle={Conference on Lifelong Learning Agents (CoLLAs 2024)},
-  year={2024}
+@InProceedings{pmlr-v274-lei25a,
+  title = 	 {iWISDM: Assessing instruction following in multimodal models at scale},
+  author =       {Lei, Xiaoxuan and Gomez, Lucas and Bai, Hao Yuan and Bashivan, Pouya},
+  booktitle = 	 {Proceedings of The 3rd Conference on Lifelong Learning Agents},
+  pages = 	 {457--480},
+  year = 	 {2025},
+  editor = 	 {Lomonaco, Vincenzo and Melacci, Stefano and Tuytelaars, Tinne and Chandar, Sarath and Pascanu, Razvan},
+  volume = 	 {274},
+  series = 	 {Proceedings of Machine Learning Research},
+  month = 	 {29 Jul--01 Aug},
+  publisher =    {PMLR},
+  pdf = 	 {https://raw.githubusercontent.com/mlresearch/v274/main/assets/lei25a/lei25a.pdf},
+  url = 	 {https://proceedings.mlr.press/v274/lei25a.html}
 }
 ```
