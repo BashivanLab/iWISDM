@@ -97,7 +97,8 @@ class SNEnvSpec(EnvSpec):
             max_delay: int = 2,
             delay_prob: float = 0.5,
             auto_gen_config: Dict = None,
-            add_fixation_cue: True = False,
+            add_fixation_cue: bool = False,
+            cue_on_action: bool = False,
             canvas_size: int = 224,
             **kwargs
     ):
@@ -194,6 +195,7 @@ class SNEnvSpec(EnvSpec):
                 'indexable_get_ops': ["GetLoc", "GetCategory"],
             }
         self.add_fixation_cue = add_fixation_cue
+        self.cue_on_action = cue_on_action
         self.canvas_size = canvas_size
         super().__init__(
             grid_size,

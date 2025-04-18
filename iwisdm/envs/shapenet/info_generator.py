@@ -245,7 +245,8 @@ class FrameInfo(object):
             self.description = self.description + new_frame.description  # append new descriptions
 
             for new_obj in new_frame.objs:
-                last_added_obj = self.fi.objset.add(new_obj.copy(), len(self.fi) - 1, merge_idx=self.idx)  # update objset
+                # update objset
+                last_added_obj = self.fi.objset.add(new_obj.copy(), len(self.fi) - 1, merge_idx=self.idx)
             if len(self.fi.objset.dict[self.idx]) > 1:
                 objs = self.fi.objset.dict[self.idx]
                 raise RuntimeError(f'More than 1 object in frame {objs}')
@@ -605,14 +606,15 @@ class TaskInfoCompo(object):
             self,
             canvas_size: int,
             fixation_cue: bool,
+            cue_on_action: bool,
             stim_data: SNStimData,
             return_objset: bool = False,
             add_distractor_frame: int = 0,
             add_distractor_time: int = 0,
-    ) -> Tuple[List[np.ndarray], List[Dict], Dict]:
+    ):
         # TODO: return copy of objset, not add distractor in place
         if add_distractor_frame > 0:
-            self.add_distractor_frame(add_distractor_frame, stim_data)
+            self.add_distractaor_frame(add_distractor_frame, stim_data)
 
         if add_distractor_time > 0:
             self.add_distractor_time(add_distractor_time, stim_data)
@@ -623,9 +625,15 @@ class TaskInfoCompo(object):
         imgs = []
         for i, (epoch, frame) in enumerate(zip(render_stimset(objset, canvas_size, stim_data), self.frame_info)):
             if fixation_cue:
-                # add fixation cues to all frames except for task ending frames
-                if not any('ending' in description for description in frame.description):
-                    epoch = add_cross(epoch)
+                end_of_task = any('ending' in description for description in frame.description)
+                if cue_on_action:
+                    # add fixation cues to all frames except for task ending frames
+                    if end_of_task:
+                        epoch = add_cross(epoch)
+                else:
+                    # add fixation cues to all task ending frames
+                    if not end_of_task:
+                        epoch = add_cross(epoch)
             imgs.append(epoch)
 
         if return_objset:
