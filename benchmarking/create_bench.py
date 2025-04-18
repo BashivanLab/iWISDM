@@ -36,14 +36,14 @@ def duplicate_check(tasks, task):
     tasks_new_set = set(tasks_new)
     return len(tasks_new_set) <= tasks_len
 
-def load_stored_tasks(fp, mode):
+def load_stored_tasks(env, fp, mode):
     ts = []
     ins = []
 
     for task_fp in os.listdir(fp):
-        task = tg.read_task(os.path.join(fp, task_fp))
+        task = env.read_task(os.path.join(fp, task_fp))
 
-        _, instructions, answer, _ = generate_trial(env, task, mode)
+        _, instructions, _ = generate_trial(env, task, mode)
         ins.append(instructions)
         ts.append(task)
 
@@ -56,7 +56,7 @@ def create_tasks(env, **kwargs):
 
     # Load tasks if they exist
     if os.listdir(kwargs['tasks_dir']) != []:
-        tasks, task_ins = load_stored_tasks(kwargs['tasks_dir'], mode='train' if kwargs['train'] else 'val')
+        tasks, task_ins = load_stored_tasks(env, kwargs['tasks_dir'], mode='train' if kwargs['train'] else 'val')
         task_strs = []
         for ins, task in zip(task_ins, tasks):
             total_and += ins.count(' and ')
@@ -74,13 +74,10 @@ def create_tasks(env, **kwargs):
 
         task_str = json.dumps(task.to_json())
 
-        print('task.n_frames: ', task.n_frames)
         # Check if task meets length requirements
         if  not (kwargs['min_len'] <= task.n_frames <= kwargs['max_len']):
-            print('not between min_len and max_len')
             continue
 
-        print('between min_len and max_len')
         imgs, instructions, info_dict = generate_trial(env, task,
                                                                 mode='train' if kwargs['train'] else 'val')
         n_and = instructions.count(' and ')
@@ -88,23 +85,17 @@ def create_tasks(env, **kwargs):
             
         # Check if task meets joint operator requirements
         if not (kwargs['min_joint_ops'] <= (n_and + n_or) <= kwargs['max_joint_ops']):
-            print('not between min_joint_ops and max_joint_ops')
             continue
-        
-        print('under bool op limit')
+    
         n_delay = task.n_frames - instructions.count('observe')
 
         # Check if task meets delay frame requirements
         if not (kwargs['min_delay'] <= n_delay <= kwargs['max_delay']):
-            print('over delay limit')
             continue
 
-        print('under delay limit')
-        # Check if task features are in balance
 
         # Check if task is a duplicate
         if not duplicate_check(tasks, task):
-            print('not duplicate')
             total_and += n_and
             total_or += n_or
             total_not += instructions.count(' not ')
@@ -126,7 +117,12 @@ def create_tasks(env, **kwargs):
                     info_dicts.append(info_dict)
                     i -= 1
 
+            print('tasks left to create:', kwargs['n_tasks'] - len(tasks))
             tasks.append(task)
+        else:
+            print('duplicate task')
+            print('tasks left to create:', kwargs['n_tasks'] - len(tasks))
+            continue
     return tasks
 
 
@@ -181,7 +177,7 @@ if __name__ == '__main__':
     parser.add_argument('--min_delay', type=int, default=0)
     parser.add_argument('--max_delay', type=int, default=-1)
     parser.add_argument('--delay_prob', type=float, default=0.5)
-    parser.add_argument('--n_trials', type=int, default=5)
+    parser.add_argument('--n_trials', type=int, default=0)
     parser.add_argument('--n_tasks', type=int, default=5)
     parser.add_argument('--features', type=str, default='all')
     parser.add_argument('--min_joint_ops', type=int, default=1)
