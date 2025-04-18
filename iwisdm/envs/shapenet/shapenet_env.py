@@ -183,6 +183,7 @@ class ShapeNetEnv(Env):
                 imgs, per_task_info, compo_info_dict, objset = compo_info.generate_trial(
                     self.env_spec.canvas_size,
                     self.env_spec.add_fixation_cue,
+                    self.env_spec.cue_on_action,
                     stim_data,
                     return_objset,
                     **kwargs
@@ -192,6 +193,7 @@ class ShapeNetEnv(Env):
                 imgs, per_task_info, compo_info_dict = compo_info.generate_trial(
                     self.env_spec.canvas_size,
                     self.env_spec.add_fixation_cue,
+                    self.env_spec.cue_on_action,
                     stim_data,
                     **kwargs
                 )
