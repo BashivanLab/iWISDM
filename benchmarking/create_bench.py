@@ -7,7 +7,6 @@ import random
 from natsort import natsorted
 
 import sys
-
 sys.path.append('../')
 
 from iwisdm import make
@@ -36,32 +35,21 @@ def duplicate_check(tasks, task):
     tasks_new_set = set(tasks_new)
     return len(tasks_new_set) <= tasks_len
 
-def load_stored_tasks(env, fp, mode):
+def load_stored_tasks(env, fp):
     ts = []
-    ins = []
 
     for task_fp in os.listdir(fp):
         task = env.read_task(os.path.join(fp, task_fp))
-
-        _, instructions, _ = generate_trial(env, task, mode)
-        ins.append(instructions)
         ts.append(task)
 
-    return ts, ins
+    return ts
 
 def create_tasks(env, **kwargs):
-    total_and = 0
-    total_or = 0
-    total_not = 0
-
     # Load tasks if they exist
     if os.listdir(kwargs['tasks_dir']) != []:
-        tasks, task_ins = load_stored_tasks(env, kwargs['tasks_dir'], mode='train' if kwargs['train'] else 'val')
+        tasks = load_stored_tasks(env, kwargs['tasks_dir'])
         task_strs = []
-        for ins, task in zip(task_ins, tasks):
-            total_and += ins.count(' and ')
-            total_or += ins.count(' or ')
-            total_not += ins.count(' not ')
+        for task in tasks:
             task_str = json.dumps(task.to_json())
             task_strs.append(task_str)
     else:
@@ -71,7 +59,6 @@ def create_tasks(env, **kwargs):
     # Create tasks 
     while len(tasks) < kwargs['n_tasks']:
         task = create_task(env)
-
         task_str = json.dumps(task.to_json())
 
         # Check if task meets length requirements
@@ -96,9 +83,6 @@ def create_tasks(env, **kwargs):
 
         # Check if task is a duplicate
         if not duplicate_check(tasks, task):
-            total_and += n_and
-            total_or += n_or
-            total_not += instructions.count(' not ')
 
             task_strs.append(task_str)
 
@@ -182,7 +166,6 @@ if __name__ == '__main__':
     parser.add_argument('--features', type=str, default='all')
     parser.add_argument('--min_joint_ops', type=int, default=1)
     parser.add_argument('--max_joint_ops', type=int, default=2)
-    parser.add_argument('--force_balance', action='store_true', default=False)
     parser.add_argument('--non_bool_actions', action='store_true', default=False)
     parser.add_argument('--shuffle', action='store_true', default=False)
     args = parser.parse_args()
