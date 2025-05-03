@@ -26,6 +26,7 @@ class Attribute(object):
             value = tuple(value)
         self.value = value
         self.parent = list()
+        self.attr_type = None
 
     def __call__(self, *args):
         """Including a call function to be consistent with Operator class."""
@@ -236,9 +237,16 @@ class Operator(object):
                         sorted(self.child, key=lambda o: o.__class__.__name__),
                         sorted(other.child, key=lambda o: o.__class__.__name__)
                 ):
+                    if c.__class__ != o_c.__class__:
+                        return False
                     if isinstance(c, Operator) and isinstance(o_c, Operator):
                         if c != o_c:
                             return False
+                    elif isinstance(c, Attribute) and isinstance(o_c, Attribute):
+                            if c.attr_type != o_c.attr_type:
+                                return False
+                    else:
+                        return False
                 return True
         return False
 
