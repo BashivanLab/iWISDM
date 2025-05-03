@@ -19,7 +19,6 @@ def create_task(env):
     return task
 
 def generate_trial(env, task, mode):
-
     trials = env.generate_trials(tasks=[task], mode=mode)
     imgs, _, info_dict = trials[0]
     instructions = info_dict['instruction']
@@ -30,14 +29,13 @@ def store_task(task, fp):
     read_write.write_task(task, fp)
 
 def duplicate_check(tasks, task):
-    tasks_len = len(tasks)
-    tasks_new = tasks + [task]
-    tasks_new_set = set(tasks_new)
-    return len(tasks_new_set) <= tasks_len
+    for task_ in tasks:
+        if task == task_:
+            return True
+    return False
 
 def load_stored_tasks(env, fp):
     ts = []
-
     for task_fp in os.listdir(fp):
         task = env.read_task(os.path.join(fp, task_fp))
         ts.append(task)
