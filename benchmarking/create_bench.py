@@ -192,7 +192,7 @@ if __name__ == '__main__':
 
     # Check if max_delay provided
     if args.max_delay == -1:
-        args.max_delay = 2
+        args.max_delay = args.max_len - 2
 
     # Initialize environment
     env_spec = env.init_env_spec(
