@@ -41,9 +41,7 @@ def get_k(last_k: str):
     @param last_k: last_k string
     @return: integer k in last_k
     """
-    k_s = list(map(int, re.findall(r'\d+', last_k)))
-    assert len(k_s) == 1
-    return k_s[0]
+    return int(last_k.split('last')[1])
 
 
 def get_target_value(t):
