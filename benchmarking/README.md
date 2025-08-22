@@ -1,8 +1,7 @@
 # Benchmarking Run Parameters
 
 ### Single Frame Example
-    python create_bench.py --stim_dir='../data/shapenet_handpicked' --tasks_dir='./tasks/single_cat' --trials_dir='temp/single_cat'
-    --config_path='configs/single_frame_cat.json' --min_len=1 --max_len=1 --n_trials=100 --n_tasks=10 --features='cat' --min_joint_ops=0 --max_joint_ops=0
+    python create_bench.py --stim_dir='../data/shapenet_handpicked' --tasks_dir='./tasks/single_cat' --trials_dir='temp/single_cat' --config_path='configs/single_frame_cat.json' --min_len=1 --max_len=1 --n_trials=100 --n_tasks=10 --features='cat' --min_joint_ops=0 --max_joint_ops=0
 
 ### Low Complexity Example:
     python create_bench.py --stim_dir='../data/shapenet_handpicked' --tasks_dir='./tasks/low_all' --trials_dir='temp/low_all' 

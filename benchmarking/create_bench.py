@@ -29,9 +29,9 @@ def store_task(task, fp):
     read_write.write_task(task, fp)
 
 def duplicate_check(tasks, task):
-    for task_ in tasks:
-        if task == task_:
-            return True
+    tasks_len = len(tasks)
+    if len(set(tasks + [task])) == tasks_len:
+        return True
     return False
 
 def load_stored_tasks(env, fp):
@@ -77,7 +77,6 @@ def create_tasks(env, **kwargs):
         # Check if task meets delay frame requirements
         if not (kwargs['min_delay'] <= n_delay <= kwargs['max_delay']):
             continue
-
 
         # Check if task is a duplicate
         if not duplicate_check(tasks, task):
@@ -150,21 +149,19 @@ def shuffle_files(directory):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='benchmark')
     parser.add_argument('--train', action='store_true', default=False)
-    parser.add_argument('--stim_dir', type=str, default='../data/shapenet_handpicked')
-    parser.add_argument('--tasks_dir', type=str, default='temp/high_tasks_all_nn_training')
-    parser.add_argument('--trials_dir', type=str, default='temp/high_trials_all_nn_training')
-    parser.add_argument('--config_path', type=str, default='configs/high_complexity_all.json')
-    parser.add_argument('--min_len', type=int, default=3)
-    parser.add_argument('--max_len', type=int, default=9)
+    parser.add_argument('--stim_dir', type=str, default='data/shapenet_handpicked')
+    parser.add_argument('--tasks_dir', type=str, default='benchmarking/tasks/test')
+    parser.add_argument('--trials_dir', type=str, default='benchmarking/temp/test')
+    parser.add_argument('--config_path', type=str, default='/home/lucas/projects/iWISDM/benchmarking/configs/custom/4f_thesis.json')
+    parser.add_argument('--min_len', type=int, default=4)
+    parser.add_argument('--max_len', type=int, default=4)
     parser.add_argument('--min_delay', type=int, default=0)
-    parser.add_argument('--max_delay', type=int, default=-1)
+    parser.add_argument('--max_delay', type=int, default=2)
     parser.add_argument('--delay_prob', type=float, default=0.5)
     parser.add_argument('--n_trials', type=int, default=0)
-    parser.add_argument('--n_tasks', type=int, default=5)
-    parser.add_argument('--features', type=str, default='all')
-    parser.add_argument('--min_joint_ops', type=int, default=1)
-    parser.add_argument('--max_joint_ops', type=int, default=2)
-    parser.add_argument('--non_bool_actions', action='store_true', default=False)
+    parser.add_argument('--n_tasks', type=int, default=100)
+    parser.add_argument('--min_joint_ops', type=int, default=0)
+    parser.add_argument('--max_joint_ops', type=int, default=1)
     parser.add_argument('--shuffle', action='store_true', default=False)
     args = parser.parse_args()
 
@@ -192,7 +189,7 @@ if __name__ == '__main__':
 
     # Check if max_delay provided
     if args.max_delay == -1:
-        args.max_delay = args.max_len - 2
+        args.max_delay = max(args.max_len - 2, 0)
 
     # Initialize environment
     env_spec = env.init_env_spec(
@@ -204,9 +201,16 @@ if __name__ == '__main__':
 
     env.set_env_spec(env_spec)
 
-    print('total:', len(create_tasks(env, **vars(args))))
-    print('n_trials:', args.n_trials)
-    print('n_tasks:', args.n_tasks)
-
-    if args.shuffle:
-        shuffle_files(args.tasks_dir)
+    try:
+        new_tasks = create_tasks(env, **vars(args))
+        print('tasks created:', len(new_tasks))
+        print('trials created:', len(os.listdir(args.trials_dir)))
+        if args.shuffle:
+            print('Shuffling files...')
+            shuffle_files(args.tasks_dir)
+    except Exception as e:
+        print('Error creating tasks:', e)
+        if args.shuffle:
+            print('Shuffling files...')
+            shuffle_files(args.tasks_dir)
+        raise e
