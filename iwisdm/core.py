@@ -48,7 +48,10 @@ class Attribute(object):
         return True
 
     def __hash__(self):
-        return hash(self.value)
+        return hash((self.attr_type, self.value))
+
+    def _canonical_signature(self):
+        return ("Attribute", self.attr_type)
 
     def self_json(self):
         return {}
@@ -218,38 +221,6 @@ class Operator(object):
     def __str__(self):
         pass
 
-    def __hash__(self):
-        if self.child:
-            c_s = sorted(self.child, key=lambda o: o.__class__.__name__)
-            return hash(tuple(
-                [self.__class__.__name__] +
-                [c for c in c_s if isinstance(c, Operator)]
-            ))
-        else:
-            return hash(self.__class__.__name__)
-
-    def __eq__(self, other):
-        if isinstance(other, self.__class__):
-            if len(self.child) != len(other.child):
-                return False
-            else:
-                for c, o_c in zip(
-                        sorted(self.child, key=lambda o: o.__class__.__name__),
-                        sorted(other.child, key=lambda o: o.__class__.__name__)
-                ):
-                    if c.__class__ != o_c.__class__:
-                        return False
-                    if isinstance(c, Operator) and isinstance(o_c, Operator):
-                        if c != o_c:
-                            return False
-                    elif isinstance(c, Attribute) and isinstance(o_c, Attribute):
-                            if c.attr_type != o_c.attr_type:
-                                return False
-                    else:
-                        return False
-                return True
-        return False
-
     def __call__(self, objset, epoch_now):
         del objset
         del epoch_now
@@ -331,22 +302,39 @@ class Operator(object):
         ]
         return self_dict
 
-    def _get_all_nodes(self, op, visited):
-        visited[op] = True
+    def _get_all_nodes(self, op, visited_ids):
+        op_id = id(op)
+        if op_id in visited_ids:
+            return []
+        visited_ids.add(op_id)
+
         all_nodes = [op]
-        for c in op.child:
-            if not visited[c]:
-                if hasattr(c, 'child'):
-                    all_nodes.extend(self._get_all_nodes(c, visited))
-                else:
-                    all_nodes.append(c)
+        for c in getattr(op, "child", []):
+            if hasattr(c, 'child'):
+                all_nodes.extend(self._get_all_nodes(c, visited_ids))
+            else:
+                all_nodes.append(c)
         return all_nodes
 
     @property
     def _all_nodes(self):
-        """Return all nodes in a list."""
-        visited = defaultdict(lambda: False)
-        return self._get_all_nodes(self, visited)
+        visited_ids = set()
+        return self._get_all_nodes(self, visited_ids)
+
+    def _canonical_signature(self):
+        """Return a canonical, order-independent signature of this operator graph."""
+        # For Operators: class name + sorted signatures of children
+        child_sigs = tuple(sorted(c._canonical_signature() for c in self.child))
+        return (self.__class__.__name__, child_sigs)
+
+    def __hash__(self):
+        assert all((isinstance(c, Attribute) or isinstance(c, Operator)) for c in self._all_nodes)
+        return hash(self._canonical_signature())
+
+    def __eq__(self, other):
+        if not isinstance(other, Operator):
+            return False
+        return self._canonical_signature() == other._canonical_signature()
 
 
 class Task(object):
@@ -381,17 +369,24 @@ class Task(object):
     def _get_all_nodes(self, op, visited):
         # used for topological sort, not need to read
         """Get the total number of operators in the graph starting with op."""
-        visited[op] = True
+        op_id = id(op)
+        if op_id in visited:
+            return []
+        visited.add(op_id)
+
         all_nodes = [op]
-        for c in op.child:
-            if isinstance(c, Operator) and not visited[c]:
-                all_nodes.extend(self._get_all_nodes(c, visited))
+        for c in getattr(op, 'child', []):
+            if isinstance(c, Operator):
+                if hasattr(c, 'child'):
+                    all_nodes.extend(self._get_all_nodes(c, visited))
+                else:
+                    all_nodes.append(c)
         return all_nodes
 
     @property
     def _all_nodes(self):
         """Return all nodes in a list."""
-        visited = defaultdict(lambda: False)
+        visited = set()
         return self._get_all_nodes(self._operator, visited)
 
     @property
