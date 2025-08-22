@@ -1055,16 +1055,18 @@ class SNTask(Task):
         :return: the updated objset after going through the task graph
         """
         nodes = self.topological_sort()
+        node_ids = [id(n) for n in nodes]
+        id_map = {id(n): n for n in nodes}  # map back from id -> node
         should_be_dict = defaultdict(lambda: None)
 
         # if should_be is None, then the output is randomly sampled
         if should_be is not None:
-            should_be_dict[nodes[0]] = should_be
+            should_be_dict[node_ids[0]] = should_be
 
         # iterate over all nodes in topological order
         # while updating the expected input from the successors/children of the current node
-        for node in nodes:
-            should_be = should_be_dict[node]
+        for node, node_id in zip(nodes, node_ids):
+            should_be = should_be_dict[node_id]
             # checking the type of operator
             if isinstance(should_be, Skip):
                 inputs = Skip() if len(node.child) == 1 else [Skip()] * len(node.child)
@@ -1087,7 +1089,7 @@ class SNTask(Task):
                 outputs = inputs
 
             if isinstance(node, Switch) and temporal_switch:
-                children = node.child
+                children = node.child.copy()
                 if random.random() > 0.5:
                     children.pop(1)
                 else:
@@ -1099,12 +1101,14 @@ class SNTask(Task):
             for c, output in zip(children, outputs):
                 if not isinstance(c, Operator):  # if c is not an Operator
                     continue
+
+                c_id = id(c)
                 if isinstance(output, Skip):
-                    should_be_dict[c] = Skip()
+                    should_be_dict[c_id] = Skip()
                     continue
-                if should_be_dict[c] is None:
+                if should_be_dict[c_id] is None:
                     # If not assigned, assign
-                    should_be_dict[c] = output
+                    should_be_dict[c_id] = output
                 # if child is an operator and there's already assigned expected output
                 else:
                     # If assigned, for each object, try to merge them
@@ -1115,13 +1119,13 @@ class SNTask(Task):
                             assert isinstance(o, sg.Object)
                             merged = False
                             # Loop over previously assigned outputs
-                            for s in should_be_dict[c]:
+                            for s in should_be_dict[c_id]:
                                 # Try to merge
                                 merged = s.merge(o)
                                 if merged:
                                     break
                             if not merged:
-                                should_be_dict[c].append(o)
+                                should_be_dict[c_id].append(o)
                     else:
                         raise NotImplementedError(f'class {type(c)} not implemented')
         return objset
