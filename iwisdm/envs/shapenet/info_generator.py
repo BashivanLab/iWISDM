@@ -310,7 +310,7 @@ class TaskInfoCompo(object):
         changed = False
         # change the necessary selects first
         for i, (old_frame, new_frame) in enumerate(zip(self.frame_info[start_frame_idx:], new_task_info.frame_info)):
-            last_k = 'last%d' % (len(new_task_info.frame_info) - i - 1)
+            last_k = f'last%d' % (len(new_task_info.frame_info) - i - 1)
             # if there are objects in both frames, then update the new task's selects
             if old_frame.objs and new_frame.objs:
                 # update the select such that it corresponds to the same object
@@ -614,7 +614,7 @@ class TaskInfoCompo(object):
     ):
         # TODO: return copy of objset, not add distractor in place
         if add_distractor_frame > 0:
-            self.add_distractaor_frame(add_distractor_frame, stim_data)
+            self.add_distractor_frame(add_distractor_frame, stim_data)
 
         if add_distractor_time > 0:
             self.add_distractor_time(add_distractor_time, stim_data)

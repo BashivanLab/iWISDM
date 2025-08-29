@@ -40,3 +40,5 @@ class TaskGenerator:
 
     def generate_task(self, *args):
         raise NotImplementedError
+
+

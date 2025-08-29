@@ -15,9 +15,8 @@ the stimuli in each trial.
 
 Rendering function generates movies based on the instantiated stimuli
 """
-
-import json
-from collections import defaultdict, OrderedDict
+import itertools
+from collections import defaultdict, OrderedDict, deque
 from typing import Tuple, Union, Dict, Callable, List
 
 import networkx as nx
@@ -31,6 +30,7 @@ from iwisdm.core import (
 from iwisdm.envs.shapenet.registration import SNStimData, SNEnvSpec
 import iwisdm.envs.shapenet.stim_generator as sg
 import iwisdm.envs.shapenet.registration as env_reg
+from iwisdm.utils.helper import compute_node_signatures, min_n_for_k_pairs
 
 
 def obj_str(
@@ -1204,7 +1204,7 @@ class TemporalTask(SNTask):
         """update the task's selects in-place based on provided objects.
 
         :param lastk: the frame index with respect to the ending frame
-        .g. if len(frames) is 3, last frame is last0, first frame is last2
+        e.g. if len(frames) is 3, last frame is last0, first frame is last2
         :param objs: list of objects that the selects need to match
         :type copy: copy of the TemporalTask
         :return: None if there are no leaf selects, list of objs otherwise
@@ -1216,22 +1216,33 @@ class TemporalTask(SNTask):
         copy_filter_selects = copy.filter_selects(copy, lastk)
         filter_selects = self.filter_selects(self, lastk)
 
+        # save a dictionary with
+        # keys: hashed unique selects
+        # values: lists the same selects
+        copy_select_dict = {s: list() for s in set(copy_filter_selects)}
+        select_dict = {s: list() for s in set(filter_selects)}
+        for s in filter_selects:
+            select_dict[s].append(s)
+        for s in copy_select_dict:
+            copy_select_dict[s].append(s)
         # uncomment if multiple stim per frame
         # assert len(filter_selects) == len(copy_filter_selects)
 
         filter_objs = list()
         if filter_selects:
-            if len(objs) < len(filter_selects):
+            if len(objs) < len(select_dict) or len(objs) < len(copy_select_dict):
                 print('Not enough objects for select')
                 return list()
             # match objs on that frame with the number of selects
-            filter_objs = random.sample(objs, k=len(filter_selects))
+            filter_objs = random.sample(objs, k=len(select_dict))
             # print("what is filter_objs:", filter_objs)
-            for select, select_copy, obj in zip(filter_selects, copy_filter_selects, filter_objs):
+            for select, select_copy, obj in zip(select_dict.keys(), copy_select_dict.keys(), filter_objs):
                 # each select that matches the lastk needs to change its attrs
                 # to point to the reused object from existing frames
-                select.soft_update(obj)
-                select_copy.hard_update(obj)
+                for s in select_dict[select]:
+                    s.soft_update(obj)
+                for s in copy_select_dict[select_copy]:
+                    s.hard_update(obj)
         # print("after updating, what is filter_objs:", filter_objs)
         return filter_objs
 
@@ -1458,15 +1469,101 @@ def subtask_generation(
     if node_label_dict is None:
         node_label_dict = {node[0]: node[1]['label'] for node in subtask_G.nodes(data=True)}
     selects = [op for op in subtask_G.nodes() if 'Select' == node_label_dict[op]]
-
-    whens = env_spec.check_whens(env_spec.sample_when(len(selects)), list(existing_whens.values()))
+    dms = [op for op in subtask_G.nodes()
+           if node_label_dict[op] in {'IsSame', 'NotSame'}
+           and len(list(subtask_G.successors(op))) == 2]
+    min_unique = min_n_for_k_pairs(len(dms))
+    whens = env_spec.check_whens(
+        env_spec.sample_when(
+            n=len(selects),
+            min_unique=min_unique
+        ),
+        existing_whens=list(existing_whens.values()),
+        min_unique=min_unique
+    )
     n_frames = env_reg.compare_when(whens) + 1  # find highest lastk to determine number of frames in task
-
-    whens = {select: when for select, when in zip(selects, whens)}
-    existing_whens.update(whens)
-    assert len(existing_whens.values()) == len(set(existing_whens.values())), 'whens are duplicated'
+    if len(whens) == len(selects):
+        whens = {select: when for select, when in zip(selects, whens)}
+        existing_whens.update(whens)
+    else:
+        whens = assign_whens(
+            subtask_graph=subtask_graph,
+            whens=whens,
+            selects=selects,
+        )
+        existing_whens.update(whens)
     op = graph_to_operators(subtask_G, root, node_label_dict, operator_families, whens)
     return (op, TemporalTask(operator=op, n_frames=n_frames, whens=whens)), existing_whens
+
+
+def assign_whens(
+        subtask_graph,
+        whens,
+        selects
+):
+    """
+    assign lastk to selects in a subtask, allowing multiple Selects to point to the same object,
+    yielding tasks such as
+    [
+    Or  ->  IsSame  ->  GetCategory ->  last0
+                    ->  GetCategory ->  last1
+        -> IsSame   ->  GetCategory ->  last2
+                    -> GetCategory  ->  last1
+    ,
+    And ->  Or  ->  IsSame  ->  GetCategory ->  last0
+                            ->  GetCategory ->  last1
+                ->  IsSame  ->  GetCategory ->  last2
+                            ->  GetCategory ->  last1
+        ->  And ->  IsSame  ->  GetCategory ->  last0
+                            ->  GetCategory ->  last1
+                ->  IsSame  ->  GetCategory ->  last2
+                            ->  GetCategory ->  last1
+    ]
+    while avoiding trivial tasks such as
+    [
+    IsSame  ->  GetCategory ->  last2
+            ->  GetCategory ->  last2
+    ,
+    Or  ->  IsSame  ->  GetCategory ->  last0
+                    ->  GetCategory ->  last1
+        ->  IsSame  ->  GetCategory ->  last0
+                    ->  GetCategory ->  last1
+    ]
+    BFS assignment:
+      - Precompute label-only signatures once.
+      - Precompute selects-under for every node (memoized).
+      - For binary operators with structurally equivalent children (IsSame, And, Or, NotSame),
+        sample two DIFFERENT whens (resample until different). If whens pool < 2, raise.
+      - For non-equivalent children assign per-select randomly from pool.
+    Returns mapping {select_node: 'lastK'}.
+    """
+    subtask_G, root, _ = subtask_graph
+    sigs, order = compute_node_signatures(subtask_G)
+    s_ordered = [c for c in order if c in selects]
+    mapping = dict()
+
+    if len(s_ordered) < 2:
+        for s in selects:
+            mapping[s] = np.random.choice(whens)
+        return mapping
+
+    pairs = [(s_ordered[i], s_ordered[i + 1]) for i in range(0, len(s_ordered), 2)]
+    all_pairs = list(itertools.combinations(set(whens), 2))
+    if len(all_pairs) < len(pairs):
+        raise ValueError(f"Not enough unique when-pairs: need {len(pairs)}, have {len(all_pairs)}")
+
+    # sample as many unique pairs as needed
+    sampled_pairs = np.random.choice(len(all_pairs), size=len(pairs), replace=False)
+    when_pairs = [all_pairs[i] for i in sampled_pairs]
+    for pair, when_pair in zip(pairs, when_pairs):
+        l, r = pair
+        w_l, w_r = when_pair
+        mapping[l] = w_l
+        mapping[r] = w_r
+    for s in selects:
+        if not s in mapping:
+            mapping[s] = np.random.choice(whens)
+    return mapping
 
 
 def switch_generation(conditional: TASK, do_if: TASK, do_else: TASK, existing_whens: dict, **kwargs) -> TASK:
