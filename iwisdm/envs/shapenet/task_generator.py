@@ -1216,22 +1216,33 @@ class TemporalTask(SNTask):
         copy_filter_selects = copy.filter_selects(copy, lastk)
         filter_selects = self.filter_selects(self, lastk)
 
+        # save a dictionary with
+        # keys: hashed unique selects
+        # values: lists the same selects
+        copy_select_dict = {s: list() for s in set(copy_filter_selects)}
+        select_dict = {s: list() for s in set(filter_selects)}
+        for s in filter_selects:
+            select_dict[s].append(s)
+        for s in copy_select_dict:
+            copy_select_dict[s].append(s)
         # uncomment if multiple stim per frame
         # assert len(filter_selects) == len(copy_filter_selects)
 
         filter_objs = list()
         if filter_selects:
-            if len(objs) < len(filter_selects):
+            if len(objs) < len(select_dict) or len(objs) < len(copy_select_dict):
                 print('Not enough objects for select')
                 return list()
             # match objs on that frame with the number of selects
-            filter_objs = random.sample(objs, k=len(filter_selects))
+            filter_objs = random.sample(objs, k=len(select_dict))
             # print("what is filter_objs:", filter_objs)
-            for select, select_copy, obj in zip(filter_selects, copy_filter_selects, filter_objs):
+            for select, select_copy, obj in zip(select_dict.keys(), copy_select_dict.keys(), filter_objs):
                 # each select that matches the lastk needs to change its attrs
                 # to point to the reused object from existing frames
-                select.soft_update(obj)
-                select_copy.hard_update(obj)
+                for s in select_dict[select]:
+                    s.soft_update(obj)
+                for s in copy_select_dict[select_copy]:
+                    s.hard_update(obj)
         # print("after updating, what is filter_objs:", filter_objs)
         return filter_objs
 

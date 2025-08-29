@@ -310,7 +310,7 @@ class TaskInfoCompo(object):
         changed = False
         # change the necessary selects first
         for i, (old_frame, new_frame) in enumerate(zip(self.frame_info[start_frame_idx:], new_task_info.frame_info)):
-            last_k = 'last%d' % (len(new_task_info.frame_info) - i - 1)
+            last_k = f'last%d' % (len(new_task_info.frame_info) - i - 1)
             # if there are objects in both frames, then update the new task's selects
             if old_frame.objs and new_frame.objs:
                 # update the select such that it corresponds to the same object
