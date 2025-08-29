@@ -46,24 +46,18 @@ def create_tasks(env, **kwargs):
     # Load tasks if they exist
     if os.listdir(kwargs['tasks_dir']) != []:
         tasks = load_stored_tasks(env, kwargs['tasks_dir'])
-        task_strs = []
-        for task in tasks:
-            task_str = json.dumps(task.to_json())
-            task_strs.append(task_str)
     else:
         tasks = []
-        task_strs = []
 
     # Create tasks 
     while len(tasks) < kwargs['n_tasks']:
         task = create_task(env)
-        task_str = json.dumps(task.to_json())
 
         # Check if task meets length requirements
         if  not (kwargs['min_len'] <= task.n_frames <= kwargs['max_len']):
             continue
 
-        imgs, instructions, info_dict = generate_trial(env, task,
+        _, instructions, _ = generate_trial(env, task,
                                                                 mode='train' if kwargs['train'] else 'val')
         n_and = instructions.count(' and ')
         n_or = instructions.count(' or ')
@@ -80,8 +74,6 @@ def create_tasks(env, **kwargs):
 
         # Check if task is a duplicate
         if not duplicate_check(tasks, task):
-
-            task_strs.append(task_str)
 
             store_task(task, kwargs['tasks_dir'] + '/' + str(len(tasks)) + '.json')
 
@@ -152,14 +144,14 @@ if __name__ == '__main__':
     parser.add_argument('--stim_dir', type=str, default='data/shapenet_handpicked')
     parser.add_argument('--tasks_dir', type=str, default='benchmarking/tasks/test')
     parser.add_argument('--trials_dir', type=str, default='benchmarking/temp/test')
-    parser.add_argument('--config_path', type=str, default='/home/lucas/projects/iWISDM/benchmarking/configs/custom/4f_thesis.json')
-    parser.add_argument('--min_len', type=int, default=4)
-    parser.add_argument('--max_len', type=int, default=4)
+    parser.add_argument('--config_path', type=str, default='/home/lucas/projects/iWISDM/benchmarking/configs/custom/3f_thesis.json')
+    parser.add_argument('--min_len', type=int, default=3)
+    parser.add_argument('--max_len', type=int, default=3)
     parser.add_argument('--min_delay', type=int, default=0)
-    parser.add_argument('--max_delay', type=int, default=2)
+    parser.add_argument('--max_delay', type=int, default=1)
     parser.add_argument('--delay_prob', type=float, default=0.5)
     parser.add_argument('--n_trials', type=int, default=0)
-    parser.add_argument('--n_tasks', type=int, default=100)
+    parser.add_argument('--n_tasks', type=int, default=16)
     parser.add_argument('--min_joint_ops', type=int, default=0)
     parser.add_argument('--max_joint_ops', type=int, default=1)
     parser.add_argument('--shuffle', action='store_true', default=False)
