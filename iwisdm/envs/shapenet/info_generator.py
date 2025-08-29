@@ -614,7 +614,7 @@ class TaskInfoCompo(object):
     ):
         # TODO: return copy of objset, not add distractor in place
         if add_distractor_frame > 0:
-            self.add_distractaor_frame(add_distractor_frame, stim_data)
+            self.add_distractor_frame(add_distractor_frame, stim_data)
 
         if add_distractor_time > 0:
             self.add_distractor_time(add_distractor_time, stim_data)
