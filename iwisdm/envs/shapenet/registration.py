@@ -11,6 +11,99 @@ from iwisdm.core import Stimulus
 from iwisdm.envs.registration import Constant, EnvSpec, StimData
 from iwisdm.utils.read_write import read_img
 
+DEFAULT_OP_DICT = {
+    "Select":
+        {
+            "n_downstream": 4,
+            "downstream": ["GetLoc", "GetCategory", "GetObject"],
+            "same_children_op": False,
+            "min_depth": 1,
+            "min_op": 1,
+        },
+    "GetCategory":
+        {
+            "n_downstream": 1,
+            "downstream": ["Select"],
+            "min_depth": 2,
+            "min_op": 2,
+        },
+    "GetLoc":
+        {
+            "n_downstream": 1,
+            "downstream": ["Select"],
+            "min_depth": 2,
+            "min_op": 2,
+        },
+    "GetObject":
+        {
+            "n_downstream": 1,
+            "downstream": ["Select"],
+            "min_depth": 2,
+            "min_op": 2,
+        },
+    "IsSame":
+        {
+            "n_downstream": 2,
+            "downstream": ["GetLoc", "GetCategory", "GetObject"],
+            "sample_dist": [1 / 3, 1 / 3, 1 / 3],
+            "same_children_op": True,
+            "min_depth": 3,
+            "min_op": 7,
+        },
+    "NotSame":
+        {
+            "n_downstream": 2,
+            "downstream": ["GetLoc", "GetCategory", "GetObject"],
+            "sample_dist": [1 / 3, 1 / 3, 1 / 3],
+            "same_children_op": True,
+            "min_depth": 3,
+            "min_op": 7,
+        },
+    "And":
+        {
+            "n_downstream": 2,
+            "downstream": ["IsSame", "NotSame", "And", "Or"],
+            "same_children_op": False,
+            "min_depth": 4,
+            "min_op": 15,
+        },
+    "Or":
+        {
+            "n_downstream": 2,
+            "downstream": ["IsSame", "NotSame", "And", "Or"],
+            "same_children_op": False,
+            "min_depth": 4,
+            "min_op": 15,
+        },
+    "CONST":
+        {
+            "n_downstream": 0,
+            "downstream": [],
+            "sample_dist": [],
+            "same_children_op": False,
+            "min_depth": 1,
+            "min_op": 1,
+        }
+}
+
+DEFAULT_CONFIG = {
+    'op_dict': DEFAULT_OP_DICT,
+    # root_ops are the operators to begin a task
+    'root_ops': ["IsSame", "And", "Or", "NotSame", "GetLoc", "GetCategory"],
+    'boolean_ops': ["IsSame", "And", "Or", "NotSame", ],
+    # all tasks end with select
+    'leaf_op': ["Select"],
+    'mid_op': ["Switch"],
+    'max_op': 20,
+    'max_depth': 10,
+    'max_switch': 1,
+    'switch_threshold': 0,
+    'select_limit': False,
+    'compare_const_prob': 1 / 15,
+    'const_parent_ops': ["IsSame", "NotSame"],
+    'indexable_get_ops': ["GetLoc", "GetCategory"],
+}
+
 
 def compare_when(when_list):
     """
@@ -94,6 +187,8 @@ class SNEnvSpec(EnvSpec):
             grid_size: Tuple[int, int] = (2, 2),
             max_delay: int = 2,
             delay_prob: float = 0.5,
+            max_dup: int = 5,
+            dup_prob: float = 0.3,
             auto_gen_config: Dict = None,
             add_fixation_cue: bool = False,
             cue_on_action: bool = False,
@@ -101,100 +196,7 @@ class SNEnvSpec(EnvSpec):
             **kwargs
     ):
         if auto_gen_config is None:
-            op_dict = {
-                "Select":
-                    {
-                        "n_downstream": 4,
-                        "downstream": ["GetLoc", "GetCategory", "GetObject"],
-                        "same_children_op": False,
-                        "min_depth": 1,
-                        "min_op": 1,
-                    },
-                "GetCategory":
-                    {
-                        "n_downstream": 1,
-                        "downstream": ["Select"],
-                        "min_depth": 2,
-                        "min_op": 2,
-                    },
-                "GetLoc":
-                    {
-                        "n_downstream": 1,
-                        "downstream": ["Select"],
-                        "min_depth": 2,
-                        "min_op": 2,
-                    },
-                "GetObject":
-                    {
-                        "n_downstream": 1,
-                        "downstream": ["Select"],
-                        "min_depth": 2,
-                        "min_op": 2,
-                    },
-                "IsSame":
-                    {
-                        "n_downstream": 2,
-                        "downstream": ["GetLoc", "GetCategory", "GetObject"],
-                        "sample_dist": [1 / 3, 1 / 3, 1 / 3],
-                        "same_children_op": True,
-                        "min_depth": 3,
-                        "min_op": 7,
-                    },
-                "NotSame":
-                    {
-                        "n_downstream": 2,
-                        "downstream": ["GetLoc", "GetCategory", "GetObject"],
-                        "sample_dist": [1 / 3, 1 / 3, 1 / 3],
-                        "same_children_op": True,
-                        "min_depth": 3,
-                        "min_op": 7,
-                    },
-                "And":
-                    {
-                        "n_downstream": 2,
-                        "downstream": ["IsSame", "NotSame", "And", "Or"],
-                        "same_children_op": False,
-                        "min_depth": 4,
-                        "min_op": 15,
-                    },
-                "Or":
-                    {
-                        "n_downstream": 2,
-                        "downstream": ["IsSame", "NotSame", "And", "Or"],
-                        "same_children_op": False,
-                        "min_depth": 4,
-                        "min_op": 15,
-                    },
-                "CONST":
-                    {
-                        "n_downstream": 0,
-                        "downstream": [],
-                        "sample_dist": [],
-                        "same_children_op": False,
-                        "min_depth": 1,
-                        "min_op": 1,
-                    }
-            }
-            auto_gen_config = {
-                'op_dict': op_dict,
-                # root_ops are the operators to begin a task
-                'root_ops': ["IsSame", "And", "Or", "NotSame", "GetLoc", "GetCategory"],
-                'boolean_ops': ["IsSame", "And", "Or", "NotSame", ],
-                # all tasks end with select
-                'leaf_op': ["Select"],
-                'mid_op': ["Switch"],
-                'max_op': 20,
-                'max_depth': 10,
-                'max_switch': 1,
-                'switch_threshold': 0,
-                'select_limit': False,
-                'compare_const_prob': 1 / 15,
-                'const_parent_ops': ["IsSame", "NotSame"],
-                'indexable_get_ops': ["GetLoc", "GetCategory"],
-            }
-        self.add_fixation_cue = add_fixation_cue
-        self.cue_on_action = cue_on_action
-        self.canvas_size = canvas_size
+            auto_gen_config = DEFAULT_CONFIG
         super().__init__(
             grid_size,
             max_delay,
@@ -202,22 +204,38 @@ class SNEnvSpec(EnvSpec):
             auto_gen_config,
             **kwargs,
         )
+        self.add_fixation_cue = add_fixation_cue
+        self.cue_on_action = cue_on_action
+        self.canvas_size = canvas_size
+        self.MAX_DUP = max_dup
+        self.dup_prob = dup_prob
 
-    def sample_when(self, n: int = 1, existing_whens=None) -> list:
+    def sample_when(
+            self,
+            n: int = 1,
+            existing_whens: list = None,
+            max_dup: int = None,
+            min_unique: int = None
+    ) -> list:
         """
         sample n 'lastk' values,
         avoid sampling multiple stimuli per frame
         @param n: how many values to sample
         @param existing_whens: list of existing 'lastk' values
+        @param max_dup: maximum number of duplicates
         @return: list of n 'lastk' values
         """
         whens = list()
-        i, count, n_delays = 0, 0, 0
+        i, count, n_delays, n_dups = 0, 0, 0, 0
+        dup_prob = 0.0 if n <= 3 else self.dup_prob
+        max_dup = max_dup if max_dup is not None else self.MAX_DUP
+
         if existing_whens:
             max_k = compare_when(existing_whens)
             n_delays += len(find_delays(existing_whens))
-            i += max_k
+            i += max_k  # add only to end of lastk
         else:
+            max_k = 0
             whens.append(f'last{i}')
             count += 1
 
@@ -228,12 +246,27 @@ class SNEnvSpec(EnvSpec):
                 n_delays += 1
             else:
                 count += 1
+                add_dup = np.random.random() < dup_prob
+                if add_dup and n_dups < max_dup:
+                    count += 1
+                    n_dups += 1
                 whens.append(f'last{i}')
+
+        if min_unique is not None and len(whens) < min_unique:
+            for k in range(max_k, i):
+                if f'last{k}' not in whens and len(whens) < min_unique:
+                    whens.append(f'last{k}')
         return whens
 
-    def check_whens(self, whens: List[str], existing_whens: List[str] = None):
+    def check_whens(
+            self,
+            whens: List[str],
+            existing_whens: List[str] = None,
+            min_unique: int =None,
+    ):
         """
         Check if the whens are valid, i.e. only 1 stimulus per frame
+        @param min_unique:
         @param whens: the list of 'lastk' values
         @param existing_whens: existing list of 'lastk' values
         @return: resampled whens
@@ -243,7 +276,11 @@ class SNEnvSpec(EnvSpec):
         len_ew = len(existing_whens)
 
         while len(set(whens) | existing_whens) != (len(whens) + len_ew):
-            whens = self.sample_when(len(whens), existing_whens)
+            whens = self.sample_when(
+                n=len(whens),
+                existing_whens=existing_whens,
+                min_unique=min_unique
+            )
         return whens
 
 

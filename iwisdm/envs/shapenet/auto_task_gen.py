@@ -375,7 +375,6 @@ class SNTaskGenerator(TaskGenerator):
             max_op=self.max_op,
             max_depth=self.max_depth,
             select_limit=self.select_limit,
-
         )
         subtask, whens = tg.subtask_generation(self.env_spec, subtask_graph, existing_whens=whens)
         count = subtask_graph[2] + 1  # start a new subtask graph node number according to old graph
