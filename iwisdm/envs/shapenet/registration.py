@@ -134,6 +134,8 @@ def get_k(last_k: str):
     @param last_k: last_k string
     @return: integer k in last_k
     """
+    if len(last_k) == 0:
+        raise RuntimeError(f'{last_k} is empty')
     return int(last_k.split('last')[1])
 
 
@@ -188,7 +190,7 @@ class SNEnvSpec(EnvSpec):
             max_delay: int = 2,
             delay_prob: float = 0.5,
             max_dup: int = 5,
-            dup_prob: float = 0.3,
+            dup_prob: float = 1.0,
             auto_gen_config: Dict = None,
             add_fixation_cue: bool = False,
             cue_on_action: bool = False,
@@ -215,7 +217,8 @@ class SNEnvSpec(EnvSpec):
             n: int = 1,
             existing_whens: list = None,
             max_dup: int = None,
-            min_unique: int = None
+            min_unique: int = None,
+            reuse_whens: list = None,
     ) -> list:
         """
         sample n 'lastk' values,
@@ -230,31 +233,38 @@ class SNEnvSpec(EnvSpec):
         dup_prob = 0.0 if n <= 3 else self.dup_prob
         max_dup = max_dup if max_dup is not None else self.MAX_DUP
 
-        if existing_whens:
-            max_k = compare_when(existing_whens)
-            n_delays += len(find_delays(existing_whens))
-            i += max_k  # add only to end of lastk
-        else:
+        if reuse_whens:
+            whens = reuse_whens
             max_k = 0
-            whens.append(f'last{i}')
-            count += 1
-
-        while count < n:
-            add_delay = np.random.random() < self.delay_prob
-            i += 1
-            if add_delay and n_delays < self.MAX_DELAY:  # delay, don't add lasti
-                n_delays += 1
+            i = compare_when(reuse_whens) + n
+        else:
+            if existing_whens:
+                max_k = compare_when(existing_whens)
+                n_delays += len(find_delays(existing_whens))
+                i += max_k  # add only to end of lastk
             else:
-                count += 1
-                add_dup = np.random.random() < dup_prob
-                if add_dup and n_dups < max_dup:
-                    count += 1
-                    n_dups += 1
+                max_k = 0
                 whens.append(f'last{i}')
+                count += 1
 
-        if min_unique is not None and len(whens) < min_unique:
+            while count < n:
+                add_delay = np.random.random() < self.delay_prob
+                i += 1
+                if add_delay and n_delays < self.MAX_DELAY:  # delay, don't add lasti
+                    n_delays += 1
+                else:
+                    count += 1
+                    add_dup = np.random.random() < dup_prob
+                    if add_dup and n_dups < max_dup:
+                        count += 1
+                        n_dups += 1
+                    whens.append(f'last{i}')
+
+        if min_unique is not None and len(set(whens)) < min_unique:
             for k in range(max_k, i):
-                if f'last{k}' not in whens and len(whens) < min_unique:
+                if len(set(whens)) >= min_unique:
+                    return whens
+                if f'last{k}' not in whens and len(set(whens)) < min_unique:
                     whens.append(f'last{k}')
         return whens
 
@@ -262,13 +272,13 @@ class SNEnvSpec(EnvSpec):
             self,
             whens: List[str],
             existing_whens: List[str] = None,
-            min_unique: int =None,
+            min_unique: int = None,
     ):
         """
         Check if the whens are valid, i.e. only 1 stimulus per frame
-        @param min_unique:
         @param whens: the list of 'lastk' values
         @param existing_whens: existing list of 'lastk' values
+        @param min_unique:
         @return: resampled whens
         """
         # added check_whens to ensure 1 stimulus per frame

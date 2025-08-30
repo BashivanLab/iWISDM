@@ -15,6 +15,7 @@ from iwisdm.core import Operator, Attribute, Task
 from iwisdm.utils.auto_task_gen import TaskGenerator
 import iwisdm.envs.shapenet.task_generator as tg
 from iwisdm.envs.shapenet.registration import SNEnvSpec
+from iwisdm.utils.helper import compute_node_signatures
 
 # Tuples of the graph object, the root root_op number, and the number of operators,
 # needed to compose graphs in switch generation
@@ -368,6 +369,7 @@ class SNTaskGenerator(TaskGenerator):
         """
         count = 0
         whens = dict()
+        pairs = list()
 
         # generate a subtask graph and the actual task
         subtask_graph = self.subtask_graph_generator(
@@ -376,8 +378,18 @@ class SNTaskGenerator(TaskGenerator):
             max_depth=self.max_depth,
             select_limit=self.select_limit,
         )
-        subtask, whens = tg.subtask_generation(self.env_spec, subtask_graph, existing_whens=whens)
+        subtask, whens, pairs = tg.subtask_generation(
+            env_spec=self.env_spec,
+            subtask_graph=subtask_graph,
+            existing_whens=whens,
+            existing_pairs=pairs,
+            reuse_pairs=False,
+        )
+        sub_G, sub_root, _ = subtask_graph
+        sub_sig, _ = compute_node_signatures(sub_G)
+        sub_sig = sub_sig[sub_root]
         count = subtask_graph[2] + 1  # start a new subtask graph node number according to old graph
+
         for _ in range(self.max_switch):
             if random.random() < self.switch_threshold:  # if add switch
                 new_task_graph = self.subtask_graph_generator(
@@ -386,7 +398,11 @@ class SNTaskGenerator(TaskGenerator):
                     max_depth=self.max_depth,
                     select_limit=self.select_limit
                 )
+                new_G, new_root, _ = new_task_graph
+                new_sig, _ = compute_node_signatures(new_G)
+                new_sig = new_sig[new_root]
                 count = new_task_graph[2] + 1
+
                 conditional = self.subtask_graph_generator(
                     count=count,
                     max_op=self.max_op,
@@ -394,15 +410,39 @@ class SNTaskGenerator(TaskGenerator):
                     select_limit=self.select_limit,
                     root_op=random.choice(self.boolean_ops)
                 )
-                conditional_task, whens = tg.subtask_generation(self.env_spec, conditional, existing_whens=whens)
+                cond_G, cond_root, _ = conditional
+                cond_sig, _ = compute_node_signatures(cond_G)
+                cond_sig = cond_sig[cond_root]
+
+                same_task = (cond_sig == new_sig or cond_sig == sub_sig or cond_sig == sub_sig)
+                conditional_task, whens, pairs = tg.subtask_generation(
+                    env_spec=self.env_spec,
+                    subtask_graph=conditional,
+                    existing_whens=whens,
+                    existing_pairs=pairs,
+                    reuse_pairs=not same_task
+                )
                 if random.random() < 0.5:  # randomly split the do_if and do_else tasks
                     do_if = subtask_graph
                     do_if_task = subtask
                     do_else = new_task_graph
-                    do_else_task, whens = tg.subtask_generation(self.env_spec, do_else, existing_whens=whens)
+
+                    do_else_task, whens, pairs = tg.subtask_generation(
+                        self.env_spec,
+                        do_else,
+                        existing_whens=whens,
+                        existing_pairs=pairs,
+                        reuse_pairs=not same_task
+                    )
                 else:
                     do_if = new_task_graph
-                    do_if_task, whens = tg.subtask_generation(self.env_spec, do_if, existing_whens=whens)
+                    do_if_task, whens, pairs = tg.subtask_generation(
+                        self.env_spec,
+                        do_if,
+                        existing_whens=whens,
+                        existing_pairs=pairs,
+                        reuse_pairs=not same_task
+                    )
                     do_else = subtask_graph
                     do_else_task = subtask
                 subtask_graph = self.switch_generator(conditional, do_if, do_else)

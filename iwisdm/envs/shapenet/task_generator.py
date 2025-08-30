@@ -16,7 +16,7 @@ the stimuli in each trial.
 Rendering function generates movies based on the instantiated stimuli
 """
 import itertools
-from collections import defaultdict, OrderedDict, deque
+from collections import defaultdict, OrderedDict
 from typing import Tuple, Union, Dict, Callable, List
 
 import networkx as nx
@@ -30,7 +30,7 @@ from iwisdm.core import (
 from iwisdm.envs.shapenet.registration import SNStimData, SNEnvSpec
 import iwisdm.envs.shapenet.stim_generator as sg
 import iwisdm.envs.shapenet.registration as env_reg
-from iwisdm.utils.helper import compute_node_signatures, min_n_for_k_pairs
+from iwisdm.utils.helper import min_n_for_k_pairs
 
 
 def obj_str(
@@ -1056,8 +1056,9 @@ class SNTask(Task):
         """
         nodes = self.topological_sort()
         node_ids = [id(n) for n in nodes]
-        id_map = {id(n): n for n in nodes}  # map back from id -> node
+        id_map = {n: n_id for n, n_id in zip(nodes, node_ids)}  # map back from id -> node
         should_be_dict = defaultdict(lambda: None)
+        ignore_nodes = set()
 
         # if should_be is None, then the output is randomly sampled
         if should_be is not None:
@@ -1066,6 +1067,12 @@ class SNTask(Task):
         # iterate over all nodes in topological order
         # while updating the expected input from the successors/children of the current node
         for node, node_id in zip(nodes, node_ids):
+            if node_id in ignore_nodes:
+                children = node.child
+                for c in children:
+                    c_id = id(c)
+                    ignore_nodes.add(c_id)
+                continue
             should_be = should_be_dict[node_id]
             # checking the type of operator
             if isinstance(should_be, Skip):
@@ -1094,15 +1101,27 @@ class SNTask(Task):
                     children.pop(1)
                 else:
                     children.pop(2)
+            elif isinstance(node, Switch):
+                children = node.child
+                conditional_bool = inputs[0]
+                do_if_id = id(children[1])
+                do_else_id = id(children[2])
+                if conditional_bool:
+                    ignore_nodes.add(do_else_id)
+                else:
+                    ignore_nodes.add(do_if_id)
             else:
                 children = node.child
 
             # Update the should_be dictionary for the children
             for c, output in zip(children, outputs):
+                c_id = id(c)
                 if not isinstance(c, Operator):  # if c is not an Operator
                     continue
+                if node in ignore_nodes:
+                    ignore_nodes.add(c_id)
+                    continue
 
-                c_id = id(c)
                 if isinstance(output, Skip):
                     should_be_dict[c_id] = Skip()
                     continue
@@ -1451,17 +1470,24 @@ def subtask_generation(
         env_spec: SNEnvSpec,
         subtask_graph: GRAPH_TUPLE,
         node_label_dict: dict = None,
-        existing_whens: dict = None
-) -> Tuple[TASK, dict]:
+        existing_whens: dict = None,
+        existing_pairs: list = None,
+        reuse_pairs: bool = True,
+) -> Tuple[TASK, dict, list]:
     """
     generate a TemporalTask from a subtask graph
     @param env_spec: data class used to specify number of delay frames
     @param subtask_graph: the task graph
     @param node_label_dict: dictionary of node number to node label e.g. 1: 'Select'
     @param existing_whens: for combining multiple tasks together, a dictionary of the format {select: 'lastk'}
+    @param existing_pairs: for combining multiple tasks together, list of unique lastk pairs
+    @param reuse_pairs: if True (same task),
+        then sample unique when pairs, account for the existing pairs
+        else allow reuse
     @return:
     """
     existing_whens = dict() if not existing_whens else existing_whens
+    existing_pairs = list() if not existing_pairs else existing_pairs
     # avoid duplicate whens across subtasks during switch generation
     subtask_G, root, _ = subtask_graph
     operator_families = get_operator_dict()
@@ -1473,33 +1499,47 @@ def subtask_generation(
            if node_label_dict[op] in {'IsSame', 'NotSame'}
            and len(list(subtask_G.successors(op))) == 2]
     min_unique = min_n_for_k_pairs(len(dms))
-    whens = env_spec.check_whens(
-        env_spec.sample_when(
+
+    if not reuse_pairs:
+        min_unique += (len(existing_pairs) * 2)
+    if not reuse_pairs:
+        whens = env_spec.sample_when(
             n=len(selects),
-            min_unique=min_unique
-        ),
-        existing_whens=list(existing_whens.values()),
-        min_unique=min_unique
-    )
+            min_unique=min_unique,
+            existing_whens=list(set(existing_whens.values())),
+        )
+    else:
+        whens = env_spec.sample_when(
+            n=len(selects),
+            min_unique=min_unique,
+            reuse_whens=list(set(existing_whens.values())),
+        )
     n_frames = env_reg.compare_when(whens) + 1  # find highest lastk to determine number of frames in task
     if len(whens) == len(selects):
         whens = {select: when for select, when in zip(selects, whens)}
         existing_whens.update(whens)
     else:
-        whens = assign_whens(
+        whens, when_pairs = assign_whens(
             subtask_graph=subtask_graph,
+            node_label_dict=node_label_dict,
             whens=whens,
             selects=selects,
+            existing_pairs=existing_pairs,
+            reuse_pairs=reuse_pairs
         )
         existing_whens.update(whens)
+        existing_pairs.extend(when_pairs)
     op = graph_to_operators(subtask_G, root, node_label_dict, operator_families, whens)
-    return (op, TemporalTask(operator=op, n_frames=n_frames, whens=whens)), existing_whens
+    return (op, TemporalTask(operator=op, n_frames=n_frames, whens=whens)), existing_whens, existing_pairs
 
 
 def assign_whens(
         subtask_graph,
+        node_label_dict,
         whens,
-        selects
+        selects,
+        existing_pairs,
+        reuse_pairs,
 ):
     """
     assign lastk to selects in a subtask, allowing multiple Selects to point to the same object,
@@ -1538,24 +1578,50 @@ def assign_whens(
     Returns mapping {select_node: 'lastK'}.
     """
     subtask_G, root, _ = subtask_graph
-    sigs, order = compute_node_signatures(subtask_G)
+    topo = list(nx.topological_sort(subtask_G))
+    order = list(reversed(topo))
     s_ordered = [c for c in order if c in selects]
     mapping = dict()
+
+    # get the grandparents of the selects and make sure they are IsSame/NotSame
+    grandparent_s = dict()
+    for s in s_ordered:
+        parents = list(subtask_G.predecessors(s))
+        if parents and len(parents) == 1:
+            parent = parents[0]
+            grandparents = list(subtask_G.predecessors(parent))
+            if grandparents:
+                grandparent = grandparents[0]
+                if node_label_dict[grandparent] in {'IsSame', 'NotSame'}:
+                    grandparent_s[s] = grandparent
 
     if len(s_ordered) < 2:
         for s in selects:
             mapping[s] = np.random.choice(whens)
-        return mapping
+        return mapping, list()
 
-    pairs = [(s_ordered[i], s_ordered[i + 1]) for i in range(0, len(s_ordered), 2)]
+    select_pairs = list()
+    for l, r in zip(s_ordered[0::2], s_ordered[1::2]):
+        if grandparent_s.get(l) == grandparent_s.get(r):
+            # make sure the left and right selects point to the same IsSame
+            select_pairs.append((l, r))
     all_pairs = list(itertools.combinations(set(whens), 2))
-    if len(all_pairs) < len(pairs):
-        raise ValueError(f"Not enough unique when-pairs: need {len(pairs)}, have {len(all_pairs)}")
+
+    if reuse_pairs:
+        remain_pairs = list(all_pairs)
+    else:
+        # avoid sampling the same lastk pairs
+        all_pair_set = set(tuple([tuple(sorted(p)) for p in all_pairs]))
+        existing_pair_set = set(tuple([tuple(sorted(p)) for p in existing_pairs]))
+        remain_pairs = list(all_pair_set - existing_pair_set)
+
+    if len(remain_pairs) < len(select_pairs):
+        raise ValueError(f"Not enough unique when-pairs: need {len(select_pairs)}, have {len(all_pairs)}")
 
     # sample as many unique pairs as needed
-    sampled_pairs = np.random.choice(len(all_pairs), size=len(pairs), replace=False)
-    when_pairs = [all_pairs[i] for i in sampled_pairs]
-    for pair, when_pair in zip(pairs, when_pairs):
+    sampled_pairs = np.random.choice(len(remain_pairs), size=len(select_pairs), replace=False)
+    when_pairs = [remain_pairs[i] for i in sampled_pairs]
+    for pair, when_pair in zip(select_pairs, when_pairs):
         l, r = pair
         w_l, w_r = when_pair
         mapping[l] = w_l
@@ -1563,7 +1629,8 @@ def assign_whens(
     for s in selects:
         if not s in mapping:
             mapping[s] = np.random.choice(whens)
-    return mapping
+
+    return mapping, when_pairs
 
 
 def switch_generation(conditional: TASK, do_if: TASK, do_else: TASK, existing_whens: dict, **kwargs) -> TASK:
