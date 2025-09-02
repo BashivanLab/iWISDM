@@ -324,7 +324,8 @@ class Operator(object):
     def _canonical_signature(self):
         """Return a canonical, order-independent signature of this operator graph."""
         # For Operators: class name + sorted signatures of children
-        child_sigs = tuple(sorted(c._canonical_signature() for c in self.child))
+        # child_sigs = tuple(sorted(c._canonical_signature() for c in self.child))
+        child_sigs = tuple(c._canonical_signature() for c in self.child)
         return (self.__class__.__name__, child_sigs)
 
     def __hash__(self):

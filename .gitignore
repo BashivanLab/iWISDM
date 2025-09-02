@@ -20,7 +20,7 @@ tutorials/outputs*
 /benchmarking/temp/*
 /benchmarking/tasks/*
 /benchmarking/configs/custom/
-/benchmarking/configs/custom/*
+/benchmarking/configs/custom_no_const/*
 *__pycache__*
 *.py[cod]
 *.output
