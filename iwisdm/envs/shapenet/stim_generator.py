@@ -26,6 +26,7 @@ from iwisdm.core import (
 )
 from iwisdm.envs.shapenet.registration import SNEnvSpec, SNStimData
 import iwisdm.envs.shapenet.registration as env_reg
+from iwisdm.utils.helper import get_k
 
 
 class SNAttribute(Attribute):
@@ -47,6 +48,9 @@ class SNAttribute(Attribute):
         """
         return self.__class__(self.value)
 
+    def resample(self, attr, keep_superset):
+        raise NotImplementedError('Abstract method')
+
 
 class Space(SNAttribute):
     """Space class."""
@@ -65,7 +69,7 @@ class Space(SNAttribute):
     def sample(self):
         return Space(random.choice(list(self.env_spec.grid.values())))
 
-    def resample(self, attr):
+    def resample(self, attr, keep_superset=False):
         keys = list(self.env_spec.grid.keys()).copy()
         key = self.env_spec.get_grid_key(attr)
         keys.remove(key)
@@ -207,7 +211,7 @@ class Location(SNAttribute):
     def sample(self):
         return self.space.sample_loc()
 
-    def resample(self, attr):
+    def resample(self, attr, keep_superset=False):
         # sample a different grid_space, and a location in that space
         grid_space = attr.space
         new_grid_space = grid_space.resample(grid_space)
@@ -243,9 +247,9 @@ class SNCategory(SNAttribute):
             value=random.choice(self.stim_data.ALLCATEGORIES)
         )
 
-    def resample(self, old_category):
+    def resample(self, attr, keep_superset=False):
         all_cats = self.stim_data.ALLCATEGORIES.copy()
-        all_cats.remove(old_category.value)
+        all_cats.remove(attr.value)
         return SNCategory(
             value=random.choice(all_cats)
         )
@@ -289,25 +293,31 @@ class SNObject(SNAttribute):
         obj = random.choice(self.stim_data.ALLOBJECTS[category])
         return SNObject(category=SNCategory(category), value=obj)
 
-    def resample(self, old_obj):
-        # sample a completely new object (category might be the same)
-        all_cats = self.stim_data.ALLCATEGORIES.copy()
-        new_category = random.choice(all_cats)
-        all_cats.remove(new_category)
-        all_objects = self.stim_data.ALLOBJECTS[new_category].copy()
-
-        if new_category == old_obj.category.value:
-            all_objects.remove(old_obj.value)
-
-            # resample new category if no other objects in the same category
-            if not all_objects:
-                all_cats.remove(old_obj.category.value)
-                new_category = random.choice(all_cats)
-                all_objects = list(self.stim_data.ALLOBJECTS[new_category])
-                return SNObject(category=SNCategory(new_category), value=random.choice(all_objects))
-            return SNObject(category=SNCategory(new_category), value=random.choice(all_objects))
+    def resample(self, attr, keep_superset=False):
+        if keep_superset:
+            category = attr.category.value
+            all_objects = self.stim_data.ALLOBJECTS[category].copy()
+            all_objects.remove(attr.value)
+            return SNObject(category=SNCategory(category), value=random.choice(all_objects))
         else:
-            return SNObject(category=SNCategory(new_category), value=random.choice(all_objects))
+            # sample a completely new object (category might be the same)
+            all_cats = self.stim_data.ALLCATEGORIES.copy()
+            new_category = random.choice(all_cats)
+            all_cats.remove(new_category)
+            all_objects = self.stim_data.ALLOBJECTS[new_category].copy()
+
+            if new_category == attr.category.value:
+                all_objects.remove(attr.value)
+
+                # resample new category if no other objects in the same category
+                if not all_objects:
+                    all_cats.remove(attr.category.value)
+                    new_category = random.choice(all_cats)
+                    all_objects = list(self.stim_data.ALLOBJECTS[new_category])
+                    return SNObject(category=SNCategory(new_category), value=random.choice(all_objects))
+                return SNObject(category=SNCategory(new_category), value=random.choice(all_objects))
+            else:
+                return SNObject(category=SNCategory(new_category), value=random.choice(all_objects))
 
     def self_json(self):
         return {'category': self.category.to_json()}
@@ -323,6 +333,19 @@ class SNViewAngle(SNAttribute):
         if self.attr_type in self.stim_data.attr_with_mapping:
             return '' + self.stim_data.attr_with_mapping[self.attr_type][self.value]
         return 'view_angle: ' + str(self.value)
+
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            if self.value == other.value:
+                if self.object.value == other.object.value:
+                    if self.object.category.value == other.object.category.value:
+                        return True
+        return False
+
+    def __ne__(self, other):
+        if isinstance(other, self.__class__):
+            return not self.__eq__(other)
+        return True
 
     def copy(self):
         """
@@ -348,10 +371,11 @@ class SNViewAngle(SNAttribute):
             sn_object=SNObject(category=SNCategory(category), value=obj),
             value=va)
 
-    def resample(self, old_va):
-        obj = old_va.object
+    def resample(self, attr, keep_superset=False):
+        # always sample a new view angle of the same object
+        obj = attr.object
         all_vas = list(self.stim_data.ALLVIEWANGLES[obj.category.value][obj.value])
-        all_vas.remove(old_va.value)
+        all_vas.remove(attr.value)
         return SNViewAngle(sn_object=obj, value=random.choice(all_vas))
 
     def self_json(self):
@@ -418,6 +442,7 @@ class Object(SNStimulus):
         self.category = SNCategory(value=None)
         self.object = SNObject(self.category, value=None)
         self.view_angle = SNViewAngle(self.object, value=None)
+        self.changeable = {attr: True for attr in ['category', 'object', 'view_angle', 'location']}
 
         if attrs is not None:
             for a in attrs:
@@ -426,12 +451,19 @@ class Object(SNStimulus):
                 elif isinstance(a, Location):
                     self.location = a
                     self.space = a.space
+                    self.changeable['location'] = False
                 elif isinstance(a, SNCategory):
                     self.category = a
+                    self.changeable['category'] = False
                 elif isinstance(a, SNObject):
                     self.object = a
+                    self.changeable['object'] = False
+                    self.changeable['category'] = False
                 elif isinstance(a, SNViewAngle):
                     self.view_angle = a
+                    self.changeable['object'] = False
+                    self.changeable['category'] = False
+                    self.changeable['view_angle'] = False
                 else:
                     raise TypeError('Unknown type for attribute: ' +
                                     str(a) + ' ' + str(type(a)))
@@ -487,13 +519,26 @@ class Object(SNStimulus):
         self.object = view_angle.object
         self.view_angle = view_angle
 
-    def change_attr(self, attr):
+    def change_loc(self, loc: Location):
+        self.space = loc.space
+        self.location = loc
+
+    def change_attr(self, attr, changeable: bool = False):
         if isinstance(attr, SNCategory):
             self.change_category(attr)
+            self.changeable['category'] = changeable
         elif isinstance(attr, SNObject):
             self.change_object(attr)
+            self.changeable['category'] = changeable
+            self.changeable['object'] = changeable
         elif isinstance(attr, SNViewAngle):
             self.change_view_angle(attr)
+            self.changeable['category'] = changeable
+            self.changeable['object'] = changeable
+            self.changeable['view_angle'] = changeable
+        elif isinstance(attr, Location):
+            self.change_loc(attr)
+            self.changeable['location'] = changeable
         else:
             raise NotImplementedError()
 
@@ -529,13 +574,21 @@ class Object(SNStimulus):
           bool: True if successfully merged, False otherwise
         """
         new_attr = dict()
-        for attr_type in ['category', 'object', 'view_angle']:
+        for attr_type in ['category', 'object', 'view_angle', 'location']:
             new_attr = getattr(obj, attr_type)
             self_attr = getattr(self, attr_type)
-            if not self_attr.has_value() and new_attr.has_value():
-                self.change_attr(new_attr)
-            elif new_attr.has_value() and self_attr.has_value():
-                return False
+            if new_attr.has_value() and self_attr.has_value():
+                if new_attr == self_attr:
+                    continue
+                else:
+                    if self.changeable[attr_type]:
+                        self.change_attr(new_attr)
+                    else:  # if both have value and attribute type is not changeable
+                        return False
+            else:  # if one doesn't have value
+                if new_attr.has_value():
+                    self.change_attr(new_attr)
+                # if new_attr value, then continue
         return True
 
     def copy(self):
@@ -598,7 +651,8 @@ class ObjectSet(StimuliSet):
             view_angle=obj.view_angle,
             when=obj.when,
             delete_if_can=delete_if_can,
-            merge_idx=merge_idx
+            merge_idx=merge_idx,
+            changeable=obj.changeable,
         )
 
         # True if more than zero objects match the attributes based on epoch_now
@@ -629,7 +683,7 @@ class ObjectSet(StimuliSet):
         else:
             if merge_idx is None:
                 try:
-                    obj.epoch = [epoch_now - env_reg.get_k(obj.when), epoch_now - env_reg.get_k(obj.when) + 1]
+                    obj.epoch = [epoch_now - get_k(obj.when), epoch_now - get_k(obj.when) + 1]
                 except Exception:
                     raise NotImplementedError(
                         'When value: {:s} is not implemented'.format(str(obj.when)))
@@ -655,7 +709,8 @@ class ObjectSet(StimuliSet):
             view_angle=None,
             when=None,
             delete_if_can=True,
-            merge_idx=None
+            merge_idx=None,
+            changeable=None,
     ):
         """Select an object satisfying properties.
 
@@ -669,6 +724,7 @@ class ObjectSet(StimuliSet):
             when: None or a string, the temporal window to be selected.
             delete_if_can: boolean, delete object found if can
             merge_idx: the absolute epoch for adding the object, used for merging task_info
+            changeable: if an attribute is changeable, then do not filter that attribute
         Returns:
             a list of Object instance that fit the pattern provided by arguments
         """
@@ -689,11 +745,11 @@ class ObjectSet(StimuliSet):
         # assert isinstance(space, Space)
 
         if merge_idx is None:
-            epoch_now -= env_reg.get_k(when)
+            epoch_now -= get_k(when)
         else:
             epoch_now = merge_idx
 
-        return self.select_now(epoch_now, space, category, object, view_angle, delete_if_can)
+        return self.select_now(epoch_now, space, category, object, view_angle, delete_if_can, changeable)
 
     def select_now(
             self,
@@ -702,7 +758,8 @@ class ObjectSet(StimuliSet):
             category=None,
             object=None,
             view_angle=None,
-            delete_if_can=False
+            delete_if_can=False,
+            changeable=None,
     ) -> List[Object]:
         """Select all objects presented now that satisfy properties.
         @param epoch_now: the current epoch
@@ -711,24 +768,26 @@ class ObjectSet(StimuliSet):
         @param object: the object identity to be selected
         @param view_angle: the view angle to be selected
         @param delete_if_can: boolean, delete distractors if specified to be True
+        @param changeable: dict[attr, bool]
         @return: a List of objects in the objset that satisfy the properties
         """
         # Select only objects that have happened
         subset = self.dict[epoch_now]
         if not subset:
             return subset
+        if changeable is None:
+            changeable = {attr_type: False for attr_type in ['category', 'object', 'view_angle', 'location']}
+        if category is not None and category.has_value() and not changeable['category']:
+            subset = [o for o in subset if o.category == category or o.changeable['category']]
 
-        if category is not None and category.has_value():
-            subset = [o for o in subset if o.category == category]
+        if object is not None and object.has_value() and not changeable['object']:
+            subset = [o for o in subset if o.object == object or o.changeable['object']]
 
-        if object is not None and object.has_value():
-            subset = [o for o in subset if o.object == object]
+        if view_angle is not None and view_angle.has_value() and not changeable['view_angle']:
+            subset = [o for o in subset if o.view_angle == view_angle or o.changeable['view_angle']]
 
-        if view_angle is not None and view_angle.has_value():
-            subset = [o for o in subset if o.view_angle == view_angle]
-
-        if space is not None and space.has_value():
-            subset = [o for o in subset if space.include(o.location)]
+        if space is not None and space.has_value() and not changeable['location']:
+            subset = [o for o in subset if space.include(o.location) or o.changeable['location']]
 
         if delete_if_can:
             for o in subset:
@@ -807,16 +866,17 @@ def random_attr(attr_type: str) -> SNAttribute:
         raise NotImplementedError('Unknown attr_type :' + str(attr_type))
 
 
-def another_attr(attr: Attribute) -> Attribute:
+def another_attr(attr: SNAttribute, keep_superset=False) -> Attribute:
     """
     resample an attribute
+    @param keep_superset:
     @param attr: the attribute class to be resampled
     @return: invalid or a resampled attribute
     """
     if attr == env_reg.DATA.INVALID:
         return attr
     else:
-        return attr.resample(attr)
+        return attr.resample(attr=attr, keep_superset=keep_superset)
 
 
 def get_attr_dict() -> Dict[str, Callable]:

@@ -12,6 +12,7 @@ from iwisdm.envs.shapenet.task_generator import TemporalTask
 from iwisdm.envs.shapenet import task_generator as tg
 import iwisdm.envs.shapenet.stim_generator as sg
 import iwisdm.envs.shapenet.registration as env_reg
+from iwisdm.utils.helper import compare_when
 
 
 class ExistCategoryOfTemporal(TemporalTask):
@@ -24,7 +25,7 @@ class ExistCategoryOfTemporal(TemporalTask):
         category1 = tg.GetCategory(objs1)
         objs2 = tg.Select(category=category1, when=when2)
         self._operator = tg.Exist(objs2)
-        self.n_frames = env_reg.compare_when([when1, when2]) + 1
+        self.n_frames = compare_when([when1, when2]) + 1
 
 
 class ExistViewAngleOfTemporal(TemporalTask):
@@ -38,7 +39,7 @@ class ExistViewAngleOfTemporal(TemporalTask):
         view_angle = tg.GetViewAngle(objs1)
         objs2 = tg.Select(view_angle=view_angle, when=when2)
         self._operator = tg.Exist(objs2)
-        self.n_frames = env_reg.compare_when([when1, when2]) + 1
+        self.n_frames = compare_when([when1, when2]) + 1
 
 
 class ExistObjectOfTemporal(TemporalTask):
@@ -51,7 +52,7 @@ class ExistObjectOfTemporal(TemporalTask):
         obj = tg.GetObject(objs1)
         objs2 = tg.Select(object=obj, when=when2)
         self._operator = tg.Exist(objs2)
-        self.n_frames = env_reg.compare_when([when1, when2]) + 1
+        self.n_frames = compare_when([when1, when2]) + 1
 
 
 class CompareCategoryTemporal(TemporalTask):
@@ -65,7 +66,7 @@ class CompareCategoryTemporal(TemporalTask):
         a1 = tg.GetCategory(objs1)
         a2 = tg.GetCategory(objs2)
         self._operator = tg.IsSame(a1, a2)
-        self.n_frames = env_reg.compare_when([when1, when2]) + 1
+        self.n_frames = compare_when([when1, when2]) + 1
 
 
 class CompareViewAngleTemporal(TemporalTask):
@@ -79,7 +80,7 @@ class CompareViewAngleTemporal(TemporalTask):
         a1 = tg.GetViewAngle(objs1)
         a2 = tg.GetViewAngle(objs2)
         self._operator = tg.IsSame(a1, a2)
-        self.n_frames = env_reg.compare_when([when1, when2]) + 1
+        self.n_frames = compare_when([when1, when2]) + 1
 
 
 class CompareLocTemporal(TemporalTask):
@@ -93,7 +94,7 @@ class CompareLocTemporal(TemporalTask):
         a1 = tg.GetLoc(objs1)
         a2 = tg.GetLoc(objs2)
         self._operator = tg.IsSame(a1, a2)
-        self.n_frames = env_reg.compare_when([when1, when2]) + 1
+        self.n_frames = compare_when([when1, when2]) + 1
 
 
 class CompareObjectTemporal(TemporalTask):
@@ -107,7 +108,7 @@ class CompareObjectTemporal(TemporalTask):
         a1 = tg.GetObject(objs1)
         a2 = tg.GetObject(objs2)
         self._operator = tg.IsSame(a1, a2)
-        self.n_frames = env_reg.compare_when([when1, when2]) + 1
+        self.n_frames = compare_when([when1, when2]) + 1
 
 
 class SequentialCategoryMatch(TemporalTask):
@@ -115,7 +116,7 @@ class SequentialCategoryMatch(TemporalTask):
     def __init__(self, whens, first_shareable=None, n_compare=1):
         super(SequentialCategoryMatch, self).__init__(whens=whens, first_shareable=first_shareable)
         when1, when2 = self.whens[0], self.whens[1]
-        max_k = env_reg.compare_when([when1, when2])
+        max_k = compare_when([when1, when2])
         if n_compare * 2 + 1 > max_k:
             n_compare = max_k // 2
         total_frames = n_compare * 2 + random.randint(0, max_k - (n_compare * 2) + 1)
@@ -158,7 +159,7 @@ class DelayedCDM(TemporalTask):
         do_if = tg.IsSame(const_attrs[0], tg.get_family_dict[attrs[0]](objs2))
         do_else = tg.IsSame(const_attrs[1], tg.get_family_dict[attrs[1]](objs2))
         self._operator = tg.Switch(condition, do_if, do_else, both_options_avail=False)
-        self.n_frames = env_reg.compare_when([when1, when2]) + 1
+        self.n_frames = compare_when([when1, when2]) + 1
 
 
 task_family_dict = OrderedDict([

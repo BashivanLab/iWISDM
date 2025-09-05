@@ -16,8 +16,9 @@ the stimuli in each trial.
 Rendering function generates movies based on the instantiated stimuli
 """
 import itertools
-from collections import defaultdict, OrderedDict, deque
-from typing import Tuple, Union, Dict, Callable, List
+from collections import defaultdict, OrderedDict
+from functools import partial
+from typing import Tuple, Union, Dict, Callable, List, Set
 
 import networkx as nx
 import numpy as np
@@ -30,7 +31,7 @@ from iwisdm.core import (
 from iwisdm.envs.shapenet.registration import SNStimData, SNEnvSpec
 import iwisdm.envs.shapenet.stim_generator as sg
 import iwisdm.envs.shapenet.registration as env_reg
-from iwisdm.utils.helper import compute_node_signatures, min_n_for_k_pairs
+from iwisdm.utils.helper import min_n_for_k_pairs, get_k, next_k, compare_when, compute_node_signatures
 
 
 def obj_str(
@@ -326,8 +327,8 @@ class Select(SNOperator):
             # change the attributes in obj based on should_be
             for attr_type in attr_type_not_fixed:
                 a = getattr(obj_should_be, attr_type)
-                if a.has_value():
-                    if attr_type in ['category', 'object', 'view_angle']:
+                if a.has_value() and not obj_should_be.changeable[attr_type] and obj.changeable[attr_type]:
+                    if attr_type in ['category', 'object', 'view_angle', 'location']:
                         obj.change_attr(a)
                     else:
                         setattr(obj, attr_type, a)
@@ -464,15 +465,28 @@ class Get(SNOperator):
             # Ambiguous or non-existent
             return env_reg.DATA.INVALID
         else:
-            attr = getattr(objs[0], self.attr_type)
-            return attr
+            obj = objs[0]
+            attr = getattr(obj, self.attr_type)
+            if attr.has_value():
+                return attr
+            else:
+                return env_reg.DATA.INVALID
 
     def copy(self):
         raise NotImplementedError()
 
-    def get_expected_input(self, should_be):
+    def get_expected_input(self, should_be, objset, epoch_now):
         if should_be is None:
             should_be = sg.random_attr(self.attr_type)
+            if isinstance(self.objs, Operator):
+                objs = self.objs(objset, epoch_now)
+            else:
+                objs = self.objs
+            if len(objs) == 1:
+                obj = objs[0]
+                attr = getattr(obj, self.attr_type)
+                if attr.has_value():
+                    should_be = attr
         objs = sg.Object([should_be])
         return [objs]
 
@@ -669,10 +683,8 @@ class Switch(SNOperator):
         return should_be, None, None
 
 
-class IsSame(SNOperator):
-    """Check if two attributes are the same."""
-
-    def __init__(self, attr1, attr2):
+class Same(SNOperator):
+    def __init__(self, attr1, attr2, true_if_same):
         """Compare to attributes.
 
         Args:
@@ -682,11 +694,11 @@ class IsSame(SNOperator):
         Raises:
           ValueError: when both attr1 and attr2 are instances of Attribute
         """
-        super(IsSame, self).__init__()
+        super(Same, self).__init__()
 
         self.attr1 = attr1
         self.attr2 = attr2
-
+        self.true_if_same = true_if_same
         self.attr1_is_op = isinstance(self.attr1, Operator)
         self.attr2_is_op = isinstance(self.attr2, Operator)
 
@@ -699,7 +711,8 @@ class IsSame(SNOperator):
         assert self.attr_type == self.attr2.attr_type
 
     def __str__(self):
-        words = [self.attr1.__str__(), 'equals', self.attr2.__str__()]
+        self_str = 'equals' if self.true_if_same else 'not equals'
+        words = [self.attr1.__str__(), self_str, self.attr2.__str__()]
         if not self.parent:
             words[-1] += '?'
         return ' '.join(words)
@@ -711,7 +724,142 @@ class IsSame(SNOperator):
         if (attr1 is env_reg.DATA.INVALID) or (attr2 is env_reg.DATA.INVALID):
             return env_reg.DATA.INVALID
         else:
-            return attr1 == attr2
+            return attr1 == attr2 if self.true_if_same else attr1 != attr2
+
+    def __eq__(self, other):
+        if not isinstance(other, IsSame):
+            return False
+        for c, o_c in zip(
+                sorted(self.child, key=lambda o: o.__class__.__name__),
+                sorted(other.child, key=lambda o: o.__class__.__name__)
+        ):
+            if c != o_c:
+                return False
+        return True
+
+    def __hash__(self):
+        if self.child:
+            c_s = sorted(self.child, key=lambda o: o.__class__.__name__)
+            return hash(tuple(
+                [self.__class__.__name__] +
+                [c for c in c_s]
+            ))
+        else:
+            return hash(self.__class__.__name__)
+
+    def copy(self):
+        raise NotImplementedError()
+
+    def get_expected_input(self, should_be, objset, epoch_now):
+        if should_be is None:
+            should_be = random.random() > 0.5
+        same = should_be if self.true_if_same else not should_be
+
+        # Determine which attribute should be fixed and which shouldn't
+        attr1_value = self.attr1(objset, epoch_now)
+        attr2_value = self.attr2(objset, epoch_now)
+
+        attr1_fixed, attr2_fixed = False, False
+        obj1, obj2 = None, None
+        if attr1_value is not env_reg.DATA.INVALID:
+            if attr1_value.has_value() and self.attr1_is_op:
+                if isinstance(self.attr1.objs, Operator):  # get the attribute
+                    obj1 = self.attr1.objs(objset, epoch_now)[0]
+                    if not obj1.changeable[self.attr_type]:
+                        attr1_fixed = True
+            elif attr1_value.has_value() and not self.attr1_is_op:
+                attr1_fixed = True
+
+        if attr2_value is not env_reg.DATA.INVALID:
+            if attr2_value.has_value() and self.attr2_is_op:
+                if isinstance(self.attr2.objs, Operator):  # get the attribute
+                    obj2 = self.attr2.objs(objset, epoch_now)[0]
+                    if not obj2.changeable[self.attr_type]:
+                        attr2_fixed = True
+            elif attr2_value.has_value() and not self.attr2_is_op:
+                attr2_fixed = True
+
+        if attr1_fixed and attr2_fixed:  # do nothing
+            attr1_assign, attr2_assign = attr1_value, attr2_value
+        elif obj1 is not None and obj2 is not None:
+            if self.attr_type == 'location':
+                attr = sg.random_attr('location')
+                attr1_assign = attr
+                attr2_assign = attr.space.sample_loc() if same else sg.another_attr(attr)
+            elif self.attr_type == 'object':
+                if obj1.category == obj2.category:
+                    # if categories are the same, then try to sample objects from existing categories
+                    attr1_assign = sg.SNObject(None, None).sample(obj1.category)
+                    attr2_assign = attr1_assign if same else sg.another_attr(attr1_assign, keep_superset=True)
+                else:
+                    # cannot change assigned category to force task answer to Same
+                    attr1_assign, attr2_assign = obj1.object, obj2.object
+            elif self.attr_type == 'view_angle':
+                if obj1.object == obj2.object:
+                    attr1_assign = sg.SNViewAngle(None, None).sample(obj1.object)
+                    attr2_assign = attr1_assign if same else sg.another_attr(attr1_assign, keep_superset=True)
+                else:
+                    attr1_assign, attr2_assign = obj1.view_angle, obj2.view_angle
+            else:
+                attr1_assign, attr2_assign = obj1.category, obj2.category
+        elif (attr1_fixed or obj1 is not None) and not attr2_fixed:
+            attr1_assign = attr1_value if obj1 is None else getattr(obj1, self.attr_type)
+            attr2_assign = attr1_value if same else sg.another_attr(attr1_value)
+        elif not attr1_fixed and (attr2_fixed or obj2 is not None):
+            attr2_assign = attr2_value if obj2 is None else getattr(obj2, self.attr_type)
+            attr1_assign = attr2_value if same else sg.another_attr(attr2_value)
+        else:
+            # if the two selects have no fixed values,
+            # check for how many downstream attributes exist
+            # keep sampling until len(downstream attribute) >= 2
+            if self.attr_type == 'view_angle':
+                obj = sg.random_attr('object')
+                while len(self.stim_data.ALLVIEWANGLES[obj.category.value][obj.value]) < 2:
+                    obj = sg.random_attr('object')
+                attr = sg.random_attr('view_angle')
+                attr1_assign = attr
+                attr2_assign = attr if same else sg.another_attr(attr)
+            elif self.attr_type == 'object':
+                cat = sg.random_attr('category')
+                while len(self.stim_data.ALLOBJECTS[cat.value]) < 2:
+                    cat = sg.random_attr('category')
+                attr = sg.random_attr('object')
+                attr1_assign = attr
+                attr2_assign = attr if same else sg.another_attr(attr)
+            elif self.attr_type == 'location':
+                attr = sg.random_attr('location')
+                attr1_assign = attr
+                attr2_assign = attr.space.sample_loc() if same else sg.another_attr(attr)
+            else:
+                attr = sg.random_attr(self.attr_type)
+                attr1_assign = attr
+                attr2_assign = attr if same else sg.another_attr(attr)
+        return attr1_assign, attr2_assign
+
+    def replace_child(self, old_child, new_child):
+        super().replace_child(old_child, new_child)
+        if old_child == self.attr1:
+            self.attr1 = new_child
+        elif old_child == self.attr2:
+            self.attr2 = new_child
+        else:
+            raise RuntimeError('something went wrong when replacing child')
+
+
+class IsSame(Same):
+    """Check if two attributes are the same."""
+
+    def __init__(self, attr1, attr2):
+        """Compare to attributes.
+
+        Args:
+          attr1: Instance of Attribute or Get
+          attr2: Instance of Attribute or Get
+
+        Raises:
+          ValueError: when both attr1 and attr2 are instances of Attribute
+        """
+        super(IsSame, self).__init__(attr1, attr2, true_if_same=True)
 
     def __eq__(self, other):
         if not isinstance(other, IsSame):
@@ -739,70 +887,8 @@ class IsSame(SNOperator):
         new_attr2 = self.attr2.copy()
         return IsSame(new_attr1, new_attr2)
 
-    def get_expected_input(self, should_be, objset, epoch_now):
-        if should_be is None:
-            should_be = random.random() > 0.5
 
-        # Determine which attribute should be fixed and which shouldn't
-        attr1_value = self.attr1(objset, epoch_now)
-        attr2_value = self.attr2(objset, epoch_now)
-
-        attr1_fixed = attr1_value is not env_reg.DATA.INVALID
-        attr2_fixed = attr2_value is not env_reg.DATA.INVALID
-
-        if attr1_fixed:
-            assert attr1_value.has_value()
-        if attr2_fixed:
-            assert attr2_value.has_value()
-
-        if attr1_fixed and attr2_fixed:
-            # do nothing
-            attr1_assign, attr2_assign = Skip(), Skip()
-        elif attr1_fixed and not attr2_fixed:
-            attr1_assign = Skip()
-            attr2_assign = attr1_value if should_be else sg.another_attr(attr1_value)
-        elif not attr1_fixed and attr2_fixed:
-            attr1_assign = attr2_value if should_be else sg.another_attr(attr2_value)
-            attr2_assign = Skip()
-        else:
-            # if the two selects have no fixed values,
-            # check for how many downstream attributes exist
-            # keep sampling until len(downstream attribute) >= 2
-            if self.attr_type == 'view_angle':
-                obj = sg.random_attr('object')
-                while len(self.stim_data.ALLVIEWANGLES[obj.category.value][obj.value]) < 2:
-                    obj = sg.random_attr('object')
-                attr = sg.random_attr('view_angle')
-                attr1_assign = attr
-                attr2_assign = attr if should_be else sg.another_attr(attr)
-            elif self.attr_type == 'object':
-                cat = sg.random_attr('category')
-                while len(self.stim_data.ALLOBJECTS[cat.value]) < 2:
-                    cat = sg.random_attr('category')
-                attr = sg.random_attr('object')
-                attr1_assign = attr
-                attr2_assign = attr if should_be else sg.another_attr(attr)
-            elif self.attr_type == 'location':
-                attr = sg.random_attr('location')
-                attr1_assign = attr
-                attr2_assign = attr.space.sample_loc() if should_be else sg.another_attr(attr)
-            else:
-                attr = sg.random_attr(self.attr_type)
-                attr1_assign = attr
-                attr2_assign = attr if should_be else sg.another_attr(attr)
-        return attr1_assign, attr2_assign
-
-    def replace_child(self, old_child, new_child):
-        super().replace_child(old_child, new_child)
-        if old_child == self.attr1:
-            self.attr1 = new_child
-        elif old_child == self.attr2:
-            self.attr2 = new_child
-        else:
-            raise RuntimeError('something went wrong when replacing child')
-
-
-class NotSame(SNOperator):
+class NotSame(Same):
     """Check if two attributes are not the same."""
 
     def __init__(self, attr1, attr2):
@@ -815,36 +901,7 @@ class NotSame(SNOperator):
         Raises:
           ValueError: when both attr1 and attr2 are instances of Attribute
         """
-        super(NotSame, self).__init__()
-
-        self.attr1 = attr1
-        self.attr2 = attr2
-
-        self.attr1_is_op = isinstance(self.attr1, Operator)
-        self.attr2_is_op = isinstance(self.attr2, Operator)
-
-        self.set_child([self.attr1, self.attr2])
-
-        if (not self.attr1_is_op) and (not self.attr2_is_op):
-            raise ValueError('attr1 and attr2 cannot both be Attribute instances.')
-
-        self.attr_type = self.attr1.attr_type
-        assert self.attr_type == self.attr2.attr_type
-
-    def __str__(self):
-        words = [self.attr1.__str__(), 'not equals', self.attr2.__str__()]
-        if not self.parent:
-            words[-1] += '?'
-        return ' '.join(words)
-
-    def __call__(self, objset, epoch_now):
-        attr1 = self.attr1(objset, epoch_now)
-        attr2 = self.attr2(objset, epoch_now)
-
-        if (attr1 is env_reg.DATA.INVALID) or (attr2 is env_reg.DATA.INVALID):
-            return env_reg.DATA.INVALID
-        else:
-            return attr1 != attr2
+        super(NotSame, self).__init__(attr1, attr2, true_if_same=False)
 
     def __eq__(self, other):
         if not isinstance(other, NotSame):
@@ -871,57 +928,6 @@ class NotSame(SNOperator):
         new_attr1 = self.attr1.copy()
         new_attr2 = self.attr2.copy()
         return NotSame(new_attr1, new_attr2)
-
-    def get_expected_input(self, should_be, objset, epoch_now):
-        if should_be is None:
-            should_be = random.random() > 0.5
-        # Determine which attribute should be fixed and which shouldn't
-        attr1_value = self.attr1(objset, epoch_now)
-        attr2_value = self.attr2(objset, epoch_now)
-
-        attr1_fixed = attr1_value is not env_reg.DATA.INVALID
-        attr2_fixed = attr2_value is not env_reg.DATA.INVALID
-
-        if attr1_fixed:
-            assert attr1_value.has_value()
-
-        if attr1_fixed and attr2_fixed:
-            # do nothing
-            attr1_assign, attr2_assign = Skip(), Skip()
-        elif attr1_fixed and not attr2_fixed:
-            attr1_assign = Skip()
-            attr2_assign = sg.another_attr(attr1_value) if should_be else attr1_value
-        elif not attr1_fixed and attr2_fixed:
-            attr1_assign = sg.another_attr(attr2_value) if should_be else attr2_value
-            attr2_assign = Skip()
-        else:
-            if self.attr_type == 'view_angle':
-                # if sample another view_angle if should be
-                # check for how many view_angles exist for the object first
-
-                attr = sg.random_attr('view_angle')
-                while len(self.stim_data.ALLVIEWANGLES[attr.category.value][attr.value]) < 2:
-                    attr = sg.random_attr('view_angle')
-                attr1_assign = attr
-                attr2_assign = sg.another_attr(attr) if should_be else attr
-            elif self.attr_type == 'location':
-                attr = sg.random_attr('location')
-                attr1_assign = attr
-                attr2_assign = sg.another_attr(attr) if should_be else attr.space.sample_loc()
-            else:
-                attr = sg.random_attr(self.attr_type)
-                attr1_assign = attr
-                attr2_assign = sg.another_attr(attr) if should_be else attr
-        return attr1_assign, attr2_assign
-
-    def replace_child(self, old_child, new_child):
-        super().replace_child(old_child, new_child)
-        if old_child == self.attr1:
-            self.attr1 = new_child
-        elif old_child == self.attr2:
-            self.attr2 = new_child
-        else:
-            raise RuntimeError('something went wrong when replacing child')
 
 
 class And(SNOperator):
@@ -1056,8 +1062,17 @@ class SNTask(Task):
         """
         nodes = self.topological_sort()
         node_ids = [id(n) for n in nodes]
-        id_map = {id(n): n for n in nodes}  # map back from id -> node
+        id_map = {n: n_id for n, n_id in zip(nodes, node_ids)}  # map back from id -> node
         should_be_dict = defaultdict(lambda: None)
+        ignore_nodes = set()
+
+        same_when_selects = dict()
+        for s in [n for n in nodes if isinstance(n, Select)]:
+            k = get_k(s.when)
+            if k in same_when_selects:
+                same_when_selects[k].append(s)
+            else:
+                same_when_selects[k] = [s]
 
         # if should_be is None, then the output is randomly sampled
         if should_be is not None:
@@ -1066,6 +1081,12 @@ class SNTask(Task):
         # iterate over all nodes in topological order
         # while updating the expected input from the successors/children of the current node
         for node, node_id in zip(nodes, node_ids):
+            if node_id in ignore_nodes:
+                children = node.child
+                for c in children:
+                    c_id = id(c)
+                    ignore_nodes.add(c_id)
+                continue
             should_be = should_be_dict[node_id]
             # checking the type of operator
             if isinstance(should_be, Skip):
@@ -1074,11 +1095,15 @@ class SNTask(Task):
                 inputs = node.get_expected_input(should_be, objset, epoch_now)
                 objset = inputs[0]
                 inputs = inputs[1:]
-            elif (isinstance(node, IsSame) or isinstance(node, NotSame)
-                  or isinstance(node, And) or isinstance(node, Or)):
+            elif (
+                    isinstance(node, IsSame) or isinstance(node, NotSame)
+                    or isinstance(node, And) or isinstance(node, Or)
+                    or isinstance(node, Get)
+            ):
                 inputs = node.get_expected_input(should_be, objset, epoch_now)
             else:
                 inputs = node.get_expected_input(should_be)
+
             # e.g. node = IsSame, should_be = True,
             # expected_input is the output of the children operators
 
@@ -1089,45 +1114,52 @@ class SNTask(Task):
                 outputs = inputs
 
             if isinstance(node, Switch) and temporal_switch:
-                children = node.child.copy()
-                if random.random() > 0.5:
-                    children.pop(1)
+                children = node.child
+                conditional_bool = inputs[0]
+                do_if_id = id(children[1])
+                do_else_id = id(children[2])
+                if conditional_bool:
+                    ignore_nodes.add(do_else_id)
                 else:
-                    children.pop(2)
+                    ignore_nodes.add(do_if_id)
             else:
                 children = node.child
 
             # Update the should_be dictionary for the children
             for c, output in zip(children, outputs):
+                c_id = id(c)
                 if not isinstance(c, Operator):  # if c is not an Operator
                     continue
+                if node in ignore_nodes:
+                    ignore_nodes.add(c_id)
+                    continue
 
-                c_id = id(c)
                 if isinstance(output, Skip):
                     should_be_dict[c_id] = Skip()
                     continue
-                if should_be_dict[c_id] is None:
-                    # If not assigned, assign
-                    should_be_dict[c_id] = output
-                # if child is an operator and there's already assigned expected output
-                else:
-                    # If assigned, for each object, try to merge them
-                    # currently, only selects should have pre-assigned output
-                    if isinstance(c, Select):
-                        # Loop over new output
-                        for o in output:
-                            assert isinstance(o, sg.Object)
-                            merged = False
-                            # Loop over previously assigned outputs
-                            for s in should_be_dict[c_id]:
-                                # Try to merge
-                                merged = s.merge(o)
-                                if merged:
-                                    break
-                            if not merged:
-                                should_be_dict[c_id].append(o)
+
+                if isinstance(c, Select):
+                    k = get_k(c.when)
+                    same_whens = [id(s) for s in same_when_selects[k]] + [c_id]
+                    for s in same_whens:
+                        if should_be_dict[s] is not None:
+                            for o in output:
+                                assert isinstance(o, sg.Object)
+                                merged = False
+                                # Loop over previously assigned outputs
+                                for prev_should_be in should_be_dict[s]:
+                                    # Try to merge
+                                    merged = prev_should_be.merge(o)
+                                    if merged:
+                                        break
+                                if not merged:
+                                    should_be_dict[s].append(o)
                     else:
-                        raise NotImplementedError(f'class {type(c)} not implemented')
+                        should_be_dict[c_id] = output
+                else:
+                    if should_be_dict[c_id] is None:
+                        # If not assigned, assign
+                        should_be_dict[c_id] = output
         return objset
 
 
@@ -1315,7 +1347,7 @@ def graph_to_operators(
         root: int,
         operators: Dict[int, str],
         operator_families: Dict[str, Callable],
-        whens: List[str],
+        whens: Dict[int, str],
 ) -> Union[Operator, sg.SNAttribute]:
     """
     given a task graph G, convert it into an operator that is already nested with its successors
@@ -1450,120 +1482,113 @@ def load_operator_json(
 def subtask_generation(
         env_spec: SNEnvSpec,
         subtask_graph: GRAPH_TUPLE,
+        get_sig: dict,
         node_label_dict: dict = None,
-        existing_whens: dict = None
-) -> Tuple[TASK, dict]:
+        existing_whens: dict = None,
+        existing_attr_whens: dict = None,
+        is_cond: bool = None,
+) -> Tuple[TASK, dict, dict]:
     """
     generate a TemporalTask from a subtask graph
     @param env_spec: data class used to specify number of delay frames
     @param subtask_graph: the task graph
+    @param get_sig:
     @param node_label_dict: dictionary of node number to node label e.g. 1: 'Select'
     @param existing_whens: for combining multiple tasks together, a dictionary of the format {select: 'lastk'}
+    @param existing_attr_whens:
+    @param is_cond:
     @return:
     """
-    existing_whens = dict() if not existing_whens else existing_whens
-    # avoid duplicate whens across subtasks during switch generation
     subtask_G, root, _ = subtask_graph
     operator_families = get_operator_dict()
 
     if node_label_dict is None:
         node_label_dict = {node[0]: node[1]['label'] for node in subtask_G.nodes(data=True)}
     selects = [op for op in subtask_G.nodes() if 'Select' == node_label_dict[op]]
-    dms = [op for op in subtask_G.nodes()
-           if node_label_dict[op] in {'IsSame', 'NotSame'}
-           and len(list(subtask_G.successors(op))) == 2]
-    min_unique = min_n_for_k_pairs(len(dms))
-    whens = env_spec.check_whens(
-        env_spec.sample_when(
-            n=len(selects),
-            min_unique=min_unique
-        ),
-        existing_whens=list(existing_whens.values()),
-        min_unique=min_unique
+
+    existing_whens, existing_attr_whens = sample_and_assign_whens(
+        env_spec=env_spec,
+        subtask_graph=subtask_graph,
+        get_sig=get_sig,
+        selects=selects,
+        existing_whens=existing_whens,
+        existing_attr_when=existing_attr_whens,
+        is_cond=is_cond,
     )
-    n_frames = env_reg.compare_when(whens) + 1  # find highest lastk to determine number of frames in task
-    if len(whens) == len(selects):
-        whens = {select: when for select, when in zip(selects, whens)}
-        existing_whens.update(whens)
-    else:
-        whens = assign_whens(
-            subtask_graph=subtask_graph,
-            whens=whens,
-            selects=selects,
-        )
-        existing_whens.update(whens)
+    whens = {s: existing_whens[s] for s in selects}
     op = graph_to_operators(subtask_G, root, node_label_dict, operator_families, whens)
-    return (op, TemporalTask(operator=op, n_frames=n_frames, whens=whens)), existing_whens
+    n_frames = compare_when(whens.values()) + 1
+    return (op, TemporalTask(operator=op, n_frames=n_frames, whens=whens)), existing_whens, existing_attr_whens
 
 
-def assign_whens(
-        subtask_graph,
-        whens,
-        selects
-):
-    """
-    assign lastk to selects in a subtask, allowing multiple Selects to point to the same object,
-    yielding tasks such as
-    [
-    Or  ->  IsSame  ->  GetCategory ->  last0
-                    ->  GetCategory ->  last1
-        -> IsSame   ->  GetCategory ->  last2
-                    -> GetCategory  ->  last1
-    ,
-    And ->  Or  ->  IsSame  ->  GetCategory ->  last0
-                            ->  GetCategory ->  last1
-                ->  IsSame  ->  GetCategory ->  last2
-                            ->  GetCategory ->  last1
-        ->  And ->  IsSame  ->  GetCategory ->  last0
-                            ->  GetCategory ->  last1
-                ->  IsSame  ->  GetCategory ->  last2
-                            ->  GetCategory ->  last1
-    ]
-    while avoiding trivial tasks such as
-    [
-    IsSame  ->  GetCategory ->  last2
-            ->  GetCategory ->  last2
-    ,
-    Or  ->  IsSame  ->  GetCategory ->  last0
-                    ->  GetCategory ->  last1
-        ->  IsSame  ->  GetCategory ->  last0
-                    ->  GetCategory ->  last1
-    ]
-    BFS assignment:
-      - Precompute label-only signatures once.
-      - Precompute selects-under for every node (memoized).
-      - For binary operators with structurally equivalent children (IsSame, And, Or, NotSame),
-        sample two DIFFERENT whens (resample until different). If whens pool < 2, raise.
-      - For non-equivalent children assign per-select randomly from pool.
-    Returns mapping {select_node: 'lastK'}.
-    """
-    subtask_G, root, _ = subtask_graph
-    sigs, order = compute_node_signatures(subtask_G)
-    s_ordered = [c for c in order if c in selects]
-    mapping = dict()
+def sample_and_assign_whens(
+        env_spec: SNEnvSpec,
+        subtask_graph: tuple,
+        get_sig: Dict[str, List[int]],
+        selects: List[int],
+        existing_whens: Dict[int, str],
+        existing_attr_when: Dict[str, Set[str]] = None,
+        is_cond: bool = False,
+) -> Tuple[Dict[int, str], Dict[str, Set[str]]]:
+    ATTR_SUPERSET = {
+        'viewangle': {'object', 'category'},
+        'object': {'category'},
+        'category': {},
+        'loc': {}
+    }
+    ALL_ATTRS = {'category', 'object', 'viewangle', 'loc'}
 
-    if len(s_ordered) < 2:
-        for s in selects:
-            mapping[s] = np.random.choice(whens)
-        return mapping
+    subG, root, _ = subtask_graph
+    existing_attr_when = dict() if existing_attr_when is None else existing_attr_when
+    for attr in ALL_ATTRS:
+        if attr not in existing_attr_when:
+            existing_attr_when[attr] = set()
+    delay_prob, max_delay, reuse_prob = env_spec.delay_prob, env_spec.MAX_DELAY, env_spec.dup_prob
 
-    pairs = [(s_ordered[i], s_ordered[i + 1]) for i in range(0, len(s_ordered), 2)]
-    all_pairs = list(itertools.combinations(set(whens), 2))
-    if len(all_pairs) < len(pairs):
-        raise ValueError(f"Not enough unique when-pairs: need {len(pairs)}, have {len(all_pairs)}")
+    def alloc_new_lastk(cur_whens_list):
+        if not cur_whens_list:
+            return 'last0'
+        k = next_k(cur_whens_list, max_delay, delay_prob)
+        return f'last{k}'
 
-    # sample as many unique pairs as needed
-    sampled_pairs = np.random.choice(len(all_pairs), size=len(pairs), replace=False)
-    when_pairs = [all_pairs[i] for i in sampled_pairs]
-    for pair, when_pair in zip(pairs, when_pairs):
-        l, r = pair
-        w_l, w_r = when_pair
-        mapping[l] = w_l
-        mapping[r] = w_r
-    for s in selects:
-        if not s in mapping:
-            mapping[s] = np.random.choice(whens)
-    return mapping
+    # reverse map select -> attr
+    select_to_attr = {}
+    for attr, sels in (get_sig or {}).items():
+        for s in sels:
+            select_to_attr[s] = attr
+    s_ordered = sorted([s for s in selects if s in select_to_attr])
+
+    for node_idx in s_ordered:
+        attr = select_to_attr[node_idx]
+        reuse = random.random() < env_spec.dup_prob
+        if reuse:
+            chosen = None
+            if is_cond:
+                # if is conditional task, we cannot reuse the same lastk as attr_superset
+                # e.g. in the following task:
+                # if id of obj1 equals id of obj2 then category of obj1 equals category of obj2
+                # is trivial if conditional is true
+                superset_attr = ATTR_SUPERSET[attr]
+                pool = set(existing_whens.values())
+                for c_a in superset_attr:
+                    pool -= existing_attr_when[c_a]
+                pool -= existing_attr_when[attr]
+            else:
+                # don't reuse lastk in the same attribute
+                other_attr = ALL_ATTRS - {attr}
+                pool = list()
+                for a, whens in existing_attr_when.items():
+                    if a in other_attr:
+                        pool += whens
+                pool = set(pool) - existing_attr_when[attr]
+            if pool:
+                chosen = random.choice(list(pool))
+            when = chosen if chosen is not None else alloc_new_lastk(existing_whens.values())
+        else:
+            when = alloc_new_lastk(existing_whens.values())
+        existing_whens[node_idx] = when
+        existing_attr_when[attr].add(when)
+    return existing_whens, existing_attr_when
 
 
 def switch_generation(conditional: TASK, do_if: TASK, do_else: TASK, existing_whens: dict, **kwargs) -> TASK:
@@ -1575,7 +1600,7 @@ def switch_generation(conditional: TASK, do_if: TASK, do_else: TASK, existing_wh
     else_op, else_task = do_else
 
     op = Switch(conditional_op, if_op, else_op, **kwargs)
-    n_frames = env_reg.compare_when(existing_whens.values()) + 1
+    n_frames = compare_when(existing_whens.values()) + 1
 
     # env_reg.DATA.MAX_MEMORY = n_frames
     return op, TemporalTask(operator=op, n_frames=n_frames, whens=existing_whens)

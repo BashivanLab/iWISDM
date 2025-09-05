@@ -414,9 +414,20 @@ class TaskInfoCompo(object):
                         for d in frame.description if 'distractor with different ' in d
                     ]
                     if not distractor_attr:
-                        raise RuntimeError(f'Found more than 1 object at epoch {epoch}, '
-                                           f'but no distractor description was found. '
-                                           f'This behaviour is unexpected.')
+                        task_str = ''
+                        obj_str = ''
+                        for i, task in enumerate(self.tasks):
+                            task_str += f'task {i}: {str(task)}, '
+                        for i, o in enumerate(obj_info[epoch]):
+                            o_str = o['obj']
+                            obj_str += f'obj {i}: {str(o_str)}, '
+                        raise RuntimeError(
+                            f'Found more than 1 object at epoch {epoch}, '
+                            f'but no distractor description was found. '
+                            f'This behaviour is unexpected.\n'
+                            f'Task string: {task_str}\n'
+                            f'Object string: {obj_str}\n'
+                        )
 
                     for info_dict in obj_info[epoch]:
                         if info_dict['obj'].deletable:
