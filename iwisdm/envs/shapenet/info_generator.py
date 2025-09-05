@@ -420,7 +420,7 @@ class TaskInfoCompo(object):
                             task_str += f'task {i}: {str(task)}, '
                         for i, o in enumerate(obj_info[epoch]):
                             o_str = o['obj']
-                            obj_str += f'obj {i}: {str(o_str)}'
+                            obj_str += f'obj {i}: {str(o_str)}, '
                         raise RuntimeError(
                             f'Found more than 1 object at epoch {epoch}, '
                             f'but no distractor description was found. '

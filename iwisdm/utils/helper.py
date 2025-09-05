@@ -1,3 +1,5 @@
+import random
+
 import networkx as nx
 from collections import defaultdict
 from typing import Any, Dict, Iterable, List, Tuple, Optional
@@ -13,10 +15,21 @@ def min_n_for_k_pairs(K: int) -> int:
     return n
 
 
+def _attr_from_get_label(get_label: str) -> str:
+    """
+    Convert 'GetCategory' -> 'category', 'GetObject' -> 'object', etc.
+    If it doesn't start with 'Get', return lowercased label.
+    """
+    if not isinstance(get_label, str):
+        return str(get_label).lower()
+    if get_label.startswith('Get'):
+        return get_label[3:].lower()
+    return get_label.lower()
+
+
 def compute_node_signatures(
         G: nx.DiGraph,
         nodes_subset=None,
-        node_type_key: str = "label"
 ):
     """
     Compute bottom-up signatures for nodes in G (or in a subgraph defined by nodes_subset).
@@ -26,9 +39,7 @@ def compute_node_signatures(
     """
     # operate on the requested subgraph
     subG = G.subgraph(list(nodes_subset)).copy() if nodes_subset is not None else G
-
-    def node_label(n):
-        return subG.nodes[n].get(node_type_key, str(n))
+    node_label_dict = {node[0]: node[1]['label'] for node in G.nodes(data=True)}
 
     # produce a processing order: children first
     if nx.is_directed_acyclic_graph(subG):
@@ -46,12 +57,31 @@ def compute_node_signatures(
             if c in signatures:
                 child_sigs.append(signatures[c])
             else:
-                child_sigs.append((node_label(c), ()))
+                child_sigs.append((node_label_dict[c], ()))
         # sort to make signature order-independent across siblings
         child_sigs_sorted = tuple(sorted(child_sigs))
-        sig = (node_label(n), child_sigs_sorted)
+        sig = (node_label_dict[n], child_sigs_sorted)
         signatures[n] = sig
     return signatures, order
+
+
+def compute_get_signature(
+        G: nx.DiGraph,
+):
+    sigs = dict()
+    node_label_dict = {node[0]: node[1]['label'] for node in G.nodes(data=True)}
+    for n in G.nodes():
+        lbl = node_label_dict[n]
+        if 'Get' not in lbl:
+            continue
+
+        attr = _attr_from_get_label(lbl)
+        select = list(G.successors(n))[0]
+        if attr in sigs:
+            sigs[attr].append(select)
+        else:
+            sigs[attr] = [select]
+    return sigs
 
 
 def group_equivalent_subgraphs(
@@ -127,3 +157,47 @@ def equivalent_groups_across_graphs(
         groups[sig] = (inv1.get(sig, []), inv2.get(sig, []))
 
     return groups
+
+
+def compare_when(when_list):
+    """
+    Compare the when_list to get number of frames the task can take
+    @param when_list: a list of "last%d"%k
+    @return: the number of frames the task can take (max k)
+    """
+    # note, n_frames = compare_when + 1; if when_list is ['last0'], then there should be 1 frame
+    return max(list(map(lambda x: get_k(x), when_list)))
+
+
+def find_delays(when_list):
+    """
+    Find the delay frames in the when_list
+    @param when_list: a list of "last%d"
+    @return: the delays in the when_list
+    """
+    whens = sorted(list(map(lambda x: get_k(x), when_list)))
+    no_delay = set(range(whens[0], whens[-1] + 1))
+    delays = no_delay - set(whens)
+    return delays
+
+
+def get_k(last_k: str):
+    """
+    Get the integer k from the string "last%d"%k
+    @param last_k: last_k string
+    @return: integer k in last_k
+    """
+    return int(last_k.split('last')[1])
+
+
+def next_k(
+        cur_list,
+        max_delay,
+        delay_prob
+):
+    n_delays = len(find_delays(cur_list))
+    whens = sorted(list(map(lambda x: get_k(x), cur_list)))
+    next_idx = whens[-1] + 1
+    if (random.random() < delay_prob) and (n_delays < max_delay):
+        next_idx += 1
+    return next_idx

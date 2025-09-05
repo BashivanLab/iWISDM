@@ -105,40 +105,6 @@ DEFAULT_CONFIG = {
 }
 
 
-def compare_when(when_list):
-    """
-    Compare the when_list to get number of frames the task can take
-    @param when_list: a list of "last%d"%k
-    @return: the number of frames the task can take (max k)
-    """
-    # note, n_frames = compare_when + 1; if when_list is ['last0'], then there should be 1 frame
-    return max(list(map(lambda x: get_k(x), when_list)))
-
-
-def find_delays(when_list):
-    """
-    Find the delay frames in the when_list
-    @param when_list: a list of "last%d"
-    @return: the delays in the when_list
-    """
-    whens = sorted(list(map(lambda x: get_k(x), when_list)))
-    assert len(set(whens)) == len(whens)
-    no_delay = set(range(min(whens), max(whens)))
-    delays = no_delay - set(whens)
-    return list(map(lambda x: f'last_{x}', sorted(delays)))
-
-
-def get_k(last_k: str):
-    """
-    Get the integer k from the string "last%d"%k
-    @param last_k: last_k string
-    @return: integer k in last_k
-    """
-    if len(last_k) == 0:
-        raise RuntimeError(f'{last_k} is empty')
-    return int(last_k.split('last')[1])
-
-
 def get_target_value(t):
     """
     Convert boolean target value to string for task answers
@@ -189,7 +155,6 @@ class SNEnvSpec(EnvSpec):
             grid_size: Tuple[int, int] = (2, 2),
             max_delay: int = 2,
             delay_prob: float = 0.5,
-            max_dup: int = 5,
             dup_prob: float = 1.0,
             auto_gen_config: Dict = None,
             add_fixation_cue: bool = False,
@@ -209,89 +174,7 @@ class SNEnvSpec(EnvSpec):
         self.add_fixation_cue = add_fixation_cue
         self.cue_on_action = cue_on_action
         self.canvas_size = canvas_size
-        self.MAX_DUP = max_dup
         self.dup_prob = dup_prob
-
-    def sample_when(
-            self,
-            n: int = 1,
-            existing_whens: list = None,
-            max_dup: int = None,
-            min_unique: int = None,
-            reuse_whens: list = None,
-    ) -> list:
-        """
-        sample n 'lastk' values,
-        avoid sampling multiple stimuli per frame
-        @param n: how many values to sample
-        @param existing_whens: list of existing 'lastk' values
-        @param max_dup: maximum number of duplicates
-        @return: list of n 'lastk' values
-        """
-        whens = list()
-        i, count, n_delays, n_dups = 0, 0, 0, 0
-        dup_prob = 0.0 if n <= 3 else self.dup_prob
-        max_dup = max_dup if max_dup is not None else self.MAX_DUP
-
-        if reuse_whens:
-            whens = reuse_whens
-            max_k = 0
-            i = compare_when(reuse_whens) + n
-        else:
-            if existing_whens:
-                max_k = compare_when(existing_whens)
-                n_delays += len(find_delays(existing_whens))
-                i += max_k  # add only to end of lastk
-            else:
-                max_k = 0
-                whens.append(f'last{i}')
-                count += 1
-
-            while count < n:
-                add_delay = np.random.random() < self.delay_prob
-                i += 1
-                if add_delay and n_delays < self.MAX_DELAY:  # delay, don't add lasti
-                    n_delays += 1
-                else:
-                    count += 1
-                    add_dup = np.random.random() < dup_prob
-                    if add_dup and n_dups < max_dup:
-                        count += 1
-                        n_dups += 1
-                    whens.append(f'last{i}')
-
-        if min_unique is not None and len(set(whens)) < min_unique:
-            for k in range(max_k, i):
-                if len(set(whens)) >= min_unique:
-                    return whens
-                if f'last{k}' not in whens and len(set(whens)) < min_unique:
-                    whens.append(f'last{k}')
-        return whens
-
-    def check_whens(
-            self,
-            whens: List[str],
-            existing_whens: List[str] = None,
-            min_unique: int = None,
-    ):
-        """
-        Check if the whens are valid, i.e. only 1 stimulus per frame
-        @param whens: the list of 'lastk' values
-        @param existing_whens: existing list of 'lastk' values
-        @param min_unique:
-        @return: resampled whens
-        """
-        # added check_whens to ensure 1 stimulus per frame
-        existing_whens = set() if not existing_whens else set(existing_whens)
-        len_ew = len(existing_whens)
-
-        while len(set(whens) | existing_whens) != (len(whens) + len_ew):
-            whens = self.sample_when(
-                n=len(whens),
-                existing_whens=existing_whens,
-                min_unique=min_unique
-            )
-        return whens
 
 
 class SNStimData(StimData):
