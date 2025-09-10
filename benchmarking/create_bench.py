@@ -142,18 +142,19 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='benchmark')
     parser.add_argument('--train', action='store_true', default=False)
     parser.add_argument('--stim_dir', type=str, default='data/shapenet_handpicked')
-    parser.add_argument('--tasks_dir', type=str, default='benchmarking/tasks/test')
-    parser.add_argument('--trials_dir', type=str, default='benchmarking/temp/test')
-    parser.add_argument('--config_path', type=str, default='/home/lucas/projects/iWISDM/benchmarking/configs/custom/3f_thesis.json')
+    parser.add_argument('--tasks_dir', type=str, default='benchmarking/tasks/test_3ff')
+    parser.add_argument('--trials_dir', type=str, default='benchmarking/temp/test_3ff')
+    parser.add_argument('--config_path', type=str, default='/home/lucas/projects/iWISDM/benchmarking/configs/custom_no_const/3f_thesis.json')
     parser.add_argument('--min_len', type=int, default=3)
     parser.add_argument('--max_len', type=int, default=3)
     parser.add_argument('--min_delay', type=int, default=0)
-    parser.add_argument('--max_delay', type=int, default=1)
+    parser.add_argument('--max_delay', type=int, default=0)
     parser.add_argument('--delay_prob', type=float, default=0.5)
-    parser.add_argument('--n_trials', type=int, default=0)
-    parser.add_argument('--n_tasks', type=int, default=16)
+    parser.add_argument('--dup_prob', type=float, default=0.25)
+    parser.add_argument('--n_trials', type=int, default=32)
+    parser.add_argument('--n_tasks', type=int, default=32)
     parser.add_argument('--min_joint_ops', type=int, default=0)
-    parser.add_argument('--max_joint_ops', type=int, default=1)
+    parser.add_argument('--max_joint_ops', type=int, default=2)
     parser.add_argument('--shuffle', action='store_true', default=False)
     args = parser.parse_args()
 
@@ -189,6 +190,7 @@ if __name__ == '__main__':
         delay_prob=args.delay_prob,
         add_fixation_cue=True,
         auto_gen_config=config,
+        dup_prob=args.dup_prob,
     )
 
     env.set_env_spec(env_spec)
