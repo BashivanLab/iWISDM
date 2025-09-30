@@ -16,3 +16,9 @@ Usage: Create and store a dataset from a single predifined task.
 Notebook: [random_dataset_gen.ipynb](task_dataset_gen.ipynb)
 
 Usage: Create and store a dataset of randomly generated tasks. 
+</br>
+</br>
+### Tutorial 4: Adding distractor objects to task trials
+Notebook: [adding_distractors.ipynb](adding_distractors.ipynb)
+
+Usage: Add distractors in-frame (frame) or in-time (temporal) to task trials.
