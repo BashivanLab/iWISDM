@@ -68,14 +68,26 @@ ShapeNet is a large-scale repository of shapes represented by 3D CAD models of o
 #### Pre-rendered Dataset Download
 [shapenet_handpicked.tar.gz](https://drive.google.com/file/d/1is72QDjP6A6TA1mZLL3doYWaU08waAxm/view?usp=sharing) 
 
+[shapenet_val Kaggle link](https://www.kaggle.com/datasets/markbai/shapenet-val)
+
 #### Benchmarking Configs Download
 [configs.tar.gz](https://github.com/BashivanLab/iWISDM/tree/main/benchmarking/configs.tar.gz)
+
+[configs Kaggle link](https://www.kaggle.com/datasets/markbai/iwisdm-benchmark-configs)
+
 ### Basic Usage
+#### See [Kaggle Notebook Usage Example](https://www.kaggle.com/code/markbai/iwisdm)
 
 ```python
 # imports
 from iwisdm import make
 from iwisdm import read_write
+'''
+if install manually,
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.getcwd(), "iWISDM")))
+'''
+import json
 
 # environment initialization
 with open('your/path/to/env_config', 'r') as f:
@@ -95,9 +107,8 @@ tasks = env.generate_tasks(10)  # generate 10 random task graphs and tasks
 _, (_, temporal_task) = tasks[0]
 trials = env.generate_trials(tasks=[temporal_task])  # generate a trial
 imgs, _, info_dict = trials[0]
-read_write.write_trial(imgs, info_dict, f'output/trial_{i}')
+read_write.write_trial(imgs, info_dict, f'output/trial')
 ```
-
 #### See [/tutorials](https://github.com/BashivanLab/iWISDM/tree/main/tutorials) for more examples.
 
 # Acknowledgements
