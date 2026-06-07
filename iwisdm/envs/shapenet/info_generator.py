@@ -448,7 +448,7 @@ class TaskInfoCompo(object):
                     task_instruction = str(self.tasks[task_idx])
 
                     # find epoch relative to ending task
-                    lastks = [m for m in re.finditer('last\d+', task_instruction)]
+                    lastks = [m for m in re.finditer(r'last\d+', task_instruction)]
                     # TODO: modify this for multiple stim per frame
                     for lastk in lastks:
                         k = int(re.search(r'\d+', lastk.group()).group())
