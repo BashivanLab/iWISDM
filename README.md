@@ -76,7 +76,7 @@ ShapeNet is a large-scale repository of shapes represented by 3D CAD models of o
 [configs Kaggle link](https://www.kaggle.com/datasets/markbai/iwisdm-benchmark-configs)
 
 ### Basic Usage
-#### See [Kaggle Notebook Usage Example](https://www.kaggle.com/code/markbai/iwisdm)
+#### See Kaggle Notebook Usage Example [https://www.kaggle.com/code/markbai/iwisdm](https://www.kaggle.com/code/markbai/iwisdm)
 
 ```python
 # imports
