@@ -1,6 +1,7 @@
 import json
 import os
 import shutil
+from functools import lru_cache
 from pathlib import Path
 from typing import Tuple, List, Union
 
@@ -12,11 +13,23 @@ from numpy.typing import NDArray
 from iwisdm.core import StimuliSet, StimData
 
 
-def read_img(fp: str, obj_size: Tuple[int, int], color_format='RGB'):
+@lru_cache(maxsize=20_000)
+def _read_img_cached(fp: str, obj_size: Tuple[int, int]) -> NDArray:
+    """Disk read + resize, cached on (path, size). random.choice(refs) in
+    get_object() already happened by the time we're called, so caching here
+    can't bias which object instance gets picked — it only skips the repeat
+    disk read when the SAME resolved file comes up again across trials.
+    Returned array is shared (not copied); safe because render_stim only
+    slice-assigns it into a canvas, never mutates it in place."""
     image = cv2.imread(fp)
+    if image is None:
+        raise FileNotFoundError(f"cv2.imread returned None for {fp}")
+    return cv2.resize(image, obj_size)
+
+
+def read_img(fp: str, obj_size: Tuple[int, int], color_format='RGB'):
     # image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB) if color_format == 'RGB' else image
-    object_arr = cv2.resize(image, obj_size)
-    return object_arr
+    return _read_img_cached(fp, obj_size)
 
 
 def add_cross(canvas: NDArray, cue_size: float = 0.05):
@@ -125,7 +138,7 @@ def write_task(task, save_dir_fp, task_id=None):
         save_fp = save_dir_fp
     info = task.to_json()
     with open(save_fp, 'w') as f:
-        json.dump(info, f, indent=4)
+        json.dump(info, f, indent=None)
     return
 
 
@@ -204,7 +217,7 @@ def write_trial(
         raise ValueError(f"save_type must be 'png' or 'pt', got {save_type!r}")
 
     with open(os.path.join(frames_fp, 'task_info.json'), 'w') as f:
-        json.dump(compo_info_dict, f, indent=4)
+        json.dump(compo_info_dict, f, indent=None)
     return
 
 
