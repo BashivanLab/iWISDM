@@ -13,7 +13,7 @@ from numpy.typing import NDArray
 from iwisdm.core import StimuliSet, StimData
 
 
-@lru_cache(maxsize=20_000)
+@lru_cache(maxsize=4096)
 def _read_img_cached(fp: str, obj_size: Tuple[int, int]) -> NDArray:
     """Disk read + resize, cached on (path, size). random.choice(refs) in
     get_object() already happened by the time we're called, so caching here
