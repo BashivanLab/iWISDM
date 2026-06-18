@@ -1,11 +1,12 @@
+import json
 import os
-from typing import Tuple, List, Union
 import shutil
 from pathlib import Path
+from typing import Tuple, List, Union
 
-import json
 import cv2
 import numpy as np
+import torch
 from numpy.typing import NDArray
 
 from iwisdm.core import StimuliSet, StimData
@@ -128,30 +129,81 @@ def write_task(task, save_dir_fp, task_id=None):
     return
 
 
-def write_trial(imgs, compo_info_dict, trial_fp: str) -> None:
+def _stack_uint8_hwc(imgs) -> np.ndarray:
     """
-    write the trial images, and save the task information in task_info.json
+    Coerce trial frames to a contiguous uint8 (T, H, W, C) array.
 
-    @param imgs: a list of numpy arrays, each array is an image
-    @param compo_info_dict: a dictionary containing task information
-    @param trial_fp: the directory to write the frames, usually folder name is trial_i
-    @return:
+    Accepts a list/tuple of per-frame numpy arrays or torch tensors, OR a single
+    stacked array/tensor of shape (T, H, W, C) or (T, C, H, W). Channel ORDER is
+    left untouched (iWISDM renders BGR — see render_stim / read_img); colour-order
+    handling is the caller's job, per save_type.
     """
+    if isinstance(imgs, torch.Tensor):
+        imgs = imgs.cpu().numpy()
 
+    if isinstance(imgs, np.ndarray) and imgs.ndim == 4:
+        frames = imgs
+    else:
+        frames = np.stack(
+            [f.cpu().numpy() if isinstance(f, torch.Tensor) else np.asarray(f)
+             for f in imgs],
+            axis=0,
+        )
+
+    # (T, C, H, W) -> (T, H, W, C)
+    if frames.shape[1] in (1, 3) and frames.shape[-1] not in (1, 3):
+        frames = np.transpose(frames, (0, 2, 3, 1))
+
+    if frames.dtype != np.uint8:
+        if np.issubdtype(frames.dtype, np.floating):
+            frames = frames * (255.0 if frames.size and frames.max() <= 1.0 else 1.0)
+        frames = np.clip(frames, 0, 255).astype(np.uint8)
+
+    return np.ascontiguousarray(frames)
+
+
+def write_trial(
+        imgs,
+        compo_info_dict,
+        trial_fp: str,
+        save_type: str = 'png',
+) -> None:
+    """
+    Write a trial's frames and its task_info.json.
+
+    @param imgs: per-frame images — a list/tuple of numpy arrays or torch tensors,
+                 or a single stacked array/tensor of shape (T,H,W,C) or (T,C,H,W).
+                 Expected in OpenCV BGR order, like the rest of this module.
+    @param compo_info_dict: task-information dict, written as task_info.json.
+    @param trial_fp: trial directory; frames go under <trial_fp>/frames.
+    @param save_type: 'png' -> one epoch{i}.png per frame (cv2, legacy default), or
+                      'pt'  -> all frames in one uint8 frames.pt (fast path).
+    """
     frames_fp = os.path.join(trial_fp, 'frames')
     if os.path.exists(frames_fp):
-        print(f'\n*** removing existing trial directory at {os.path.abspath(frames_fp)}')
         shutil.rmtree(frames_fp)
-
-    print(f'writing trial frames into {os.path.abspath(frames_fp)}')
     os.makedirs(frames_fp)
 
-    for i, img_arr in enumerate(imgs):
-        filename = os.path.join(frames_fp, f'epoch{i}.png')
-        cv2.imwrite(filename, img_arr)
+    frames = _stack_uint8_hwc(imgs)  # (T, H, W, C) uint8, BGR
 
-    filename = os.path.join(frames_fp, 'task_info.json')
-    with open(filename, 'w') as f:
+    if save_type == 'pt':
+        # The dataloader reads via Image.fromarray, which assumes RGB. The legacy
+        # cv2.imwrite path encoded BGR -> a true-colour RGB PNG, and PIL read it
+        # back as RGB, so the model has always seen true RGB. Reverse BGR->RGB here
+        # so frames.pt + Image.fromarray reproduces that byte-for-byte.
+        if frames.shape[-1] == 3:
+            frames = np.ascontiguousarray(frames[..., ::-1])
+        torch.save(torch.from_numpy(frames), os.path.join(frames_fp, 'frames.pt'))
+
+    elif save_type == 'png':
+        # cv2.imwrite expects BGR; pass frames through unreversed (behaviour unchanged).
+        for i in range(frames.shape[0]):
+            cv2.imwrite(os.path.join(frames_fp, f'epoch{i}.png'), frames[i])
+
+    else:
+        raise ValueError(f"save_type must be 'png' or 'pt', got {save_type!r}")
+
+    with open(os.path.join(frames_fp, 'task_info.json'), 'w') as f:
         json.dump(compo_info_dict, f, indent=4)
     return
 
