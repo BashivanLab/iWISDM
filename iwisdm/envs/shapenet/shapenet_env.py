@@ -19,6 +19,13 @@ GRAPH_TUPLE = Tuple[nx.DiGraph, int, int]
 TASK = Tuple[Union[Operator, Attribute], Task]
 
 
+def _load_task_json_cached(task_fp: str) -> str:
+    # cache the raw text; json.loads still runs per call so each trial gets a
+    # fresh dict (parsing is ~free vs disk read; safe even if downstream mutates)
+    with open(task_fp) as f:
+        return f.read()
+
+
 class ShapeNetEnv(Env):
     def __init__(self, stim_data: SNStimData, env_spec: SNEnvSpec):
         super().__init__()
@@ -126,8 +133,8 @@ class ShapeNetEnv(Env):
         @return: a TemporalTask instance
         """
         self.reset_env()
-        with open(task_fp, 'r') as f:
-            task_info = json.load(f)
+        raw = _load_task_json_cached(task_fp)
+        task_info = json.load(raw)
 
         # load the operator objects
         op = tg.load_operator_json(task_info['operator'])
