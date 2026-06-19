@@ -24,7 +24,8 @@ def _read_img_cached(fp: str, obj_size: Tuple[int, int]) -> NDArray:
     image = cv2.imread(fp)
     if image is None:
         raise FileNotFoundError(f"cv2.imread returned None for {fp}")
-    return cv2.resize(image, obj_size)
+    image = cv2.resize(image, obj_size)
+    return cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
 
 def read_img(fp: str, obj_size: Tuple[int, int], color_format='RGB'):
@@ -200,19 +201,14 @@ def write_trial(
     frames = _stack_uint8_hwc(imgs)  # (T, H, W, C) uint8, BGR
 
     if save_type == 'pt':
-        # The dataloader reads via Image.fromarray, which assumes RGB. The legacy
-        # cv2.imwrite path encoded BGR -> a true-colour RGB PNG, and PIL read it
-        # back as RGB, so the model has always seen true RGB. Reverse BGR->RGB here
-        # so frames.pt + Image.fromarray reproduces that byte-for-byte.
-        if frames.shape[-1] == 3:
-            frames = np.ascontiguousarray(frames[..., ::-1])
+        # Fast path: Array is already contiguous RGB. No copies, no slicing.
         torch.save(torch.from_numpy(frames), os.path.join(frames_fp, 'frames.pt'))
 
     elif save_type == 'png':
-        # cv2.imwrite expects BGR; pass frames through unreversed (behaviour unchanged).
+        # cv2.imwrite expects BGR; convert RGB back to BGR before writing
         for i in range(frames.shape[0]):
-            cv2.imwrite(os.path.join(frames_fp, f'epoch{i}.png'), frames[i])
-
+            bgr_frame = cv2.cvtColor(frames[i], cv2.COLOR_RGB2BGR)
+            cv2.imwrite(os.path.join(frames_fp, f'epoch{i}.png'), bgr_frame)
     else:
         raise ValueError(f"save_type must be 'png' or 'pt', got {save_type!r}")
 
