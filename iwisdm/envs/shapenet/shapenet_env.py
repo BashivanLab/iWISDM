@@ -134,7 +134,7 @@ class ShapeNetEnv(Env):
         """
         self.reset_env()
         raw = _load_task_json_cached(task_fp)
-        task_info = json.load(raw)
+        task_info = json.loads(raw)
 
         # load the operator objects
         op = tg.load_operator_json(task_info['operator'])
