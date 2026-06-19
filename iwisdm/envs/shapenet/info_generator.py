@@ -648,7 +648,7 @@ class TaskInfoCompo(object):
             imgs.append(epoch)
 
         if return_objset:
-            print('returning objset')
+            # print('returning objset')
             return imgs, per_task_info_dict, compo_info_dict, objset
         return imgs, per_task_info_dict, compo_info_dict
 
