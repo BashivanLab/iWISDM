@@ -205,40 +205,39 @@ def write_trial(
         torch.save(torch.from_numpy(frames), os.path.join(frames_fp, 'frames.pt'))
 
     elif save_type == 'png':
-        # cv2.imwrite expects BGR; convert RGB back to BGR before writing
+        # cv2.imwrite handles non-contiguous memory perfectly.
+        # We create a reversed color view (BGR) without allocating new RAM.
+        bgr_view = frames[..., ::-1]
         for i in range(frames.shape[0]):
-            bgr_frame = cv2.cvtColor(frames[i], cv2.COLOR_RGB2BGR)
-            cv2.imwrite(os.path.join(frames_fp, f'epoch{i}.png'), bgr_frame)
-    else:
-        raise ValueError(f"save_type must be 'png' or 'pt', got {save_type!r}")
+            cv2.imwrite(os.path.join(frames_fp, f'epoch{i}.png'), bgr_view[i]) else:
+            raise ValueError(f"save_type must be 'png' or 'pt', got {save_type!r}")
 
-    with open(os.path.join(frames_fp, 'task_info.json'), 'w') as f:
-        json.dump(compo_info_dict, f, indent=None)
-    return
+        with open(os.path.join(frames_fp, 'task_info.json'), 'w') as f:
+            json.dump(compo_info_dict, f, indent=None)
+        return
 
-
-def find_data_folder(data_folder: str = None):
-    """
-    In the project director data folder,
-    find a subdirectory with stimuli images and csv file containing stimuli information.
-    The subdirectory should have format:
-    project/
-        data/
-            dataset_name/
-                {train, val, test}/
-                    ...
-                meta.{csv, pkl}
-    @param data_folder: the path to the data folder
-    @return: the path to the data folder
-    """
-    if not data_folder:
-        data_folder = os.path.join(os.getcwd(), 'data')
-    if os.path.isdir(data_folder):
-        for sub_dir in os.listdir(data_folder):
-            dir_path = os.path.join(data_folder, sub_dir)
-            if os.path.isdir(dir_path):
-                if list(Path(dir_path).rglob('*.csv')) or list(Path(dir_path).rglob('*.pkl')):
-                    if (os.path.isdir(os.path.join(dir_path, 'train')) or os.path.isdir(
-                            os.path.join(dir_path, 'validation')) or os.path.isdir(os.path.join(dir_path, 'test'))):
-                        return dir_path
-    raise ValueError(f'No dataset found in data folder {data_folder}. Specify the dataset path.')
+    def find_data_folder(data_folder: str = None):
+        """
+        In the project director data folder,
+        find a subdirectory with stimuli images and csv file containing stimuli information.
+        The subdirectory should have format:
+        project/
+            data/
+                dataset_name/
+                    {train, val, test}/
+                        ...
+                    meta.{csv, pkl}
+        @param data_folder: the path to the data folder
+        @return: the path to the data folder
+        """
+        if not data_folder:
+            data_folder = os.path.join(os.getcwd(), 'data')
+        if os.path.isdir(data_folder):
+            for sub_dir in os.listdir(data_folder):
+                dir_path = os.path.join(data_folder, sub_dir)
+                if os.path.isdir(dir_path):
+                    if list(Path(dir_path).rglob('*.csv')) or list(Path(dir_path).rglob('*.pkl')):
+                        if (os.path.isdir(os.path.join(dir_path, 'train')) or os.path.isdir(
+                                os.path.join(dir_path, 'validation')) or os.path.isdir(os.path.join(dir_path, 'test'))):
+                            return dir_path
+        raise ValueError(f'No dataset found in data folder {data_folder}. Specify the dataset path.')
