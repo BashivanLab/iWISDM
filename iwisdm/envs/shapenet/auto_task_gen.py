@@ -6,21 +6,16 @@ also constructs tasks based on the generated graphs
 """
 
 import random
-from typing import Tuple, Union, List
+from typing import Tuple, List
 
 import numpy as np
 import networkx as nx
 
-from iwisdm.core import Operator, Attribute, Task
+from iwisdm.core import Operator, GRAPH_TUPLE, TASK
 from iwisdm.utils.auto_task_gen import TaskGenerator
 import iwisdm.envs.shapenet.task_generator as tg
 from iwisdm.envs.shapenet.registration import SNEnvSpec
 from iwisdm.utils.helper import compute_node_signatures, compute_get_signature
-
-# Tuples of the graph object, the root root_op number, and the number of operators,
-# needed to compose graphs in switch generation
-GRAPH_TUPLE = Tuple[nx.DiGraph, int, int]
-TASK = Tuple[Union[Operator, Attribute], Task]
 
 
 class SNTaskGenerator(TaskGenerator):

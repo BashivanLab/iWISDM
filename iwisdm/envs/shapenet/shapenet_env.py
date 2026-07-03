@@ -1,11 +1,10 @@
 import random
-from typing import Tuple, List, Dict, Iterable, Union
+from typing import Tuple, List, Dict, Iterable
 
-import networkx as nx
 import json
 import numpy as np
 
-from iwisdm.core import Env, Operator, Attribute, Task
+from iwisdm.core import Env, GRAPH_TUPLE, TASK
 import iwisdm.envs.shapenet.auto_task_gen as atg
 import iwisdm.envs.shapenet.stim_generator as sg
 import iwisdm.envs.shapenet.task_generator as tg
@@ -14,9 +13,6 @@ import iwisdm.envs.shapenet.info_generator as ig
 import iwisdm.envs.shapenet.registration as env_reg
 from iwisdm.envs.shapenet.registration import SNEnvSpec, SNStimData
 from iwisdm.envs.shapenet.task_bank import task_family_dict
-
-GRAPH_TUPLE = Tuple[nx.DiGraph, int, int]
-TASK = Tuple[Union[Operator, Attribute], Task]
 
 
 def _load_task_json_cached(task_fp: str) -> str:

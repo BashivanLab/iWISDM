@@ -7,15 +7,8 @@ also constructs tasks based on the generated graphs
 
 from collections import defaultdict
 
-import networkx as nx
-from iwisdm.core import Operator, Attribute, Task
+from iwisdm.core import GRAPH_TUPLE, TASK  # noqa: F401  re-exported for env implementations
 from iwisdm.envs.registration import EnvSpec
-from typing import Tuple, Union
-
-# Tuples of the graph object, the root root_op number, and the number of operators,
-# needed to compose graphs in switch generation
-GRAPH_TUPLE = Tuple[nx.DiGraph, int, int]
-TASK = Tuple[Union[Operator, Attribute], Task]
 
 
 class TaskGenerator:

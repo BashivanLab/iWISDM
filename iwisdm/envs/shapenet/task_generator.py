@@ -26,7 +26,8 @@ import random
 
 from iwisdm.core import (
     Task,
-    Operator
+    Operator,
+    GRAPH_TUPLE,
 )
 from iwisdm.envs.shapenet.registration import SNStimData, SNEnvSpec
 import iwisdm.envs.shapenet.stim_generator as sg
@@ -1197,19 +1198,14 @@ class TemporalTask(SNTask):
         # instance size determines the number of variations of the task
         raise NotImplementedError
 
-    @staticmethod
     def filter_selects(self, lastk=None) -> List[Select]:
-        # filter for select operators that corresponds directly to an object and match lastk
+        # filter for select operators that correspond directly to an object and match lastk
         selects = list()
 
         for node in self.topological_sort():
             if isinstance(node, Select) and node.check_attrs():
-                # print("what is node.when:", node.when)
                 if lastk and node.when == lastk:
                     selects.append(node)
-                else:
-                    continue  # XLEI: only keep select operators that matches certain timestamp[lastk]
-                    # selects.append(node)
         return selects
 
     def get_relevant_attribute(self, lastk: str):
@@ -1217,7 +1213,7 @@ class TemporalTask(SNTask):
         # for merging check purpose
         attrs = set()
 
-        for lastk_select in self.filter_selects(self, lastk):
+        for lastk_select in self.filter_selects(lastk):
             for parent_op in lastk_select.parent:
                 if isinstance(parent_op, Get):
                     attrs.add(parent_op.attr_type)
@@ -1245,8 +1241,8 @@ class TemporalTask(SNTask):
         assert all([o.when == objs[0].when for o in objs])
 
         # find selects that match the lastk
-        copy_filter_selects = copy.filter_selects(copy, lastk)
-        filter_selects = self.filter_selects(self, lastk)
+        copy_filter_selects = copy.filter_selects(lastk)
+        filter_selects = self.filter_selects(lastk)
 
         # save a dictionary with
         # keys: hashed unique selects
@@ -1319,8 +1315,8 @@ class TemporalTask(SNTask):
         return
 
 
+# specialization of iwisdm.core.TASK for this environment
 TASK = Tuple[Union[Operator, sg.SNAttribute], TemporalTask]
-GRAPH_TUPLE = Tuple[nx.DiGraph, int, int]
 
 
 def all_subclasses(cls):
