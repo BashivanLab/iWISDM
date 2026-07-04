@@ -94,31 +94,24 @@ class ShapeNetEnv(Env):
             num_merge: int = 1,
     ) -> ig.TaskInfoCompo:
         """
-        keep adding 1 random task to the compositional task
+        build a compositional task by merging num_merge randomly chosen tasks
+        into a randomly chosen base task, one at a time
         """
         if not tasks:
             tasks = self.cached_tasks
         if not compositional_infos:
             compositional_infos = self.init_compositional_tasks(tasks, task_objsets)
+        pool = list(compositional_infos)
+        with_replacement = num_merge + 1 > len(pool)
 
-        # make copies
-        tmp = random.choice(compositional_infos)  # start with a random task
-        compositional_task = self.init_compositional_tasks([tmp.tasks[0].copy()])[0]
-        if num_merge + 1 > len(compositional_infos):
-            # merge with replacement
-            for _ in range(num_merge):
-                compo_info = random.choice(compositional_infos)
-                tmp_info = self.init_compositional_tasks([compo_info.tasks[0].copy()])[0]
-                compositional_task.merge(tmp_info)
-        else:
-            # merge without replacement
-            for _ in range(num_merge):
-                compo_info = random.choice(compositional_infos)
-                compositional_infos.remove(compo_info)
-
-                tmp_info = self.init_compositional_tasks([compo_info.tasks[0].copy()])[0]
-                compositional_task.merge(tmp_info)
-        del tmp, tmp_info
+        base = random.choice(pool)
+        # re-instantiate the chosen tasks with fresh stimuli so repeated picks differ
+        compositional_task = self.init_compositional_tasks([base.tasks[0].copy()])[0]
+        for _ in range(num_merge):
+            picked = random.choice(pool)
+            if not with_replacement:
+                pool.remove(picked)
+            compositional_task.merge(self.init_compositional_tasks([picked.tasks[0].copy()])[0])
         return compositional_task
 
     def read_task(self, task_fp: str):

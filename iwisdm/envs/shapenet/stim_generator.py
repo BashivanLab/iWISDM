@@ -807,11 +807,15 @@ class ObjectSet(StimuliSet):
         :return: deep copy of the Objset
         """
         objset_copy = ObjectSet(self.n_epoch)
-        objset_copy.set = {obj.copy() for obj in self.set}
+        # copy each object exactly once so set and dict keep referencing
+        # the same instances, preserving both orderings
+        copies = {id(obj): obj.copy() for obj in self.set}
+        objset_copy.set = [copies[id(obj)] for obj in self.set]
         objset_copy.end_epoch = self.end_epoch.copy()
-        objset_copy.dict = {epoch: [obj.copy() for obj in objs]
-                            for epoch, objs in self.dict.items()}
-        objset_copy.last_added_obj = self.last_added_obj.copy() if self.last_added_obj is not None else None
+        for epoch, objs in self.dict.items():
+            objset_copy.dict[epoch] = [copies[id(obj)] for obj in objs]
+        if self.last_added_obj is not None:
+            objset_copy.last_added_obj = copies.get(id(self.last_added_obj), self.last_added_obj.copy())
         return objset_copy
 
 
