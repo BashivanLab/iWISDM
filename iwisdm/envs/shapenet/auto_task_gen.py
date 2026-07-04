@@ -101,9 +101,11 @@ class SNTaskGenerator(TaskGenerator):
         self.select_limit = self.config['select_limit']
         self.max_switch = self.config['max_switch']
         self.switch_threshold = self.config['switch_threshold']
-        self.compare_const_prob = self.config['compare_const_prob']
-        self.const_parent_ops = self.config['const_parent_ops']
-        self.indexable_get_ops = self.config['indexable_get_ops']
+        # constant-comparison settings are optional in custom configs;
+        # by default no Get child is swapped for a constant
+        self.compare_const_prob = self.config.get('compare_const_prob', 0.0)
+        self.const_parent_ops = self.config.get('const_parent_ops', [])
+        self.indexable_get_ops = self.config.get('indexable_get_ops', [])
 
     @staticmethod
     def count_depth_and_op(op: Operator) -> Tuple[int, int]:
