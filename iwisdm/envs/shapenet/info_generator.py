@@ -446,135 +446,13 @@ class TaskInfoCompo(object):
         self.merge(task_info)
         return
 
-    def get_obj_info_dict(self):
-        obj_info = defaultdict(list)  # key: epoch, value: list of dictionary of object info
-        count = 0
-        for epoch, objs in sorted(self.frame_info.objset.dict.items()):
-            num_objs = len(objs)
-            if num_objs > 0:
-                count += 1
-            for obj in objs:
-                # if not obj.deletable or num_objs == 1:
-                #     # remove this if instruction says observe distractor with add_attr
-                #     count += 1
-                info = dict()
-                info['count'] = count
-                info['obj'] = obj
-                info['tasks'] = set()  # tasks that involve the stim
-                info['attended_attr'] = defaultdict(set)  # key: task, value: attribute of the stim that are relevant
-                obj_info[epoch].append(info)
-        return obj_info
-
     def get_instruction_obj_info(self) -> Tuple[str, Dict[int, List]]:
-        """ recompiles task instructions based on the composition.
-        e.g. observe object1, delay, task1 instruction, delay, observe object2, task2 instruction.
-        adds delay instructions during empty frames
-        :return: changed task instruction and obj_info dictionary
-        """
-        obj_info = self.get_obj_info_dict()
-        cur = 0
-
-        # todo: uncomment below to allow instruction generation
-        compo_instruction = ''
-        if self.tempo_dict:
-            compo_instruction += 'compo task 1: '
-
-        # for each frame, find the tasks that use the stimuli. For each of these tasks,
-        # compare the object in task_objset with obj, and rename lastk with ith object
-        was_delay = False
-        for epoch, frame in enumerate(self.frame_info):
-            add_delay = True
-            if obj_info[epoch]:  # if the frame contains stim/objects
-                if len(obj_info[epoch]) == 1:
-                    info_dict = obj_info[epoch][0]
-                    compo_instruction += f'observe object {info_dict["count"]}, '
-                else:  # if there are multiple stimuli in the frame (i.e. distractor)
-                    distractor_attr = frame.distractor_attrs
-                    if not distractor_attr:
-                        task_str = ''
-                        obj_str = ''
-                        for i, task in enumerate(self.tasks):
-                            task_str += f'task {i}: {str(task)}, '
-                        for i, o in enumerate(obj_info[epoch]):
-                            o_str = o['obj']
-                            obj_str += f'obj {i}: {str(o_str)}, '
-                        raise RuntimeError(
-                            f'Found more than 1 object at epoch {epoch}, '
-                            f'but no distractor description was found. '
-                            f'This behaviour is unexpected.\n'
-                            f'Task string: {task_str}\n'
-                            f'Object string: {obj_str}\n'
-                        )
-
-                    for info_dict in obj_info[epoch]:
-                        if info_dict['obj'].deletable:
-                            # remove this if instruction says observe distractor with add_attr
-                            continue
-                        add_attr, loc_attr = '', ''
-                        for attr in distractor_attr:
-                            if attr == 'location':
-                                loc_attr += f' at {attr}: {getattr(info_dict["obj"], attr)}'
-                            else:
-                                add_attr += f' with {attr}: {getattr(info_dict["obj"], attr)}'
-                        compo_instruction += f'observe object {info_dict["count"]}{add_attr}{loc_attr}, '
-                add_delay, was_delay = False, False
-
-            for task_idx in sorted(frame.task_ends):  # align object count with lastk for each ending task
-                task_instruction = str(self.tasks[task_idx])
-
-                # find epoch relative to ending task
-                lastks = [m for m in re.finditer(r'last\d+', task_instruction)]
-                # TODO: modify this for multiple stim per frame
-                for lastk in lastks:
-                    k = int(re.search(r'\d+', lastk.group()).group())
-                    i = epoch - k
-                    # frame index relative to the ending task's own timeline
-                    relative_i = epoch - self.composed[task_idx].start_frame - k
-                    match = self.compare_objs(obj_info[i], self.task_objset[task_idx].dict[relative_i])
-                    if match:
-                        task_instruction = re.sub(
-                            f'last{k}.*?object',
-                            f'object {match["count"]}',
-                            task_instruction
-                        )
-                        match['tasks'].add(task_idx)
-                        match['attended_attr'][task_idx] = match['attended_attr'][task_idx].union(
-                            self.tasks[task_idx].get_relevant_attribute(f'last{k}'))
-                        cur += 1
-                    else:
-                        raise RuntimeError('No match')
-                compo_instruction += (task_instruction + ' ') \
-                    if epoch != len(self.frame_info) - 1 else task_instruction
-                add_delay, was_delay = False, False
-
-                if self.tempo_dict:
-                    # in temporal switch, if at the end of the original task,
-                    # then add the conditional texts in the instruction
-                    if epoch == len(self.tempo_dict['self']['answers']) - 1:
-                        compo_instruction += ' if end of compo task 1 is true, then do compo task 2: '
-                        compo_instruction += self.object_add(self.tempo_dict['task1']['instruction'], cur)
-                        compo_instruction += 'otherwise, do compo task 3: '
-                        compo_instruction += self.object_add(self.tempo_dict['task2']['instruction'], cur)
-                        return compo_instruction, obj_info
-            if add_delay and not was_delay:
-                compo_instruction += 'delay, '
-                was_delay = True
-        return compo_instruction, obj_info
+        """see InstructionCompiler.get_instruction_obj_info"""
+        return InstructionCompiler(self).get_instruction_obj_info()
 
     def get_target_value(self, examples: List[Dict]) -> List[str]:
-        """
-        get the correct response for each frame
-        :param examples: list of dictionary containing the information about individual tasks
-        :return: the response for each frame in list. if there is no response, then null is saved
-        """
-        answers = list()
-        for frame in self.frame_info:
-            if frame.task_ends:  # if the frame is the end of any individual task
-                for task_idx in sorted(frame.task_ends):
-                    answers.append(examples[task_idx]['answers'][0])  # add the task answer
-            else:
-                answers.append('null')
-        return answers
+        """see InstructionCompiler.get_target_value"""
+        return InstructionCompiler(self).get_target_value(examples)
 
     def get_task_info_dict(self, is_instruction=True, external_instruction=None) -> Tuple[List[Dict], Dict]:
         """
@@ -703,26 +581,11 @@ class TaskInfoCompo(object):
         if add_distractor_time > 0:
             self.add_distractor_time(add_distractor_time, stim_data)
 
-        objset = self.frame_info.objset
         per_task_info_dict, compo_info_dict = self.get_task_info_dict()
-
-        imgs = []
-        for i, (epoch, frame) in enumerate(zip(render_stimset(objset, canvas_size, stim_data), self.frame_info)):
-            if fixation_cue:
-                end_of_task = bool(frame.task_ends)
-                if cue_on_action:
-                    # add fixation cues to all frames except for task ending frames
-                    if end_of_task:
-                        epoch = add_cross(epoch)
-                else:
-                    # add fixation cues to all task ending frames
-                    if not end_of_task:
-                        epoch = add_cross(epoch)
-            imgs.append(epoch)
+        imgs = render_trial_frames(self.frame_info, canvas_size, fixation_cue, cue_on_action, stim_data)
 
         if return_objset:
-            # print('returning objset')
-            return imgs, per_task_info_dict, compo_info_dict, objset
+            return imgs, per_task_info_dict, compo_info_dict, self.frame_info.objset
         return imgs, per_task_info_dict, compo_info_dict
 
     def __len__(self):
@@ -732,6 +595,150 @@ class TaskInfoCompo(object):
     @property
     def n_epochs(self):
         return len(self.frame_info)
+
+
+class InstructionCompiler(object):
+    """
+    Recompiles natural-language instructions and per-frame targets for a
+    composed task.
+
+    Read-only with respect to the composition: it derives the instruction
+    text and answers from the composition's frames and per-task objsets,
+    but never mutates them.
+    """
+
+    def __init__(self, compo: TaskInfoCompo):
+        self.compo = compo
+
+    def get_obj_info_dict(self) -> Dict[int, List]:
+        obj_info = defaultdict(list)  # key: epoch, value: list of dictionary of object info
+        count = 0
+        for epoch, objs in sorted(self.compo.frame_info.objset.dict.items()):
+            num_objs = len(objs)
+            if num_objs > 0:
+                count += 1
+            for obj in objs:
+                # if not obj.deletable or num_objs == 1:
+                #     # remove this if instruction says observe distractor with add_attr
+                #     count += 1
+                info = dict()
+                info['count'] = count
+                info['obj'] = obj
+                info['tasks'] = set()  # tasks that involve the stim
+                info['attended_attr'] = defaultdict(set)  # key: task, value: attribute of the stim that are relevant
+                obj_info[epoch].append(info)
+        return obj_info
+
+    def get_instruction_obj_info(self) -> Tuple[str, Dict[int, List]]:
+        """ recompiles task instructions based on the composition.
+        e.g. observe object1, delay, task1 instruction, delay, observe object2, task2 instruction.
+        adds delay instructions during empty frames
+        :return: changed task instruction and obj_info dictionary
+        """
+        compo = self.compo
+        obj_info = self.get_obj_info_dict()
+        cur = 0
+
+        compo_instruction = ''
+        if compo.tempo_dict:
+            compo_instruction += 'compo task 1: '
+
+        # for each frame, find the tasks that use the stimuli. For each of these tasks,
+        # compare the object in task_objset with obj, and rename lastk with ith object
+        was_delay = False
+        for epoch, frame in enumerate(compo.frame_info):
+            add_delay = True
+            if obj_info[epoch]:  # if the frame contains stim/objects
+                if len(obj_info[epoch]) == 1:
+                    info_dict = obj_info[epoch][0]
+                    compo_instruction += f'observe object {info_dict["count"]}, '
+                else:  # if there are multiple stimuli in the frame (i.e. distractor)
+                    distractor_attr = frame.distractor_attrs
+                    if not distractor_attr:
+                        task_str = ''
+                        obj_str = ''
+                        for i, task in enumerate(compo.tasks):
+                            task_str += f'task {i}: {str(task)}, '
+                        for i, o in enumerate(obj_info[epoch]):
+                            o_str = o['obj']
+                            obj_str += f'obj {i}: {str(o_str)}, '
+                        raise RuntimeError(
+                            f'Found more than 1 object at epoch {epoch}, '
+                            f'but no distractor description was found. '
+                            f'This behaviour is unexpected.\n'
+                            f'Task string: {task_str}\n'
+                            f'Object string: {obj_str}\n'
+                        )
+
+                    for info_dict in obj_info[epoch]:
+                        if info_dict['obj'].deletable:
+                            # remove this if instruction says observe distractor with add_attr
+                            continue
+                        add_attr, loc_attr = '', ''
+                        for attr in distractor_attr:
+                            if attr == 'location':
+                                loc_attr += f' at {attr}: {getattr(info_dict["obj"], attr)}'
+                            else:
+                                add_attr += f' with {attr}: {getattr(info_dict["obj"], attr)}'
+                        compo_instruction += f'observe object {info_dict["count"]}{add_attr}{loc_attr}, '
+                add_delay, was_delay = False, False
+
+            for task_idx in sorted(frame.task_ends):  # align object count with lastk for each ending task
+                task_instruction = str(compo.tasks[task_idx])
+
+                # find epoch relative to ending task
+                lastks = [m for m in re.finditer(r'last\d+', task_instruction)]
+                # TODO: modify this for multiple stim per frame
+                for lastk in lastks:
+                    k = int(re.search(r'\d+', lastk.group()).group())
+                    i = epoch - k
+                    # frame index relative to the ending task's own timeline
+                    relative_i = epoch - compo.composed[task_idx].start_frame - k
+                    match = self.compare_objs(obj_info[i], compo.task_objset[task_idx].dict[relative_i])
+                    if match:
+                        task_instruction = re.sub(
+                            f'last{k}.*?object',
+                            f'object {match["count"]}',
+                            task_instruction
+                        )
+                        match['tasks'].add(task_idx)
+                        match['attended_attr'][task_idx] = match['attended_attr'][task_idx].union(
+                            compo.tasks[task_idx].get_relevant_attribute(f'last{k}'))
+                        cur += 1
+                    else:
+                        raise RuntimeError('No match')
+                compo_instruction += (task_instruction + ' ') \
+                    if epoch != len(compo.frame_info) - 1 else task_instruction
+                add_delay, was_delay = False, False
+
+                if compo.tempo_dict:
+                    # in temporal switch, if at the end of the original task,
+                    # then add the conditional texts in the instruction
+                    if epoch == len(compo.tempo_dict['self']['answers']) - 1:
+                        compo_instruction += ' if end of compo task 1 is true, then do compo task 2: '
+                        compo_instruction += self.object_add(compo.tempo_dict['task1']['instruction'], cur)
+                        compo_instruction += 'otherwise, do compo task 3: '
+                        compo_instruction += self.object_add(compo.tempo_dict['task2']['instruction'], cur)
+                        return compo_instruction, obj_info
+            if add_delay and not was_delay:
+                compo_instruction += 'delay, '
+                was_delay = True
+        return compo_instruction, obj_info
+
+    def get_target_value(self, examples: List[Dict]) -> List[str]:
+        """
+        get the correct response for each frame
+        :param examples: list of dictionary containing the information about individual tasks
+        :return: the response for each frame in list. if there is no response, then null is saved
+        """
+        answers = list()
+        for frame in self.compo.frame_info:
+            if frame.task_ends:  # if the frame is the end of any individual task
+                for task_idx in sorted(frame.task_ends):
+                    answers.append(examples[task_idx]['answers'][0])  # add the task answer
+            else:
+                answers.append('null')
+        return answers
 
     @staticmethod
     def compare_objs(info_dicts, l2):
@@ -749,7 +756,34 @@ class TaskInfoCompo(object):
         val = match.group()
         return re.sub(r'\d+', lambda m: str(int(m.group()) + x), val)
 
-    def object_add(self, t: str, x: int):
+    @classmethod
+    def object_add(cls, t: str, x: int) -> str:
         # finds all "object k" substrings, and substitute them with "object k+x"
-        # see info_generator_test.testObjectAddOne() for example
-        return re.sub(r'object \d+', partial(self._add, x=x), t)
+        return re.sub(r'object \d+', partial(cls._add, x=x), t)
+
+
+def render_trial_frames(
+        frame_info: FrameInfo,
+        canvas_size: int,
+        fixation_cue: bool,
+        cue_on_action: bool,
+        stim_data: SNStimData,
+) -> List:
+    """
+    render each frame of a composed timeline as an image
+    :param frame_info: the composed timeline
+    :param canvas_size: side length of the rendered frames
+    :param fixation_cue: whether to add fixation-cross cues
+    :param cue_on_action: if True, cue only the task response frames;
+        if False, cue every frame except the response frames
+    :param stim_data: the stimuli dataset used for rendering
+    :return: list of rendered frames
+    """
+    imgs = []
+    for epoch, frame in zip(render_stimset(frame_info.objset, canvas_size, stim_data), frame_info):
+        if fixation_cue:
+            end_of_task = bool(frame.task_ends)
+            if cue_on_action == end_of_task:
+                epoch = add_cross(epoch)
+        imgs.append(epoch)
+    return imgs
