@@ -1,0 +1,185 @@
+{
+    "n_frames": 8,
+    "first_shareable": 0,
+    "whens": {
+        "2": "last0",
+        "8": "last1",
+        "10": "last4",
+        "5": "last7"
+    },
+    "operator": {
+        "name": "Switch",
+        "child": [
+            {
+                "name": "NotSame",
+                "child": [
+                    {
+                        "name": "GetObject",
+                        "child": [
+                            {
+                                "name": "Select",
+                                "child": [
+                                    {
+                                        "name": "Location",
+                                        "value": null
+                                    },
+                                    {
+                                        "name": "SNCategory",
+                                        "value": null
+                                    },
+                                    {
+                                        "name": "SNObject",
+                                        "value": null,
+                                        "category": {
+                                            "name": "SNCategory",
+                                            "value": null
+                                        }
+                                    },
+                                    {
+                                        "name": "SNViewAngle",
+                                        "value": null,
+                                        "sn_object": {
+                                            "name": "SNObject",
+                                            "value": null,
+                                            "category": {
+                                                "name": "SNCategory",
+                                                "value": null
+                                            }
+                                        }
+                                    }
+                                ],
+                                "when": "last1"
+                            }
+                        ]
+                    },
+                    {
+                        "name": "GetObject",
+                        "child": [
+                            {
+                                "name": "Select",
+                                "child": [
+                                    {
+                                        "name": "Location",
+                                        "value": null
+                                    },
+                                    {
+                                        "name": "SNCategory",
+                                        "value": null
+                                    },
+                                    {
+                                        "name": "SNObject",
+                                        "value": null,
+                                        "category": {
+                                            "name": "SNCategory",
+                                            "value": null
+                                        }
+                                    },
+                                    {
+                                        "name": "SNViewAngle",
+                                        "value": null,
+                                        "sn_object": {
+                                            "name": "SNObject",
+                                            "value": null,
+                                            "category": {
+                                                "name": "SNCategory",
+                                                "value": null
+                                            }
+                                        }
+                                    }
+                                ],
+                                "when": "last4"
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                "name": "GetCategory",
+                "child": [
+                    {
+                        "name": "Select",
+                        "child": [
+                            {
+                                "name": "Location",
+                                "value": null
+                            },
+                            {
+                                "name": "SNCategory",
+                                "value": null
+                            },
+                            {
+                                "name": "SNObject",
+                                "value": null,
+                                "category": {
+                                    "name": "SNCategory",
+                                    "value": null
+                                }
+                            },
+                            {
+                                "name": "SNViewAngle",
+                                "value": null,
+                                "sn_object": {
+                                    "name": "SNObject",
+                                    "value": null,
+                                    "category": {
+                                        "name": "SNCategory",
+                                        "value": null
+                                    }
+                                }
+                            }
+                        ],
+                        "when": "last7"
+                    }
+                ]
+            },
+            {
+                "name": "NotSame",
+                "child": [
+                    {
+                        "name": "GetCategory",
+                        "child": [
+                            {
+                                "name": "Select",
+                                "child": [
+                                    {
+                                        "name": "Location",
+                                        "value": null
+                                    },
+                                    {
+                                        "name": "SNCategory",
+                                        "value": null
+                                    },
+                                    {
+                                        "name": "SNObject",
+                                        "value": null,
+                                        "category": {
+                                            "name": "SNCategory",
+                                            "value": null
+                                        }
+                                    },
+                                    {
+                                        "name": "SNViewAngle",
+                                        "value": null,
+                                        "sn_object": {
+                                            "name": "SNObject",
+                                            "value": null,
+                                            "category": {
+                                                "name": "SNCategory",
+                                                "value": null
+                                            }
+                                        }
+                                    }
+                                ],
+                                "when": "last0"
+                            }
+                        ]
+                    },
+                    {
+                        "name": "SNCategory",
+                        "value": 6
+                    }
+                ]
+            }
+        ]
+    }
+}

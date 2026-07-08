@@ -9,6 +9,7 @@ from numpy.typing import NDArray
 
 from iwisdm.core import Stimulus
 from iwisdm.envs.registration import Constant, EnvSpec, StimData
+from iwisdm.utils.helper import next_k
 from iwisdm.utils.read_write import read_img
 
 DEFAULT_OP_DICT = {
@@ -175,6 +176,21 @@ class SNEnvSpec(EnvSpec):
         self.cue_on_action = cue_on_action
         self.canvas_size = canvas_size
         self.dup_prob = dup_prob
+
+    def sample_when(self, n: int = 1) -> List[str]:
+        """
+        sample n distinct 'lastk' frame references for constructing a task
+
+        starts at last0 and walks backwards in time, inserting delay frames
+        with probability delay_prob (at most MAX_DELAY delays in total),
+        so that each sampled frame holds at most one stimulus
+        @param n: how many values to sample
+        @return: list of n 'lastk' strings, ordered newest (last0) first
+        """
+        whens = ['last0']
+        while len(whens) < n:
+            whens.append(f'last{next_k(whens, self.MAX_DELAY, self.delay_prob)}')
+        return whens
 
 
 class SNStimData(StimData):

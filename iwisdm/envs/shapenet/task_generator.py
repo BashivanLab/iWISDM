@@ -814,6 +814,12 @@ class Same(SNOperator):
             # check for how many downstream attributes exist
             # keep sampling until len(downstream attribute) >= 2
             if self.attr_type == 'view_angle':
+                if not any(len(view_angles) >= 2
+                           for objs in self.stim_data.ALLVIEWANGLES.values()
+                           for view_angles in objs.values()):
+                    raise ValueError(
+                        'cannot compare view angles: '
+                        'no object in the stimuli dataset has at least 2 view angles')
                 obj = sg.random_attr('object')
                 while len(self.stim_data.ALLVIEWANGLES[obj.category.value][obj.value]) < 2:
                     obj = sg.random_attr('object')
@@ -821,6 +827,10 @@ class Same(SNOperator):
                 attr1_assign = attr
                 attr2_assign = attr if same else sg.another_attr(attr)
             elif self.attr_type == 'object':
+                if not any(len(objs) >= 2 for objs in self.stim_data.ALLOBJECTS.values()):
+                    raise ValueError(
+                        'cannot compare objects: '
+                        'no category in the stimuli dataset has at least 2 objects')
                 cat = sg.random_attr('category')
                 while len(self.stim_data.ALLOBJECTS[cat.value]) < 2:
                     cat = sg.random_attr('category')
@@ -1063,7 +1073,6 @@ class SNTask(Task):
         """
         nodes = self.topological_sort()
         node_ids = [id(n) for n in nodes]
-        id_map = {n: n_id for n, n_id in zip(nodes, node_ids)}  # map back from id -> node
         should_be_dict = defaultdict(lambda: None)
         ignore_nodes = set()
 

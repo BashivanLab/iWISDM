@@ -347,6 +347,10 @@ class SNViewAngle(SNAttribute):
             return not self.__eq__(other)
         return True
 
+    def __hash__(self):
+        # defining __eq__ suppresses the inherited __hash__; keep it consistent
+        return hash((self.object, self.value))
+
     def copy(self):
         """
         :return: deep copy of the view angle

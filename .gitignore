@@ -3,7 +3,9 @@ data/
 scripts/outputs/single-task/*.json
 scripts/outputs/single-task/*.png
 graphs
-test
+# test sources are tracked; generated trial outputs are not
+test/output*
+test/*.png
 tutorials/outputs*
 */outputs/*
 
