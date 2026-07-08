@@ -170,8 +170,7 @@ class MyTestCase(unittest.TestCase):
                 "IsSame":
                     {
                         "n_downstream": 2,
-                        "downstream": ["GetCategory", "CONST"],
-
+                        "downstream": ["GetCategory"],
                         "same_children_op": True,
                         "min_depth": 3,
                         "min_op": 7
@@ -179,7 +178,7 @@ class MyTestCase(unittest.TestCase):
                 "NotSame":
                     {
                         "n_downstream": 2,
-                        "downstream": ["GetCategory", "CONST"],
+                        "downstream": ["GetCategory"],
                         "same_children_op": True,
                         "min_depth": 3,
                         "min_op": 7
@@ -218,7 +217,12 @@ class MyTestCase(unittest.TestCase):
             "max_depth": 3,
             "max_switch": 0,
             "switch_threshold": 0,
-            "select_limit": True
+            "select_limit": True,
+            # constants enter comparisons via the const-swap mechanism;
+            # a literal CONST in `downstream` can produce invalid IsSame(CONST, CONST)
+            "compare_const_prob": 0.5,
+            "const_parent_ops": ["IsSame", "NotSame"],
+            "indexable_get_ops": ["GetCategory"]
         }
         config_2 = {
             "op_dict": {
@@ -254,8 +258,7 @@ class MyTestCase(unittest.TestCase):
                 "IsSame":
                     {
                         "n_downstream": 2,
-                        "downstream": ["GetLoc", "CONST"],
-
+                        "downstream": ["GetLoc"],
                         "same_children_op": True,
                         "min_depth": 3,
                         "min_op": 7
@@ -263,7 +266,7 @@ class MyTestCase(unittest.TestCase):
                 "NotSame":
                     {
                         "n_downstream": 2,
-                        "downstream": ["GetLoc", "CONST"],
+                        "downstream": ["GetLoc"],
                         "same_children_op": True,
                         "min_depth": 3,
                         "min_op": 7
@@ -302,7 +305,10 @@ class MyTestCase(unittest.TestCase):
             "max_depth": 3,
             "max_switch": 0,
             "switch_threshold": 0,
-            "select_limit": True
+            "select_limit": True,
+            "compare_const_prob": 0.5,
+            "const_parent_ops": ["IsSame", "NotSame"],
+            "indexable_get_ops": ["GetLoc"]
         }
         env_1 = make(
             env_id='ShapeNet',
