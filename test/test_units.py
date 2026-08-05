@@ -387,6 +387,22 @@ class TestTaskGeneration(unittest.TestCase):
         self.assertEqual(structures(42), structures(42))
         self.assertNotEqual(structures(42), structures(7))
 
+    def test_global_seed_still_controls_generation(self):
+        # regression: injecting an rng must not detach generation from random.seed(),
+        # which the rest of the library (stimulus sampling) is still driven by
+        def structures(seed):
+            random.seed(seed)
+            gen = atg.SNTaskGenerator(SNEnvSpec(auto_gen_config=DEFAULT_CONFIG))
+            out = []
+            for _ in range(20):
+                G, _, _ = gen.subtask_graph_generator(max_op=20, max_depth=10)
+                out.append(sorted((u, v, G.nodes[u]['label'], G.nodes[v]['label'])
+                                  for u, v in G.edges))
+            return out
+
+        self.assertEqual(structures(42), structures(42))
+        self.assertNotEqual(structures(42), structures(7))
+
     def test_graph_structure_sanity(self):
         gen = self._default_gen()
         valid_labels = set(DEFAULT_CONFIG['op_dict'].keys()) | {'CONST'}

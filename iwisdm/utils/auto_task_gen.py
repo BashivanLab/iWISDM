@@ -25,10 +25,11 @@ class TaskGenerator:
         """
         @param env_spec: environment specification with an auto_gen_config
         @param rng: source of randomness for graph-structure sampling;
-        a fresh unseeded generator is used if None
+        defaults to the random module itself, so that random.seed() keeps
+        controlling generation as it does for the rest of the library
         """
         self.env_spec = env_spec
-        self.rng = rng if rng is not None else random.Random()
+        self.rng = rng if rng is not None else random
         # dictionary specifying which operators can follow an operator,
         # e.g. In ShapeNet, GetCategory follows selecting an object
         # 4 operators are related to Select: category, location, view_angle, and the exact object

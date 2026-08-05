@@ -93,7 +93,8 @@ class SNTaskGenerator(TaskGenerator):
         @param env_spec: the task generation configuration,
         see iwisdm/envs/shapenet/registration.py for default env_spec
         @param rng: source of randomness for graph-structure sampling;
-        a fresh unseeded generator is used if None
+        defaults to the random module itself, so that random.seed() keeps
+        controlling generation as it does for the rest of the library
         """
         super().__init__(env_spec, rng)
         self.max_op = self.config['max_op']

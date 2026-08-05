@@ -65,7 +65,7 @@ class MyTestCase(unittest.TestCase):
         self.low_env = low_env
 
     @staticmethod
-    def test_instruction(info_dict, num_epochs):
+    def check_instruction(info_dict, num_epochs):
         instruction = info_dict['instruction']
         instruction_obj_count = Counter([m.group() for m in re.finditer('object \d+', instruction)])
         objs = info_dict['objects']
@@ -695,7 +695,7 @@ class MyTestCase(unittest.TestCase):
             self.assertEqual(len(imgs), info_dict['epochs'])
             # each of the 11 tasks answers exactly once, everything else is null
             self.assertEqual(sum(a != 'null' for a in info_dict['answers']), 11)
-            self.assertTrue(self.test_instruction(info_dict, len(imgs)))
+            self.assertTrue(self.check_instruction(info_dict, len(imgs)))
             read_write.write_trial(imgs, info_dict, out(f'trial_{i}'))
 
     def test_distractors(self):
@@ -719,7 +719,7 @@ class MyTestCase(unittest.TestCase):
                 )
                 imgs, _, info_dict = trials[0]
                 read_write.write_trial(imgs, info_dict, f'{task_dir}/trial_time_distractor{i}')
-                self.assertTrue(self.test_instruction(info_dict, len(imgs)))
+                self.assertTrue(self.check_instruction(info_dict, len(imgs)))
 
                 trials = self.high_env.generate_trials(
                     tasks=[temporal_task],
@@ -727,7 +727,7 @@ class MyTestCase(unittest.TestCase):
                 )
                 imgs, _, info_dict = trials[0]
                 read_write.write_trial(imgs, info_dict, f'{task_dir}/trial_frame_distractor{i}')
-                self.assertTrue(self.test_instruction(info_dict, len(imgs)))
+                self.assertTrue(self.check_instruction(info_dict, len(imgs)))
 
                 trials = self.high_env.generate_trials(
                     tasks=[temporal_task],
@@ -736,7 +736,7 @@ class MyTestCase(unittest.TestCase):
                 )
                 imgs, _, info_dict = trials[0]
                 read_write.write_trial(imgs, info_dict, f'{task_dir}/trial_frame_time_distractor{i}')
-                self.assertTrue(self.test_instruction(info_dict, len(imgs)))
+                self.assertTrue(self.check_instruction(info_dict, len(imgs)))
 
     def test_merge_distractors(self):
         tasks = self.low_env.generate_tasks(100)
@@ -752,7 +752,7 @@ class MyTestCase(unittest.TestCase):
             )
             imgs, _, info_dict = trials[0]
             read_write.write_trial(imgs, info_dict, out(f'trial_{i}'))
-            self.assertTrue(self.test_instruction(info_dict, len(imgs)))
+            self.assertTrue(self.check_instruction(info_dict, len(imgs)))
 
         env_spec = self.low_env.env_spec
         env_spec.cue_on_action = True
@@ -770,7 +770,7 @@ class MyTestCase(unittest.TestCase):
             )
             imgs, _, info_dict = trials[0]
             read_write.write_trial(imgs, info_dict, out(f'trial_{i}_reverse'))
-            self.assertTrue(self.test_instruction(info_dict, len(imgs)))
+            self.assertTrue(self.check_instruction(info_dict, len(imgs)))
 
     def test_make_task(self):
         class ctxDM_CIL(TemporalTask):
