@@ -818,8 +818,11 @@ class ObjectSet(StimuliSet):
         objset_copy.end_epoch = self.end_epoch.copy()
         for epoch, objs in self.dict.items():
             objset_copy.dict[epoch] = [copies[id(obj)] for obj in objs]
-        if self.last_added_obj is not None:
-            objset_copy.last_added_obj = copies.get(id(self.last_added_obj), self.last_added_obj.copy())
+        last = self.last_added_obj
+        if last is not None:
+            # Object.__init__ samples a space, so an unconditional .copy() here
+            # would draw from the rng even when the object was already copied
+            objset_copy.last_added_obj = copies[id(last)] if id(last) in copies else last.copy()
         return objset_copy
 
 
