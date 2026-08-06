@@ -12,6 +12,21 @@ from iwisdm.core import GRAPH_TUPLE, TASK  # noqa: F401  re-exported for env imp
 from iwisdm.envs.registration import EnvSpec
 
 
+class _GlobalRandomProxy:
+    """Picklable stand-in for the `random` module itself: forwards every
+    attribute access to `random`, whose module-level functions are controlled
+    by random.seed(). Unlike the module object, an instance of this class can
+    be pickled (e.g. when the task generator ends up as multiprocessing.Pool
+    task-dispatch state), because it carries no unpicklable state of its own.
+    """
+
+    def __getattr__(self, name):
+        return getattr(random, name)
+
+
+_GLOBAL_RANDOM = _GlobalRandomProxy()
+
+
 class TaskGenerator:
     """
     base class for generating random task graphs and tasks
@@ -25,11 +40,13 @@ class TaskGenerator:
         """
         @param env_spec: environment specification with an auto_gen_config
         @param rng: source of randomness for graph-structure sampling;
-        defaults to the random module itself, so that random.seed() keeps
-        controlling generation as it does for the rest of the library
+        defaults to a picklable proxy for the random module, so that
+        random.seed() keeps controlling generation as it does for the rest
+        of the library, while self.rng itself stays safe to pickle (e.g.
+        when this generator is dispatched through multiprocessing.Pool)
         """
         self.env_spec = env_spec
-        self.rng = rng if rng is not None else random
+        self.rng = rng if rng is not None else _GLOBAL_RANDOM
         # dictionary specifying which operators can follow an operator,
         # e.g. In ShapeNet, GetCategory follows selecting an object
         # 4 operators are related to Select: category, location, view_angle, and the exact object
