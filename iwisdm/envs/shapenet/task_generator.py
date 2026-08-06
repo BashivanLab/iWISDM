@@ -26,7 +26,8 @@ import random
 
 from iwisdm.core import (
     Task,
-    Operator
+    Operator,
+    GRAPH_TUPLE,
 )
 from iwisdm.envs.shapenet.registration import SNStimData, SNEnvSpec
 import iwisdm.envs.shapenet.stim_generator as sg
@@ -813,6 +814,12 @@ class Same(SNOperator):
             # check for how many downstream attributes exist
             # keep sampling until len(downstream attribute) >= 2
             if self.attr_type == 'view_angle':
+                if not any(len(view_angles) >= 2
+                           for objs in self.stim_data.ALLVIEWANGLES.values()
+                           for view_angles in objs.values()):
+                    raise ValueError(
+                        'cannot compare view angles: '
+                        'no object in the stimuli dataset has at least 2 view angles')
                 obj = sg.random_attr('object')
                 while len(self.stim_data.ALLVIEWANGLES[obj.category.value][obj.value]) < 2:
                     obj = sg.random_attr('object')
@@ -820,6 +827,10 @@ class Same(SNOperator):
                 attr1_assign = attr
                 attr2_assign = attr if same else sg.another_attr(attr)
             elif self.attr_type == 'object':
+                if not any(len(objs) >= 2 for objs in self.stim_data.ALLOBJECTS.values()):
+                    raise ValueError(
+                        'cannot compare objects: '
+                        'no category in the stimuli dataset has at least 2 objects')
                 cat = sg.random_attr('category')
                 while len(self.stim_data.ALLOBJECTS[cat.value]) < 2:
                     cat = sg.random_attr('category')
@@ -1062,7 +1073,6 @@ class SNTask(Task):
         """
         nodes = self.topological_sort()
         node_ids = [id(n) for n in nodes]
-        id_map = {n: n_id for n, n_id in zip(nodes, node_ids)}  # map back from id -> node
         should_be_dict = defaultdict(lambda: None)
         ignore_nodes = set()
 
@@ -1197,19 +1207,14 @@ class TemporalTask(SNTask):
         # instance size determines the number of variations of the task
         raise NotImplementedError
 
-    @staticmethod
     def filter_selects(self, lastk=None) -> List[Select]:
-        # filter for select operators that corresponds directly to an object and match lastk
+        # filter for select operators that correspond directly to an object and match lastk
         selects = list()
 
         for node in self.topological_sort():
             if isinstance(node, Select) and node.check_attrs():
-                # print("what is node.when:", node.when)
                 if lastk and node.when == lastk:
                     selects.append(node)
-                else:
-                    continue  # XLEI: only keep select operators that matches certain timestamp[lastk]
-                    # selects.append(node)
         return selects
 
     def get_relevant_attribute(self, lastk: str):
@@ -1217,7 +1222,7 @@ class TemporalTask(SNTask):
         # for merging check purpose
         attrs = set()
 
-        for lastk_select in self.filter_selects(self, lastk):
+        for lastk_select in self.filter_selects(lastk):
             for parent_op in lastk_select.parent:
                 if isinstance(parent_op, Get):
                     attrs.add(parent_op.attr_type)
@@ -1245,8 +1250,8 @@ class TemporalTask(SNTask):
         assert all([o.when == objs[0].when for o in objs])
 
         # find selects that match the lastk
-        copy_filter_selects = copy.filter_selects(copy, lastk)
-        filter_selects = self.filter_selects(self, lastk)
+        copy_filter_selects = copy.filter_selects(lastk)
+        filter_selects = self.filter_selects(lastk)
 
         # save a dictionary with
         # keys: hashed unique selects
@@ -1319,8 +1324,8 @@ class TemporalTask(SNTask):
         return
 
 
+# specialization of iwisdm.core.TASK for this environment
 TASK = Tuple[Union[Operator, sg.SNAttribute], TemporalTask]
-GRAPH_TUPLE = Tuple[nx.DiGraph, int, int]
 
 
 def all_subclasses(cls):

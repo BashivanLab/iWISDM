@@ -347,6 +347,10 @@ class SNViewAngle(SNAttribute):
             return not self.__eq__(other)
         return True
 
+    def __hash__(self):
+        # defining __eq__ suppresses the inherited __hash__; keep it consistent
+        return hash((self.object, self.value))
+
     def copy(self):
         """
         :return: deep copy of the view angle
@@ -807,11 +811,18 @@ class ObjectSet(StimuliSet):
         :return: deep copy of the Objset
         """
         objset_copy = ObjectSet(self.n_epoch)
-        objset_copy.set = {obj.copy() for obj in self.set}
+        # copy each object exactly once so set and dict keep referencing
+        # the same instances, preserving both orderings
+        copies = {id(obj): obj.copy() for obj in self.set}
+        objset_copy.set = [copies[id(obj)] for obj in self.set]
         objset_copy.end_epoch = self.end_epoch.copy()
-        objset_copy.dict = {epoch: [obj.copy() for obj in objs]
-                            for epoch, objs in self.dict.items()}
-        objset_copy.last_added_obj = self.last_added_obj.copy() if self.last_added_obj is not None else None
+        for epoch, objs in self.dict.items():
+            objset_copy.dict[epoch] = [copies[id(obj)] for obj in objs]
+        last = self.last_added_obj
+        if last is not None:
+            # Object.__init__ samples a space, so an unconditional .copy() here
+            # would draw from the rng even when the object was already copied
+            objset_copy.last_added_obj = copies[id(last)] if id(last) in copies else last.copy()
         return objset_copy
 
 

@@ -118,7 +118,8 @@ class SequentialCategoryMatch(TemporalTask):
         when1, when2 = self.whens[0], self.whens[1]
         max_k = compare_when([when1, when2])
         if n_compare * 2 + 1 > max_k:
-            n_compare = max_k // 2
+            # at least one comparison, even when the whens are adjacent
+            n_compare = max(max_k // 2, 1)
         total_frames = n_compare * 2 + random.randint(0, max_k - (n_compare * 2) + 1)
 
         sample_objs = [tg.Select(when=f'last{total_frames - i - 1}') for i in range(n_compare)]
