@@ -329,7 +329,6 @@ class Operator(object):
         return (self.__class__.__name__, child_sigs)
 
     def __hash__(self):
-        assert all((isinstance(c, Attribute) or isinstance(c, Operator)) for c in self._all_nodes)
         return hash(self._canonical_signature())
 
     def __eq__(self, other):
