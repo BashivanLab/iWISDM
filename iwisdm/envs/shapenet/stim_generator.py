@@ -16,6 +16,7 @@ the stimuli in each trial.
 Rendering function generates movies based on the instantiated stimuli
 """
 from bisect import bisect_left
+from functools import lru_cache
 import random
 from typing import List, Dict, Callable
 
@@ -890,10 +891,12 @@ def another_attr(attr: SNAttribute, keep_superset=False) -> Attribute:
         return attr.resample(attr=attr, keep_superset=keep_superset)
 
 
+@lru_cache(maxsize=1)
 def get_attr_dict() -> Dict[str, Callable]:
     """
     retrieve attribute class names and their classes
     @return: dictionary of format {str: SNAttribute class}
     """
-    # function to retrieve class names and their classes
+    # cached: the class hierarchy is fixed at import time, but this was being
+    # rebuilt via a recursive __subclasses__() walk on every read_task() call
     return {cls.__name__: cls for cls in env_reg.all_subclasses(SNAttribute)}

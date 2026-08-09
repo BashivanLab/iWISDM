@@ -17,7 +17,7 @@ Rendering function generates movies based on the instantiated stimuli
 """
 import itertools
 from collections import defaultdict, OrderedDict
-from functools import partial
+from functools import lru_cache, partial
 from typing import Tuple, Union, Dict, Callable, List, Set
 
 import networkx as nx
@@ -1338,12 +1338,14 @@ def all_subclasses(cls):
         [s for c in cls.__subclasses__() for s in all_subclasses(c)])
 
 
+@lru_cache(maxsize=1)
 def get_operator_dict() -> Dict[str, Callable]:
     """
     retrieve operator class names and their classes
     @return: dictionary of format {str: SNOperator class}
     """
-    # function to retrieve class names and their classes
+    # cached: the class hierarchy is fixed at import time, but this was being
+    # rebuilt via a recursive __subclasses__() walk on every read_task() call
     return {cls.__name__: cls for cls in all_subclasses(SNOperator)}
 
 
