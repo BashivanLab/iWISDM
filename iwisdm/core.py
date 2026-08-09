@@ -217,6 +217,7 @@ class Operator(object):
         # Whether this operator is the final operator
         self.child = list()
         self.parent = list()
+        self._sig_cache = None
 
     def __str__(self):
         pass
@@ -228,6 +229,18 @@ class Operator(object):
     def copy(self):
         raise NotImplementedError
 
+    def _invalidate_signature_cache(self):
+        """Clear this node's cached _canonical_signature and propagate to every
+        ancestor, since an ancestor's cached signature recursively embeds this
+        node's. Stops as soon as a cache is already None -- either it was never
+        computed, or a previous invalidation already cleared this branch, so
+        every node above it is already clear too."""
+        if self._sig_cache is None:
+            return
+        self._sig_cache = None
+        for p in self.parent:
+            p._invalidate_signature_cache()
+
     def set_child(self, child):
         """Set operators as children."""
         try:
@@ -236,6 +249,8 @@ class Operator(object):
         except AttributeError:
             for c in child:
                 self.set_child(c)
+        else:
+            self._invalidate_signature_cache()
 
     def replace_child(self, old_child, new_child):
         """Replace a child operator with a new one."""
@@ -248,6 +263,8 @@ class Operator(object):
         except AttributeError:
             for c in new_child:
                 self.replace_child(old_child, c)
+        else:
+            self._invalidate_signature_cache()
         return
 
     def get_expected_input(self, *args, **kwargs):
@@ -322,11 +339,23 @@ class Operator(object):
         return self._get_all_nodes(self, visited_ids)
 
     def _canonical_signature(self):
-        """Return a canonical, order-independent signature of this operator graph."""
+        """Return a canonical, order-independent signature of this operator graph.
+
+        Cached: this is called from every __hash__/__eq__, and recomputing it
+        means re-walking the whole subtree every time even though the graph is
+        unchanged between mutations. set_child/replace_child (the only two
+        places self.child is mutated) invalidate this cache -- on self and on
+        every ancestor, since an ancestor's signature recursively embeds this
+        node's -- so a stale value is never read.
+        """
+        if self._sig_cache is not None:
+            return self._sig_cache
         # For Operators: class name + sorted signatures of children
         # child_sigs = tuple(sorted(c._canonical_signature() for c in self.child))
         child_sigs = tuple(c._canonical_signature() for c in self.child)
-        return (self.__class__.__name__, child_sigs)
+        sig = (self.__class__.__name__, child_sigs)
+        self._sig_cache = sig
+        return sig
 
     def __hash__(self):
         return hash(self._canonical_signature())
