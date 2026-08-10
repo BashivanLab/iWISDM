@@ -599,14 +599,24 @@ class Object(SNStimulus):
     def copy(self):
         """
         :return: deep copy of the object
+
+        Builds fields directly instead of round-tripping through
+        Object(attrs=[...]): that constructor always draws
+        random_attr('space') and builds throwaway Location/SNCategory/
+        SNObject/SNViewAngle defaults before the attrs loop overwrites
+        them, which showed up as the dominant cost of TaskInfoCompo.copy()
+        under profiling. The random_attr('space') draw is kept (and its
+        result discarded) so the RNG draw sequence -- and thus seeded
+        determinism -- is unchanged; only the dead construction is cut.
         """
-        new_obj = Object(attrs=[
-            Location(space=Space(self.location.space.value), value=self.location.value),
-            Space(self.location.space.value),
-            SNCategory(self.category.value),
-            SNObject(self.category, self.object.value),
-            SNViewAngle(self.object, self.view_angle.value)
-        ])
+        random_attr('space')
+        new_obj = Object.__new__(Object)
+        new_obj.space = Space(self.location.space.value)
+        new_obj.location = Location(space=Space(self.location.space.value), value=self.location.value)
+        new_obj.category = SNCategory(self.category.value)
+        new_obj.object = SNObject(self.category, self.object.value)
+        new_obj.view_angle = SNViewAngle(self.object, self.view_angle.value)
+        new_obj.changeable = {attr: False for attr in ['category', 'object', 'view_angle', 'location']}
         new_obj.when = self.when
         new_obj.epoch = self.epoch
         new_obj.deletable = self.deletable
