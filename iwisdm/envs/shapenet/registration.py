@@ -161,6 +161,7 @@ class SNEnvSpec(EnvSpec):
             add_fixation_cue: bool = False,
             cue_on_action: bool = False,
             canvas_size: int = 224,
+            same_cat_foil_p: float = 0.0,
             **kwargs
     ):
         if auto_gen_config is None:
@@ -176,6 +177,9 @@ class SNEnvSpec(EnvSpec):
         self.cue_on_action = cue_on_action
         self.canvas_size = canvas_size
         self.dup_prob = dup_prob
+        # probability that a 'different' identity (object) comparison draws its
+        # foil from the reference's own category, see Same._another_attr
+        self.same_cat_foil_p = same_cat_foil_p
 
     def sample_when(self, n: int = 1) -> List[str]:
         """

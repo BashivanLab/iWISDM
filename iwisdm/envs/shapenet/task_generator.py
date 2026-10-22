@@ -751,6 +751,19 @@ class Same(SNOperator):
     def copy(self):
         raise NotImplementedError()
 
+    def _another_attr(self, attr):
+        """
+        the 'different' value for one side of the comparison
+        identity (object) foils come from attr's own category with probability
+        env_spec.same_cat_foil_p (if that category has another object), otherwise
+        from sg.another_attr, which keeps the category only 1 / n_categories of the time
+        p == 0 makes no extra random draw, so generation is unchanged
+        """
+        p = self.env_spec.same_cat_foil_p if self.attr_type == 'object' else 0.0
+        if p > 0 and random.random() < p and len(self.stim_data.ALLOBJECTS[attr.category.value]) > 1:
+            return sg.another_attr(attr, keep_superset=True)
+        return sg.another_attr(attr)
+
     def get_expected_input(self, should_be, objset, epoch_now):
         if should_be is None:
             should_be = random.random() > 0.5
@@ -805,10 +818,10 @@ class Same(SNOperator):
                 attr1_assign, attr2_assign = obj1.category, obj2.category
         elif (attr1_fixed or obj1 is not None) and not attr2_fixed:
             attr1_assign = attr1_value if obj1 is None else getattr(obj1, self.attr_type)
-            attr2_assign = attr1_value if same else sg.another_attr(attr1_value)
+            attr2_assign = attr1_value if same else self._another_attr(attr1_value)
         elif not attr1_fixed and (attr2_fixed or obj2 is not None):
             attr2_assign = attr2_value if obj2 is None else getattr(obj2, self.attr_type)
-            attr1_assign = attr2_value if same else sg.another_attr(attr2_value)
+            attr1_assign = attr2_value if same else self._another_attr(attr2_value)
         else:
             # if the two selects have no fixed values,
             # check for how many downstream attributes exist
@@ -836,7 +849,7 @@ class Same(SNOperator):
                     cat = sg.random_attr('category')
                 attr = sg.random_attr('object')
                 attr1_assign = attr
-                attr2_assign = attr if same else sg.another_attr(attr)
+                attr2_assign = attr if same else self._another_attr(attr)
             elif self.attr_type == 'location':
                 attr = sg.random_attr('location')
                 attr1_assign = attr
